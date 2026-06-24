@@ -2014,6 +2014,7 @@ components:
         amount: { type: number }
         status: { type: string }
         paymentMethod: { type: ["string", "null"] }
+        network: { type: ["string", "null"] }
         walletAddress: { type: ["string", "null"] }
         description: { type: ["string", "null"] }
         createdAt: { type: string }

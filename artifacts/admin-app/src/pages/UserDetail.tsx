@@ -334,7 +334,17 @@ export default function UserDetail() {
                           {user.transactions.map(txn => (
                             <TableRow key={txn.id}>
                               <TableCell className="text-xs whitespace-nowrap">{format(new Date(txn.createdAt), "PP p")}</TableCell>
-                              <TableCell className="capitalize">{txn.type.replace('_', ' ')}</TableCell>
+                              <TableCell className="capitalize">
+                                <div>{txn.type.replace('_', ' ')}</div>
+                                {txn.type === 'withdrawal' && txn.walletAddress && (
+                                  <div className="mt-0.5 space-y-0.5">
+                                    {txn.network && (
+                                      <div className="text-[10px] text-primary/80 font-medium">Network: {txn.network}</div>
+                                    )}
+                                    <div className="text-[10px] text-muted-foreground font-mono break-all leading-tight max-w-[140px]">{txn.walletAddress}</div>
+                                  </div>
+                                )}
+                              </TableCell>
                               <TableCell>
                                 <Badge variant={txn.status === 'completed' ? 'default' : txn.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">
                                   {txn.status}

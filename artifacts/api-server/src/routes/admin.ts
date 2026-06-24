@@ -516,6 +516,8 @@ router.post("/admin/bots/:id/assign", async (req, res) => {
 
 // ---------------- Transactions ----------------
 function mapTxnRow(t: typeof transactionsTable.$inferSelect, u: typeof usersTable.$inferSelect | null) {
+  // Derive network from payment method name, e.g. "USDT (TRC20)" → "TRC20"
+  const network = t.paymentMethod?.match(/\(([^)]+)\)/)?.[1] ?? null;
   return {
     id: t.id,
     userId: t.userId,
@@ -525,6 +527,7 @@ function mapTxnRow(t: typeof transactionsTable.$inferSelect, u: typeof usersTabl
     amount: parseFloat(t.amount),
     status: t.status,
     paymentMethod: t.paymentMethod,
+    network,
     walletAddress: t.walletAddress,
     description: t.description,
     createdAt: t.createdAt.toISOString(),

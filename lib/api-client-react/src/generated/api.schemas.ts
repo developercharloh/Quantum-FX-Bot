@@ -352,6 +352,8 @@ export interface AdminTransaction {
   /** @nullable */
   paymentMethod?: string | null;
   /** @nullable */
+  network?: string | null;
+  /** @nullable */
   walletAddress?: string | null;
   /** @nullable */
   description?: string | null;

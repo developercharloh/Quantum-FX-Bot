@@ -112,6 +112,18 @@ export default function Finance() {
                     {txn.paymentMethod && (
                       <p className="text-[11px] text-muted-foreground mt-0.5">{txn.paymentMethod}</p>
                     )}
+                    {txn.type === 'withdrawal' && txn.walletAddress && (
+                      <div className="mt-1 space-y-0.5">
+                        {txn.network && (
+                          <p className="text-[10px] font-medium text-primary/80">
+                            Network: <span className="font-semibold">{txn.network}</span>
+                          </p>
+                        )}
+                        <p className="text-[10px] text-muted-foreground font-mono break-all leading-tight">
+                          {txn.walletAddress}
+                        </p>
+                      </div>
+                    )}
                     <p className="text-[10px] text-muted-foreground/60 mt-0.5">{format(new Date(txn.createdAt), "PP · p")}</p>
                   </div>
                   <div className="text-right shrink-0">

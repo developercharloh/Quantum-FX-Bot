@@ -558,6 +558,7 @@ export const AdminGetOverviewResponse = zod.object({
   "amount": zod.number(),
   "status": zod.string(),
   "paymentMethod": zod.string().nullish(),
+  "network": zod.string().nullish(),
   "walletAddress": zod.string().nullish(),
   "description": zod.string().nullish(),
   "createdAt": zod.string()
@@ -622,6 +623,7 @@ export const AdminGetUserResponse = zod.object({
   "amount": zod.number(),
   "status": zod.string(),
   "paymentMethod": zod.string().nullish(),
+  "network": zod.string().nullish(),
   "walletAddress": zod.string().nullish(),
   "description": zod.string().nullish(),
   "createdAt": zod.string()
@@ -849,6 +851,7 @@ export const AdminListTransactionsResponseItem = zod.object({
   "amount": zod.number(),
   "status": zod.string(),
   "paymentMethod": zod.string().nullish(),
+  "network": zod.string().nullish(),
   "walletAddress": zod.string().nullish(),
   "description": zod.string().nullish(),
   "createdAt": zod.string()
@@ -873,6 +876,7 @@ export const AdminReviewTransactionResponse = zod.object({
   "amount": zod.number(),
   "status": zod.string(),
   "paymentMethod": zod.string().nullish(),
+  "network": zod.string().nullish(),
   "walletAddress": zod.string().nullish(),
   "description": zod.string().nullish(),
   "createdAt": zod.string()
