@@ -1,5 +1,27 @@
-import { useEffect } from "react";
+import { useEffect, Component, ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(err: Error) {
+    return { error: err?.message ?? "Unknown error" };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-6 gap-4">
+          <p className="text-destructive font-semibold text-center">Something went wrong</p>
+          <p className="text-xs text-muted-foreground text-center break-all">{this.state.error}</p>
+          <button className="mt-2 px-4 py-2 rounded-lg bg-primary text-white text-sm" onClick={() => this.setState({ error: null })}>Try again</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -118,9 +140,11 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <div className="max-w-[430px] mx-auto min-h-screen bg-background relative overflow-x-hidden shadow-2xl">
-              <Router />
-            </div>
+            <ErrorBoundary>
+              <div className="max-w-[430px] mx-auto min-h-screen bg-background relative overflow-x-hidden shadow-2xl">
+                <Router />
+              </div>
+            </ErrorBoundary>
           </WouterRouter>
         </AuthProvider>
         <Toaster />

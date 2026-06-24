@@ -1,13 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { useGetProfile, useUpdateProfile } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -101,12 +97,6 @@ const COUNTRIES = [
   { name: "Zambia", dial: "+260" }, { name: "Zimbabwe", dial: "+263" },
 ];
 
-const profileSchema = z.object({
-  fullName: z.string().min(2, "Full name is required"),
-  phone: z.string().optional(),
-  country: z.string().optional(),
-});
-
 export default function PersonalInfo() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -114,39 +104,46 @@ export default function PersonalInfo() {
   const { data: profile, isLoading } = useGetProfile();
   const updateMutation = useUpdateProfile();
 
-  const form = useForm<z.infer<typeof profileSchema>>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: { fullName: "", phone: "", country: "" },
-  });
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (profile) {
-      form.reset({
-        fullName: profile.fullName || "",
-        phone: profile.phone || "",
-        country: profile.country || "",
-      });
+      setFullName(profile.fullName ?? "");
+      setPhone((profile as any).phone ?? "");
+      setCountry((profile as any).country ?? "");
     }
-  }, [profile, form]);
+  }, [profile]);
 
-  const selectedCountry = COUNTRIES.find((c) => c.name === form.watch("country"));
+  const selectedCountry = COUNTRIES.find((c) => c.name === country);
 
-  const onSubmit = (values: z.infer<typeof profileSchema>) => {
-    updateMutation.mutate({ data: values }, {
-      onSuccess: () => {
-        toast({ title: "Profile updated successfully" });
-      },
-      onError: (err: any) => {
-        toast({ title: "Update failed", description: err.message, variant: "destructive" });
-      },
-    });
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName || fullName.trim().length < 2) {
+      setError("Full name must be at least 2 characters");
+      return;
+    }
+    setError("");
+    updateMutation.mutate(
+      { data: { fullName, phone, country } },
+      {
+        onSuccess: () => toast({ title: "Profile updated successfully" }),
+        onError: (err: any) => toast({ title: "Update failed", description: err?.message, variant: "destructive" }),
+      }
+    );
   };
 
   return (
     <Layout>
       <div className="p-5 pb-8 space-y-6">
         <div className="flex items-center gap-3">
-          <button onClick={() => setLocation("/profile")} className="w-10 h-10 flex items-center justify-center rounded-xl bg-card">
+          <button
+            type="button"
+            onClick={() => setLocation("/profile")}
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-card"
+          >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-bold tracking-tight">Personal Information</h1>
@@ -154,90 +151,74 @@ export default function PersonalInfo() {
 
         {isLoading ? (
           <div className="space-y-6">
-            {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
+            {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-2xl" />)}
           </div>
         ) : (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
 
-              <FormField
-                control={form.control}
-                name="fullName"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel className="text-muted-foreground font-normal">Full Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Doe" className="bg-card border-none h-14 rounded-xl px-4" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">Full Name</label>
+              <Input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="John Doe"
+                className="bg-card border-none h-14 rounded-xl px-4"
               />
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </div>
 
-              <div className="space-y-2 opacity-70">
-                <FormLabel className="text-muted-foreground font-normal">Email Address</FormLabel>
-                <Input value={profile?.email || ""} className="bg-card border-none h-14 rounded-xl px-4" readOnly disabled />
+            <div className="space-y-2 opacity-70">
+              <label className="text-sm text-muted-foreground">Email Address</label>
+              <Input
+                value={profile?.email ?? ""}
+                className="bg-card border-none h-14 rounded-xl px-4"
+                readOnly
+                disabled
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">Phone Number</label>
+              <div className="flex gap-2">
+                {selectedCountry && (
+                  <div className="flex items-center bg-card rounded-xl px-3 h-14 shrink-0 text-sm text-muted-foreground font-medium">
+                    {selectedCountry.dial}
+                  </div>
+                )}
+                <Input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder={selectedCountry ? "Enter number" : "+1 234 567 8900"}
+                  className="bg-card border-none h-14 rounded-xl px-4 flex-1"
+                />
               </div>
+            </div>
 
-              {/* Phone with dial code prefix */}
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel className="text-muted-foreground font-normal">Phone Number</FormLabel>
-                    <FormControl>
-                      <div className="flex gap-2">
-                        {selectedCountry && (
-                          <div className="flex items-center bg-card rounded-xl px-3 h-14 shrink-0 text-sm text-muted-foreground font-medium whitespace-nowrap">
-                            {selectedCountry.dial}
-                          </div>
-                        )}
-                        <Input
-                          placeholder={selectedCountry ? "Enter number" : "+1 234 567 8900"}
-                          className="bg-card border-none h-14 rounded-xl px-4 flex-1"
-                          {...field}
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">Country</label>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="w-full h-14 rounded-xl px-4 text-sm font-medium border-none outline-none"
+                style={{ background: "hsl(var(--card))", color: "hsl(var(--foreground))" }}
+              >
+                <option value="">Select your country</option>
+                {COUNTRIES.map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.name} ({c.dial})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              {/* Country — native select, works on all mobile browsers */}
-              <FormField
-                control={form.control}
-                name="country"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel className="text-muted-foreground font-normal">Country</FormLabel>
-                    <FormControl>
-                      <select
-                        {...field}
-                        className="w-full h-14 rounded-xl bg-card text-foreground px-4 text-sm font-medium border-none outline-none appearance-none"
-                        style={{ WebkitAppearance: "none" }}
-                      >
-                        <option value="" disabled className="bg-background">
-                          Select your country
-                        </option>
-                        {COUNTRIES.map((c) => (
-                          <option key={c.name} value={c.name} className="bg-background">
-                            {c.name} ({c.dial})
-                          </option>
-                        ))}
-                      </select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button type="submit" className="w-full h-14 rounded-xl text-lg font-medium shadow-none mt-4" disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Changes"}
-              </Button>
-            </form>
-          </Form>
+            <Button
+              type="submit"
+              className="w-full h-14 rounded-xl text-lg font-medium shadow-none mt-4"
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Changes"}
+            </Button>
+          </form>
         )}
       </div>
     </Layout>

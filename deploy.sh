@@ -18,6 +18,14 @@ REPO_PATH=$(echo "$GITHUB_REPO_URL" | sed 's|https://github.com/||' | sed 's|\.g
 PUSH_URL="https://${GITHUB_TOKEN}@github.com/${REPO_PATH}.git"
 
 echo "→ Pushing to GitHub: github.com/${REPO_PATH}"
+
+# Stage and commit any pending local changes before pushing
+git add -A
+if ! git diff --cached --quiet; then
+  git -c user.email="deploy@quantumfx.com" -c user.name="Deploy Bot" \
+    commit -m "chore: deploy $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+fi
+
 git push --force "$PUSH_URL" HEAD:main
 echo "✓ Pushed to GitHub"
 
