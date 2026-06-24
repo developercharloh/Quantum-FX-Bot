@@ -1,1 +1,1 @@
-ALTER TABLE "kyc" ADD COLUMN "didit_session_id" text;
+ALTER TABLE "kyc" ADD COLUMN IF NOT EXISTS "didit_session_id" text;
