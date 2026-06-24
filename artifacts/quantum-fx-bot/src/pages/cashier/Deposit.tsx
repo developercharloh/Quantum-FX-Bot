@@ -160,7 +160,7 @@ export default function Deposit() {
                   <FormControl>
                     <div className="relative">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-xl font-bold">$</div>
-                      <Input type="number" className="pl-8 bg-card border-none h-16 rounded-xl text-xl font-bold px-4" {...field} />
+                      <Input type="number" className="pl-10 pr-4 bg-card border-none h-16 rounded-xl text-xl font-bold" {...field} />
                     </div>
                   </FormControl>
                   <FormMessage />

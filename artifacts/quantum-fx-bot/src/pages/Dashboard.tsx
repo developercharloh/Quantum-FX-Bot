@@ -21,7 +21,7 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<"7D" | "30D" | "90D">("7D");
   const { user, logout } = useAuth();
   
-  const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary();
+  const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary({ query: { refetchInterval: 30000 } as any });
   const { data: chartData, isLoading: loadingChart } = useGetEarningsChart({ period });
   const { data: recentActivity, isLoading: loadingActivity } = useGetRecentActivity();
   const { data: botsData, isLoading: loadingBots } = useListBots();
