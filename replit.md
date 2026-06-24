@@ -80,7 +80,7 @@ The repo includes `render.yaml` — a Blueprint that deploys the app as a **sing
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Be efficient: read only what's needed, batch all edits in one shot, minimize tool calls. Every task should be accurate and use as few operations as possible.
 
 ## Pointers
 
