@@ -276,7 +276,7 @@ export default function Landing() {
               <div className="flex gap-0.5 mb-3">
                 {Array(5).fill(0).map((_, i) => <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />)}
               </div>
-              <p className="text-sm leading-relaxed text-foreground/90">"{t.quote}"</p>
+              <p className="text-sm leading-relaxed text-foreground/90">{t.quote}</p>
               <div className="flex items-center gap-3 mt-4">
                 <div className={`w-9 h-9 rounded-full bg-gradient-to-tr ${t.color} flex items-center justify-center text-sm font-bold text-white shrink-0`}>
                   {t.initial}
