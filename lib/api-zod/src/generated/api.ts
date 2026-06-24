@@ -204,6 +204,112 @@ export const CreateDepositBody = zod.object({
 })
 
 
+export const CreateDepositSessionBody = zod.object({
+  "amount": zod.number(),
+  "paymentMethodId": zod.string()
+})
+
+
+export const GetDepositSessionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetDepositSessionResponse = zod.object({
+  "id": zod.number(),
+  "status": zod.string(),
+  "amount": zod.number(),
+  "paymentMethodId": zod.string(),
+  "paymentMethodName": zod.string(),
+  "network": zod.string(),
+  "depositAddress": zod.string(),
+  "txid": zod.string().nullish(),
+  "confirmations": zod.number(),
+  "requiredConfirmations": zod.number(),
+  "expiresAt": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+export const SubmitDepositTxidParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SubmitDepositTxidBody = zod.object({
+  "txid": zod.string()
+})
+
+export const SubmitDepositTxidResponse = zod.object({
+  "id": zod.number(),
+  "status": zod.string(),
+  "amount": zod.number(),
+  "paymentMethodId": zod.string(),
+  "paymentMethodName": zod.string(),
+  "network": zod.string(),
+  "depositAddress": zod.string(),
+  "txid": zod.string().nullish(),
+  "confirmations": zod.number(),
+  "requiredConfirmations": zod.number(),
+  "expiresAt": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+export const AdminListDepositSessionsQueryParams = zod.object({
+  "status": zod.coerce.string().optional()
+})
+
+export const AdminListDepositSessionsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "userName": zod.string(),
+  "userEmail": zod.string(),
+  "status": zod.string(),
+  "amount": zod.number(),
+  "paymentMethodId": zod.string(),
+  "paymentMethodName": zod.string(),
+  "network": zod.string(),
+  "depositAddress": zod.string(),
+  "txid": zod.string().nullish(),
+  "confirmations": zod.number(),
+  "requiredConfirmations": zod.number(),
+  "expiresAt": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const AdminListDepositSessionsResponse = zod.array(AdminListDepositSessionsResponseItem)
+
+
+export const AdminReviewDepositSessionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminReviewDepositSessionBody = zod.object({
+  "action": zod.string(),
+  "confirmations": zod.number().optional()
+})
+
+export const AdminReviewDepositSessionResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "userName": zod.string(),
+  "userEmail": zod.string(),
+  "status": zod.string(),
+  "amount": zod.number(),
+  "paymentMethodId": zod.string(),
+  "paymentMethodName": zod.string(),
+  "network": zod.string(),
+  "depositAddress": zod.string(),
+  "txid": zod.string().nullish(),
+  "confirmations": zod.number(),
+  "requiredConfirmations": zod.number(),
+  "expiresAt": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
 export const CreateWithdrawalBody = zod.object({
   "amount": zod.number(),
   "paymentMethod": zod.string(),

@@ -12,6 +12,7 @@ import {
   userProfilesTable,
   settingsTable,
   chatMessagesTable,
+  depositSessionsTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -567,6 +568,97 @@ router.post("/admin/transactions/:id/review", async (req, res) => {
     .limit(1);
   if (!row) return res.status(404).json({ error: "Transaction not found" });
   return res.json(mapTxnRow(row.txn, row.user));
+});
+
+// ---------------- Deposit Sessions ----------------
+function mapDepositSession(
+  s: typeof depositSessionsTable.$inferSelect,
+  u: typeof usersTable.$inferSelect | null
+) {
+  return {
+    id: s.id,
+    userId: s.userId,
+    userName: u?.fullName ?? "Unknown",
+    userEmail: u?.email ?? "",
+    status: s.status,
+    amount: parseFloat(s.amount),
+    paymentMethodId: s.paymentMethodId,
+    paymentMethodName: s.paymentMethodName,
+    network: s.network,
+    depositAddress: s.depositAddress,
+    txid: s.txid ?? null,
+    confirmations: s.confirmations,
+    requiredConfirmations: s.requiredConfirmations,
+    expiresAt: s.expiresAt.toISOString(),
+    createdAt: s.createdAt.toISOString(),
+    updatedAt: s.updatedAt.toISOString(),
+  };
+}
+
+router.get("/admin/deposit-sessions", async (req, res) => {
+  const status = req.query.status as string | undefined;
+  const rows = await db
+    .select({ session: depositSessionsTable, user: usersTable })
+    .from(depositSessionsTable)
+    .leftJoin(usersTable, eq(depositSessionsTable.userId, usersTable.id))
+    .orderBy(desc(depositSessionsTable.createdAt));
+
+  let result = rows.map((r) => mapDepositSession(r.session, r.user));
+  if (status && status !== "all") result = result.filter((s) => s.status === status);
+  return res.json(result);
+});
+
+router.post("/admin/deposit-sessions/:id/review", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const { action, confirmations } = req.body as { action?: string; confirmations?: number };
+  if (!action) return res.status(400).json({ error: "action is required" });
+
+  const sessions = await db.select().from(depositSessionsTable).where(eq(depositSessionsTable.id, id)).limit(1);
+  if (!sessions[0]) return res.status(404).json({ error: "Deposit session not found" });
+  const session = sessions[0];
+
+  if (action === "detect") {
+    await db.update(depositSessionsTable)
+      .set({ status: "payment_detected", updatedAt: new Date() })
+      .where(eq(depositSessionsTable.id, id));
+  } else if (action === "update_confirmations") {
+    const count = Number(confirmations ?? 0);
+    const newStatus = count >= session.requiredConfirmations ? "confirming" : session.status === "payment_detected" ? "confirming" : session.status;
+    await db.update(depositSessionsTable)
+      .set({ confirmations: count, status: newStatus, updatedAt: new Date() })
+      .where(eq(depositSessionsTable.id, id));
+  } else if (action === "approve") {
+    // Credit the user by creating a completed deposit transaction (balance is derived from transactions)
+    const [txn] = await db.insert(transactionsTable).values({
+      userId: session.userId,
+      type: "deposit",
+      amount: session.amount,
+      status: "completed",
+      paymentMethod: session.paymentMethodName,
+      walletAddress: session.depositAddress,
+      description: `Crypto deposit via ${session.paymentMethodName}`,
+    }).returning();
+    await db.update(depositSessionsTable)
+      .set({ status: "completed", transactionId: txn.id, confirmations: session.requiredConfirmations, updatedAt: new Date() })
+      .where(eq(depositSessionsTable.id, id));
+  } else if (action === "reject") {
+    await db.update(depositSessionsTable)
+      .set({ status: "failed", updatedAt: new Date() })
+      .where(eq(depositSessionsTable.id, id));
+  } else {
+    return res.status(400).json({ error: "Unknown action" });
+  }
+
+  const [row] = await db
+    .select({ session: depositSessionsTable, user: usersTable })
+    .from(depositSessionsTable)
+    .leftJoin(usersTable, eq(depositSessionsTable.userId, usersTable.id))
+    .where(eq(depositSessionsTable.id, id))
+    .limit(1);
+  if (!row) return res.status(404).json({ error: "Not found" });
+  return res.json(mapDepositSession(row.session, row.user));
 });
 
 // ---------------- Tickets ----------------

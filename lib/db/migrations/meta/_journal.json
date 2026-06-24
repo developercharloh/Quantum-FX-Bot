@@ -30,5 +30,12 @@
       "tag": "0003_chat_messages",
       "breakpoints": true
     }
+    ,{
+      "idx": 4,
+      "version": "7",
+      "when": 1782380000000,
+      "tag": "0004_deposit_sessions",
+      "breakpoints": true
+    }
   ]
 }

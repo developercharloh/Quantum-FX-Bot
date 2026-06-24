@@ -172,6 +172,27 @@ export const kycTable = pgTable("kyc", {
 export type KYC = typeof kycTable.$inferSelect;
 
 // Support tickets
+// Deposit sessions (full crypto deposit flow)
+export const depositSessionsTable = pgTable("deposit_sessions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("created"),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  paymentMethodId: varchar("payment_method_id", { length: 100 }).notNull(),
+  paymentMethodName: varchar("payment_method_name", { length: 100 }).notNull(),
+  network: varchar("network", { length: 100 }).notNull(),
+  depositAddress: text("deposit_address").notNull(),
+  txid: varchar("txid", { length: 255 }),
+  confirmations: integer("confirmations").notNull().default(0),
+  requiredConfirmations: integer("required_confirmations").notNull().default(20),
+  transactionId: integer("transaction_id"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type DepositSession = typeof depositSessionsTable.$inferSelect;
+
 // Live Chat (user ↔ admin)
 export const chatMessagesTable = pgTable("chat_messages", {
   id: serial("id").primaryKey(),

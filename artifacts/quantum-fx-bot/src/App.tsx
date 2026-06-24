@@ -45,6 +45,7 @@ import Bots from "@/pages/bots/Bots";
 import BotDetail from "@/pages/bots/BotDetail";
 import Cashier from "@/pages/cashier/Cashier";
 import Deposit from "@/pages/cashier/Deposit";
+import DepositStatus from "@/pages/cashier/DepositStatus";
 import Withdraw from "@/pages/cashier/Withdraw";
 import Transactions from "@/pages/cashier/Transactions";
 import PaymentMethods from "@/pages/cashier/PaymentMethods";
@@ -91,6 +92,9 @@ function Router() {
       </Route>
       <Route path="/cashier/deposit">
         <AuthGuard><Deposit /></AuthGuard>
+      </Route>
+      <Route path="/cashier/deposit/:id">
+        <AuthGuard><DepositStatus /></AuthGuard>
       </Route>
       <Route path="/cashier/withdraw">
         <AuthGuard><Withdraw /></AuthGuard>

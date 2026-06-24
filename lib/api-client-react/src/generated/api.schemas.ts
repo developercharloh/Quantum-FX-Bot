@@ -584,6 +584,57 @@ export interface AdminSettingsInput {
   paymentMethods?: AdminPaymentMethod[];
 }
 
+export interface DepositSession {
+  id: number;
+  status: string;
+  amount: number;
+  paymentMethodId: string;
+  paymentMethodName: string;
+  network: string;
+  depositAddress: string;
+  /** @nullable */
+  txid?: string | null;
+  confirmations: number;
+  requiredConfirmations: number;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDepositSessionInput {
+  amount: number;
+  paymentMethodId: string;
+}
+
+export interface SubmitTxidInput {
+  txid: string;
+}
+
+export interface AdminDepositSession {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  status: string;
+  amount: number;
+  paymentMethodId: string;
+  paymentMethodName: string;
+  network: string;
+  depositAddress: string;
+  /** @nullable */
+  txid?: string | null;
+  confirmations: number;
+  requiredConfirmations: number;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminReviewDepositInput {
+  action: string;
+  confirmations?: number;
+}
+
 export interface ChatMessage {
   id: number;
   sender: string;
@@ -624,6 +675,10 @@ export const GetEarningsChartPeriod = {
 
 export type ListMarketplaceBotsParams = {
 category?: string;
+};
+
+export type AdminListDepositSessionsParams = {
+status?: string;
 };
 
 export type ListTransactionsParams = {

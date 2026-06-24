@@ -345,6 +345,109 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /cashier/deposit/session:
+    post:
+      operationId: createDepositSession
+      tags: [cashier]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDepositSessionInput"
+      responses:
+        "201":
+          description: Deposit session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepositSession"
+
+  /cashier/deposit/session/{id}:
+    get:
+      operationId: getDepositSession
+      tags: [cashier]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deposit session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepositSession"
+
+  /cashier/deposit/session/{id}/txid:
+    post:
+      operationId: submitDepositTxid
+      tags: [cashier]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitTxidInput"
+      responses:
+        "200":
+          description: TXID submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepositSession"
+
+  /admin/deposit-sessions:
+    get:
+      operationId: adminListDepositSessions
+      tags: [admin]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deposit sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminDepositSession"
+
+  /admin/deposit-sessions/{id}/review:
+    post:
+      operationId: adminReviewDepositSession
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminReviewDepositInput"
+      responses:
+        "200":
+          description: Updated deposit session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDepositSession"
+
   /cashier/withdraw:
     post:
       operationId: createWithdrawal
@@ -2210,6 +2313,65 @@ components:
         paymentMethods:
           type: array
           items: { $ref: "#/components/schemas/AdminPaymentMethod" }
+
+    DepositSession:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string }
+        amount: { type: number }
+        paymentMethodId: { type: string }
+        paymentMethodName: { type: string }
+        network: { type: string }
+        depositAddress: { type: string }
+        txid: { type: ["string", "null"] }
+        confirmations: { type: integer }
+        requiredConfirmations: { type: integer }
+        expiresAt: { type: string }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, status, amount, paymentMethodId, paymentMethodName, network, depositAddress, confirmations, requiredConfirmations, expiresAt, createdAt, updatedAt]
+
+    CreateDepositSessionInput:
+      type: object
+      properties:
+        amount: { type: number }
+        paymentMethodId: { type: string }
+      required: [amount, paymentMethodId]
+
+    SubmitTxidInput:
+      type: object
+      properties:
+        txid: { type: string }
+      required: [txid]
+
+    AdminDepositSession:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        userName: { type: string }
+        userEmail: { type: string }
+        status: { type: string }
+        amount: { type: number }
+        paymentMethodId: { type: string }
+        paymentMethodName: { type: string }
+        network: { type: string }
+        depositAddress: { type: string }
+        txid: { type: ["string", "null"] }
+        confirmations: { type: integer }
+        requiredConfirmations: { type: integer }
+        expiresAt: { type: string }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, userId, userName, userEmail, status, amount, paymentMethodId, paymentMethodName, network, depositAddress, confirmations, requiredConfirmations, expiresAt, createdAt, updatedAt]
+
+    AdminReviewDepositInput:
+      type: object
+      properties:
+        action: { type: string }
+        confirmations: { type: integer }
+      required: [action]
 
     ChatMessage:
       type: object
