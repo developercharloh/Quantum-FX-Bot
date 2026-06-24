@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import path from "node:path";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -30,5 +31,27 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// Single-service deployments (e.g. Render) serve the built React app from the
+// same Express server. Gated behind SERVE_CLIENT so Replit's split
+// frontend/backend setup (shared reverse proxy) is unaffected.
+if (process.env.SERVE_CLIENT === "true") {
+  const clientDist = path.resolve(
+    process.cwd(),
+    process.env.CLIENT_DIST ?? "artifacts/quantum-fx-bot/dist/public",
+  );
+
+  app.use(express.static(clientDist));
+
+  // SPA fallback: any non-API GET returns index.html so client-side routing works.
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path.startsWith("/api")) {
+      return next();
+    }
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+
+  logger.info({ clientDist }, "Serving frontend static assets");
+}
 
 export default app;

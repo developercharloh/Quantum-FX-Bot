@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Quantum FX Bot"
+version = "1.0.0"
+id = "artifacts/quantum-fx-bot"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18900
+
+[services.development]
+run = "pnpm --filter @workspace/quantum-fx-bot run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/quantum-fx-bot", "run", "build" ]
+publicDir = "artifacts/quantum-fx-bot/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18900"
+BASE_PATH = "/"

@@ -1,0 +1,92 @@
+# Render Blueprint for Quantum FX Bot
+# Deploys the app as a SINGLE web service (Express serves both the /api routes
+# and the built React frontend) plus a managed PostgreSQL database.
+#
+# How to use:
+#   1. Push this repo to GitHub.
+#   2. In Render: New > Blueprint, connect the repo, and Render reads this file.
+#   3. Render provisions the database and web service automatically.
+#
+# Docs: https://render.com/docs/blueprint-spec
+
+databases:
+  - name: quantum-fx-db
+    plan: free
+    region: oregon
+
+services:
+  - type: web
+    name: quantum-fx-bot
+    runtime: node
+    plan: free
+    region: oregon
+    autoDeploy: true
+    healthCheckPath: /api/healthz
+    # Build the frontend (BASE_PATH=/ comes from envVars below) then the API server.
+    buildCommand: >-
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @workspace/quantum-fx-bot run build &&
+      pnpm --filter @workspace/api-server run build
+    # Apply the database schema before the new version goes live.
+    preDeployCommand: pnpm --filter @workspace/db run push
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    envVars:
+      - key: NODE_VERSION
+        value: "24.13.0"
+      - key: NODE_ENV
+        value: production
+      # Required by the Vite build and the Express server. Render routes to this port.
+      - key: PORT
+        value: "8080"
+      # Tells the Express server to also serve the built React app (single service).
+      - key: SERVE_CLIENT
+        value: "true"
+      # Frontend is served at the domain root on Render (no shared proxy prefix).
+      - key: BASE_PATH
+        value: /
+      # Injected from the managed database above.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: quantum-fx-db
+          property: connectionString
+      # Shared secret that gates the /api/admin/* routes. Render generates a random
+      # value; the admin-app static site below reads the SAME value via fromService.
+      - key: ADMIN_API_KEY
+        generateValue: true
+
+  # Admin panel — a separate STATIC site (built React app) served at its own domain
+  # (admin-app.onrender.com). It calls the quantum-fx-bot API across origins using the
+  # shared ADMIN_API_KEY as a bearer token.
+  - type: web
+    name: admin-app
+    runtime: static
+    plan: free
+    region: oregon
+    autoDeploy: true
+    buildCommand: >-
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @workspace/admin-app run build
+    staticPublishPath: artifacts/admin-app/dist/public
+    # SPA fallback: every route serves index.html so client-side routing works.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "24.13.0"
+      # Required by the Vite build (vite.config.ts reads both at build time).
+      - key: PORT
+        value: "10000"
+      # Static site is served at the domain root, so the app's base path is "/".
+      - key: BASE_PATH
+        value: /
+      # API ORIGIN only (no /api suffix — generated client paths already include it).
+      - key: VITE_ADMIN_API_BASE
+        value: https://quantum-fx-bot.onrender.com
+      # Same generated value as the API service's ADMIN_API_KEY above.
+      - key: VITE_ADMIN_API_KEY
+        fromService:
+          name: quantum-fx-bot
+          type: web
+          envVarKey: ADMIN_API_KEY
