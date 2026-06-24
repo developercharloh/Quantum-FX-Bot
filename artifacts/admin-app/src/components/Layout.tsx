@@ -20,50 +20,83 @@ export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="w-64 border-r border-border bg-sidebar flex-shrink-0 flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b border-border">
-          <div className="flex items-center gap-2 text-primary font-bold text-lg tracking-tight">
-            <Bot className="w-6 h-6" />
-            <span>Quantum FX Admin</span>
+    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
+      {/* Top Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b border-border flex items-center justify-between px-4 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <Bot className="w-4 h-4 text-primary-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-bold leading-none tracking-tight">Quantum FX</p>
+            <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Admin Panel</p>
           </div>
         </div>
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
+            <span className="text-[10px] font-bold text-primary">OP</span>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-medium leading-none">Operator</p>
+            <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Internal Access</p>
+          </div>
+        </div>
+      </header>
+
+      {/* Scrollable Content */}
+      <main className="flex-1 overflow-y-auto mt-14 mb-[calc(4rem+2.25rem)]">
+        {children}
+      </main>
+
+      {/* Bottom Navigation + Footer */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border">
+        {/* Nav Tabs */}
+        <nav className="flex items-center justify-around h-16 px-1">
           {navItems.map((item) => {
             const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
             return (
-              <Link 
-                key={item.path} 
-                href={item.path} 
+              <Link
+                key={item.path}
+                href={item.path}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200",
-                  isActive 
-                    ? "bg-primary text-primary-foreground" 
-                    : "text-sidebar-foreground hover:bg-secondary hover:text-secondary-foreground"
+                  "flex flex-col items-center justify-center gap-0.5 flex-1 h-full rounded-xl transition-colors duration-200 relative",
+                  isActive ? "text-primary" : "text-muted-foreground"
                 )}
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >
-                <item.icon className="w-4 h-4" />
-                {item.label}
+                {isActive && (
+                  <span className="absolute top-1.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-primary/30" />
+                )}
+                <item.icon className={cn("w-5 h-5", isActive && "drop-shadow-[0_0_6px_hsl(var(--primary))]")} />
+                <span className={cn("text-[10px] font-medium", isActive ? "text-primary" : "text-muted-foreground")}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}
         </nav>
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-secondary-foreground">
-              OP
-            </div>
-            <div className="text-sm">
-              <p className="font-medium">System Operator</p>
-              <p className="text-xs text-muted-foreground">Internal Access</p>
-            </div>
-          </div>
+
+        {/* Footer URLs */}
+        <div className="flex items-center justify-center gap-3 px-4 pb-2">
+          <a
+            href="https://quantum-fx-bot.onrender.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[9px] text-muted-foreground/60 hover:text-primary transition-colors truncate"
+          >
+            🌐 quantum-fx-bot.onrender.com
+          </a>
+          <span className="text-muted-foreground/30 text-[9px]">·</span>
+          <a
+            href="https://admin-app-ogdq.onrender.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[9px] text-muted-foreground/60 hover:text-primary transition-colors truncate"
+          >
+            🛡 admin-app-ogdq.onrender.com
+          </a>
         </div>
-      </aside>
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {children}
-      </main>
+      </div>
     </div>
   );
 }
