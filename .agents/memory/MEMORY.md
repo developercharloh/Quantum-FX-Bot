@@ -1,0 +1,3 @@
+- [Deposit session flow](deposit-session-flow.md) — full 5-screen crypto deposit uses deposit_sessions table, not transactions; balance still derived from transactions only.
+- [Migration pattern](migration-pattern.md) — drizzle-kit generate has __dirname bug; always write SQL manually + journal entry; next timestamp must be > last used (0004 used 1782380000000).
+- [Balance is computed](balance-computed.md) — no balance column on usersTable; balance is derived from transactionsTable via getAvailableBalance(). Never try to update user.balance directly.
