@@ -1,6 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { Layout } from "@/components/Layout";
-import { ChevronLeft, ChevronRight, HelpCircle, MessageSquare, TicketIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageSquare, TicketIcon } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useListFAQ } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,31 +24,20 @@ export default function Support() {
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-4 bg-card rounded-2xl cursor-pointer">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10">
-                <HelpCircle className="w-6 h-6 text-primary" />
+          <Link href="/support/chat">
+            <div className="flex items-center justify-between p-4 bg-card rounded-2xl cursor-pointer">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-500/10">
+                  <MessageSquare className="w-6 h-6 text-blue-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Contact Support</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Chat with us live</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-sm">Help Center</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Browse our help articles</p>
-              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground opacity-50" />
             </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground opacity-50" />
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-card rounded-2xl cursor-pointer">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-500/10">
-                <MessageSquare className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm">Contact Support</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Get in touch with us</p>
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground opacity-50" />
-          </div>
+          </Link>
 
           <Link href="/support/ticket">
             <div className="flex items-center justify-between p-4 bg-card rounded-2xl cursor-pointer mt-3">

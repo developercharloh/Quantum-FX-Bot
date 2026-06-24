@@ -56,6 +56,7 @@ import KYC from "@/pages/profile/KYC";
 import Notifications from "@/pages/profile/Notifications";
 import Support from "@/pages/support/Support";
 import SupportTicket from "@/pages/support/SupportTicket";
+import LiveChat from "@/pages/support/LiveChat";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -123,6 +124,9 @@ function Router() {
       </Route>
       <Route path="/support/ticket">
         <AuthGuard><SupportTicket /></AuthGuard>
+      </Route>
+      <Route path="/support/chat">
+        <AuthGuard><LiveChat /></AuthGuard>
       </Route>
 
       <Route component={NotFound} />

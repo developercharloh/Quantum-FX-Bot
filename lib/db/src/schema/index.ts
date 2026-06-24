@@ -172,6 +172,17 @@ export const kycTable = pgTable("kyc", {
 export type KYC = typeof kycTable.$inferSelect;
 
 // Support tickets
+// Live Chat (user ↔ admin)
+export const chatMessagesTable = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  sender: varchar("sender", { length: 10 }).notNull(), // 'user' | 'admin'
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type ChatMessage = typeof chatMessagesTable.$inferSelect;
+
 export const supportTicketsTable = pgTable("support_tickets", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),

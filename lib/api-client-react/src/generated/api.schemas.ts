@@ -584,6 +584,26 @@ export interface AdminSettingsInput {
   paymentMethods?: AdminPaymentMethod[];
 }
 
+export interface ChatMessage {
+  id: number;
+  sender: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface SendChatMessageInput {
+  message: string;
+}
+
+export interface ChatConversation {
+  userId: number;
+  userName: string;
+  userEmail: string;
+  lastMessage: string;
+  lastMessageAt: string;
+  unreadCount: number;
+}
+
 export interface AdminBroadcastInput {
   title: string;
   message: string;

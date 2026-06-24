@@ -11,9 +11,10 @@ import {
   supportTicketsTable,
   userProfilesTable,
   settingsTable,
+  chatMessagesTable,
   type PaymentMethod,
 } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import crypto from "crypto";
 import {
   AdminSetUserStatusBody,
@@ -703,6 +704,77 @@ router.put("/admin/settings", async (req, res) => {
   await db.update(settingsTable).set(update).where(eq(settingsTable.id, current.id));
   const s = await getOrCreateSettings();
   return res.json(mapSettings(s));
+});
+
+// ---------------- Live Chat ----------------
+router.get("/admin/chat", async (req, res) => {
+  // Latest message per user
+  const rows = await db.execute(sql`
+    SELECT
+      cm.user_id,
+      u.full_name,
+      u.email,
+      cm.message AS last_message,
+      cm.created_at AS last_message_at,
+      (SELECT COUNT(*) FROM chat_messages cm2 WHERE cm2.user_id = cm.user_id AND cm2.sender = 'user'
+       AND cm2.created_at > COALESCE(
+         (SELECT MAX(cm3.created_at) FROM chat_messages cm3 WHERE cm3.user_id = cm.user_id AND cm3.sender = 'admin'),
+         '1970-01-01'
+       )
+      ) AS unread_count
+    FROM chat_messages cm
+    JOIN users u ON u.id = cm.user_id
+    WHERE cm.created_at = (SELECT MAX(created_at) FROM chat_messages WHERE user_id = cm.user_id)
+    ORDER BY cm.created_at DESC
+  `);
+
+  return res.json((rows as unknown as any[]).map((r: any) => ({
+    userId: r.user_id,
+    userName: r.full_name,
+    userEmail: r.email,
+    lastMessage: r.last_message,
+    lastMessageAt: new Date(r.last_message_at).toISOString(),
+    unreadCount: Number(r.unread_count),
+  })));
+});
+
+router.get("/admin/chat/:userId", async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) return res.status(400).json({ error: "Invalid user id" });
+
+  const messages = await db.select().from(chatMessagesTable)
+    .where(eq(chatMessagesTable.userId, userId))
+    .orderBy(chatMessagesTable.createdAt);
+
+  return res.json(messages.map(m => ({
+    id: m.id,
+    sender: m.sender,
+    message: m.message,
+    createdAt: m.createdAt.toISOString(),
+  })));
+});
+
+router.post("/admin/chat/:userId", async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) return res.status(400).json({ error: "Invalid user id" });
+
+  const { message } = req.body as { message?: string };
+  if (!message || typeof message !== "string" || !message.trim()) {
+    return res.status(400).json({ error: "message is required" });
+  }
+
+  const [msg] = await db.insert(chatMessagesTable).values({
+    userId,
+    sender: "admin",
+    message: message.trim(),
+  }).returning();
+
+  return res.status(201).json({
+    id: msg.id,
+    sender: msg.sender,
+    message: msg.message,
+    createdAt: msg.createdAt.toISOString(),
+  });
 });
 
 // ---------------- Broadcast ----------------

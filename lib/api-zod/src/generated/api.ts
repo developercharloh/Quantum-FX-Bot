@@ -958,6 +958,53 @@ export const AdminCloseTicketResponse = zod.object({
 })
 
 
+export const GetChatMessagesResponseItem = zod.object({
+  "id": zod.number(),
+  "sender": zod.string(),
+  "message": zod.string(),
+  "createdAt": zod.string()
+})
+export const GetChatMessagesResponse = zod.array(GetChatMessagesResponseItem)
+
+
+export const SendChatMessageBody = zod.object({
+  "message": zod.string()
+})
+
+
+export const AdminListChatsResponseItem = zod.object({
+  "userId": zod.number(),
+  "userName": zod.string(),
+  "userEmail": zod.string(),
+  "lastMessage": zod.string(),
+  "lastMessageAt": zod.string(),
+  "unreadCount": zod.number()
+})
+export const AdminListChatsResponse = zod.array(AdminListChatsResponseItem)
+
+
+export const AdminGetChatParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const AdminGetChatResponseItem = zod.object({
+  "id": zod.number(),
+  "sender": zod.string(),
+  "message": zod.string(),
+  "createdAt": zod.string()
+})
+export const AdminGetChatResponse = zod.array(AdminGetChatResponseItem)
+
+
+export const AdminSendChatMessageParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const AdminSendChatMessageBody = zod.object({
+  "message": zod.string()
+})
+
+
 export const AdminGetSettingsResponse = zod.object({
   "appName": zod.string(),
   "supportEmail": zod.string(),

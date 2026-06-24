@@ -1203,6 +1203,92 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminTicket"
 
+  /support/chat:
+    get:
+      operationId: getChatMessages
+      tags: [support]
+      responses:
+        "200":
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+    post:
+      operationId: sendChatMessage
+      tags: [support]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendChatMessageInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+
+  /admin/chat:
+    get:
+      operationId: adminListChats
+      tags: [admin]
+      responses:
+        "200":
+          description: Chat conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatConversation"
+
+  /admin/chat/{userId}:
+    get:
+      operationId: adminGetChat
+      tags: [admin]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages for a user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+    post:
+      operationId: adminSendChatMessage
+      tags: [admin]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendChatMessageInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+
   /admin/settings:
     get:
       operationId: adminGetSettings
@@ -2124,6 +2210,32 @@ components:
         paymentMethods:
           type: array
           items: { $ref: "#/components/schemas/AdminPaymentMethod" }
+
+    ChatMessage:
+      type: object
+      properties:
+        id: { type: integer }
+        sender: { type: string }
+        message: { type: string }
+        createdAt: { type: string }
+      required: [id, sender, message, createdAt]
+
+    SendChatMessageInput:
+      type: object
+      properties:
+        message: { type: string }
+      required: [message]
+
+    ChatConversation:
+      type: object
+      properties:
+        userId: { type: integer }
+        userName: { type: string }
+        userEmail: { type: string }
+        lastMessage: { type: string }
+        lastMessageAt: { type: string }
+        unreadCount: { type: integer }
+      required: [userId, userName, userEmail, lastMessage, lastMessageAt, unreadCount]
 
     AdminBroadcastInput:
       type: object
