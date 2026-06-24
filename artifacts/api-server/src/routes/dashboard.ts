@@ -28,10 +28,9 @@ router.get("/dashboard/summary", async (req, res) => {
   
   let balance = 0;
   for (const t of txns) {
-    if (t.type === "deposit") balance += parseFloat(t.amount);
-    if (t.type === "withdrawal") balance -= parseFloat(t.amount);
-    if (t.type === "trade_profit") balance += parseFloat(t.amount);
-    if (t.type === "trade_loss") balance -= parseFloat(t.amount);
+    const amt = parseFloat(t.amount);
+    if (t.type === "deposit" || t.type === "trade_profit") balance += amt;
+    if (t.type === "withdrawal" || t.type === "trade_loss" || t.type === "bot_purchase") balance -= amt;
   }
 
   const todayProfit = activeBots.reduce((sum, b) => sum + parseFloat(b.profitToday), 0);

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { getAvailableBalance } from "../utils/balance.js";
 
 const router = Router();
 
@@ -171,6 +172,14 @@ router.post("/marketplace/bots/:id/purchase", async (req, res) => {
   if (existing.length > 0) return res.status(400).json({ error: "Bot already purchased" });
 
   const bot = bots[0];
+  const price = parseFloat(bot.price);
+
+  if (price > 0) {
+    const available = await getAvailableBalance(user.id);
+    if (available < price) {
+      return res.status(400).json({ error: `Insufficient balance. You need $${price.toFixed(2)} but have $${available.toFixed(2)}.` });
+    }
+  }
 
   await db.insert(userBotsTable).values({
     userId: user.id,

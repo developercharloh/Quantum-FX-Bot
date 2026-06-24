@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable, transactionsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { CreateDepositBody, CreateWithdrawalBody, ListTransactionsQueryParams } from "@workspace/api-zod";
+import { getAvailableBalance } from "../utils/balance.js";
 
 const router = Router();
 
@@ -64,6 +65,11 @@ router.post("/cashier/withdraw", async (req, res) => {
 
   const { amount, paymentMethod, walletAddress } = parsed.data;
   if (amount <= 0) return res.status(400).json({ error: "Amount must be greater than 0" });
+
+  const available = await getAvailableBalance(user.id);
+  if (amount > available) {
+    return res.status(400).json({ error: `Insufficient balance. Available: $${available.toFixed(2)}.` });
+  }
 
   const [txn] = await db.insert(transactionsTable).values({
     userId: user.id,
