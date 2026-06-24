@@ -129,19 +129,25 @@ router.post("/profile/2fa", async (req, res) => {
 });
 
 router.get("/profile/kyc", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
-  const { user } = await getUserFromToken(token);
-  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const { user } = await getUserFromToken(token);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const kycs = await db.select().from(kycTable).where(eq(kycTable.userId, user.id)).limit(1);
-  const kyc = kycs[0];
+    const kycs = await db.select().from(kycTable).where(eq(kycTable.userId, user.id)).limit(1);
+    const kyc = kycs[0];
 
-  return res.json({
-    status: kyc?.status ?? "not_submitted",
-    submittedAt: kyc?.submittedAt?.toISOString() ?? null,
-    reviewedAt: kyc?.reviewedAt?.toISOString() ?? null,
-    rejectionReason: kyc?.rejectionReason ?? null,
-  });
+    return res.json({
+      status: kyc?.status ?? "not_submitted",
+      submittedAt: kyc?.submittedAt?.toISOString() ?? null,
+      reviewedAt: kyc?.reviewedAt?.toISOString() ?? null,
+      rejectionReason: kyc?.rejectionReason ?? null,
+    });
+  } catch (err: any) {
+    const cause = err?.cause?.message ?? err?.cause ?? "";
+    logger.error({ errMsg: err?.message, cause }, "GET /profile/kyc error");
+    return res.status(500).json({ error: "Failed to fetch KYC status", detail: err?.message, cause });
+  }
 });
 
 router.post("/profile/kyc/session", async (req, res) => {
@@ -203,8 +209,9 @@ router.post("/profile/kyc/session", async (req, res) => {
 
     return res.json({ url: data.url, sessionId: data.session_id });
   } catch (err: any) {
-    logger.error({ errMsg: err?.message, stack: err?.stack }, "Didit session error");
-    return res.status(500).json({ error: "Internal error creating KYC session", detail: err?.message ?? String(err) });
+    const cause = err?.cause?.message ?? err?.cause ?? "";
+    logger.error({ errMsg: err?.message, cause, stack: err?.stack }, "Didit session error");
+    return res.status(500).json({ error: "Internal error creating KYC session", detail: err?.message ?? String(err), cause });
   }
 });
 
