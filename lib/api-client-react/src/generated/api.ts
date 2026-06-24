@@ -59,6 +59,7 @@ import type {
   GetTeamEarningsOverviewParams,
   HealthStatus,
   KYCInput,
+  KYCSession,
   KYCStatus,
   ListMarketplaceBotsParams,
   ListTransactionsParams,
@@ -2457,6 +2458,70 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSubmitKYCMutationOptions(options));
+    }
+
+export const getCreateKycSessionUrl = () => {
+
+
+
+
+  return `/api/profile/kyc/session`
+}
+
+export const createKycSession = async ( options?: RequestInit): Promise<KYCSession> => {
+
+  return customFetch<KYCSession>(getCreateKycSessionUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCreateKycSessionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createKycSession>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createKycSession>>, TError,void, TContext> => {
+
+const mutationKey = ['createKycSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createKycSession>>, void> = () => {
+
+
+          return  createKycSession(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateKycSessionMutationResult = NonNullable<Awaited<ReturnType<typeof createKycSession>>>
+
+    export type CreateKycSessionMutationError = ErrorType<unknown>
+
+    export const useCreateKycSession = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createKycSession>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createKycSession>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCreateKycSessionMutationOptions(options));
     }
 
 export const getGetNotificationSettingsUrl = () => {

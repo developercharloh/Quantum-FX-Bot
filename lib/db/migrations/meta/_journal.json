@@ -15,6 +15,13 @@
       "when": 1782258749646,
       "tag": "0001_sparkling_nightcrawler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1750776000000,
+      "tag": "0002_didit_kyc_session",
+      "breakpoints": true
     }
   ]
 }

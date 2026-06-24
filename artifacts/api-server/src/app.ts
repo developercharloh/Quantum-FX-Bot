@@ -27,7 +27,11 @@ app.use(
   }),
 );
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+  verify: (_req, _res, buf) => {
+    (_req as any).rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);

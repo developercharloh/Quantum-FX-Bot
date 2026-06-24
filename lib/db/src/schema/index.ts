@@ -166,6 +166,7 @@ export const kycTable = pgTable("kyc", {
   rejectionReason: text("rejection_reason"),
   submittedAt: timestamp("submitted_at"),
   reviewedAt: timestamp("reviewed_at"),
+  diditSessionId: text("didit_session_id"),
 });
 
 export type KYC = typeof kycTable.$inferSelect;

@@ -50,6 +50,7 @@ export * from './getTeamEarningsOverviewParams';
 export * from './getTeamEarningsOverviewPeriod';
 export * from './healthStatus';
 export * from './kYCInput';
+export * from './kYCSession';
 export * from './kYCStatus';
 export * from './listMarketplaceBotsParams';
 export * from './listTransactionsParams';

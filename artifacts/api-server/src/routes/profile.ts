@@ -9,6 +9,7 @@ import {
   SubmitKYCBody,
   UpdateNotificationSettingsBody,
 } from "@workspace/api-zod";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -141,6 +142,53 @@ router.get("/profile/kyc", async (req, res) => {
     reviewedAt: kyc?.reviewedAt?.toISOString() ?? null,
     rejectionReason: kyc?.rejectionReason ?? null,
   });
+});
+
+router.post("/profile/kyc/session", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const { user } = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const apiKey = process.env["DIDIT_API_KEY"];
+  const workflowId = process.env["DIDIT_WORKFLOW_ID"];
+  const callbackUrl = process.env["DIDIT_CALLBACK_URL"] ?? "https://quantum-fx-bot.site/profile/kyc";
+
+  if (!apiKey || !workflowId) {
+    return res.status(503).json({ error: "KYC verification service not configured. Set DIDIT_API_KEY and DIDIT_WORKFLOW_ID." });
+  }
+
+  try {
+    const response = await fetch("https://verification.didit.me/v3/session/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+      body: JSON.stringify({
+        workflow_id: workflowId,
+        callback: callbackUrl,
+        vendor_data: String(user.id),
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      logger.error({ status: response.status, errText }, "Didit session creation failed");
+      return res.status(502).json({ error: "Failed to create verification session" });
+    }
+
+    const data = await response.json() as { session_id: string; url: string };
+
+    const existing = await db.select().from(kycTable).where(eq(kycTable.userId, user.id)).limit(1);
+    if (existing.length > 0) {
+      await db.update(kycTable).set({ diditSessionId: data.session_id, status: "pending", submittedAt: new Date() }).where(eq(kycTable.userId, user.id));
+    } else {
+      await db.insert(kycTable).values({ userId: user.id, status: "pending", submittedAt: new Date(), diditSessionId: data.session_id });
+    }
+    await db.update(usersTable).set({ kycStatus: "pending" }).where(eq(usersTable.id, user.id));
+
+    return res.json({ url: data.url, sessionId: data.session_id });
+  } catch (err) {
+    logger.error({ err }, "Didit session error");
+    return res.status(500).json({ error: "Internal error creating KYC session" });
+  }
 });
 
 router.post("/profile/kyc", async (req, res) => {

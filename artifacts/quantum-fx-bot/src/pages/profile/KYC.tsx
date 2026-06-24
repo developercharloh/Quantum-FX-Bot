@@ -1,120 +1,147 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
-import { useGetKYC, useSubmitKYC } from "@workspace/api-client-react";
+import { useGetKYC, useCreateKycSession } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Camera, UploadCloud, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Clock, XCircle, ShieldCheck, Loader2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
+
+const STEPS = [
+  { icon: "📄", label: "Document scan", desc: "ID, passport or driving licence" },
+  { icon: "🤳", label: "Liveness selfie", desc: "Quick face scan to confirm it's you" },
+  { icon: "✅", label: "Instant result", desc: "Usually approved in under 30 seconds" },
+];
 
 export default function KYC() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  const { data: kyc, isLoading } = useGetKYC();
-  const submitMutation = useSubmitKYC();
 
-  const handleSubmit = () => {
-    submitMutation.mutate({ 
-      data: {
-        documentType: "Passport",
-        documentFrontUrl: "https://example.com/doc.jpg",
-        selfieUrl: "https://example.com/selfie.jpg",
-        proofOfAddressUrl: "https://example.com/address.jpg"
-      }
-    }, {
-      onSuccess: () => {
-        toast({ title: "KYC Submitted", description: "Your documents are under review." });
+  const { data: kyc, isLoading } = useGetKYC();
+  const sessionMutation = useCreateKycSession();
+
+  const status = kyc?.status ?? "not_submitted";
+  const isVerified = status === "verified" || status === "approved";
+  const isPending = status === "pending" || status === "submitted" || status === "under_review";
+  const isRejected = status === "rejected";
+  const canStart = !isVerified && !isPending;
+
+  const handleStart = () => {
+    sessionMutation.mutate(undefined, {
+      onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: ["/api/profile/kyc"] });
+        window.location.href = data.url;
       },
       onError: (err: any) => {
-        toast({ title: "Submission failed", description: err.message, variant: "destructive" });
-      }
+        toast({
+          title: "Could not start verification",
+          description: err?.message ?? "Please try again later.",
+          variant: "destructive",
+        });
+      },
     });
   };
 
-  const isEditable = !kyc || kyc.status.toLowerCase() === 'unverified' || kyc.status.toLowerCase() === 'rejected';
-
   return (
     <Layout>
-      <div className="p-5 pb-8 space-y-6">
+      <div className="p-5 pb-10 space-y-6">
         <div className="flex items-center gap-3">
-          <button onClick={() => setLocation("/profile")} className="w-10 h-10 flex items-center justify-center rounded-xl bg-card">
+          <button
+            type="button"
+            onClick={() => setLocation("/profile")}
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-card"
+          >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-bold tracking-tight">KYC Verification</h1>
         </div>
 
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-1.5">Verify your identity</h2>
-          <p className="text-sm text-muted-foreground">Complete KYC to unlock all features and higher limits</p>
-        </div>
-
         {isLoading ? (
-          <Skeleton className="h-16 w-full rounded-xl" />
-        ) : kyc?.status !== 'unverified' && kyc ? (
-          <div className={`p-4 rounded-xl flex items-center gap-3 ${
-            kyc.status.toLowerCase() === 'approved' ? 'bg-green-500/10 text-green-500' :
-            kyc.status.toLowerCase() === 'rejected' ? 'bg-red-500/10 text-red-500' :
-            'bg-yellow-500/10 text-yellow-500'
-          }`}>
-            {kyc.status.toLowerCase() === 'approved' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> :
-             kyc.status.toLowerCase() === 'rejected' ? <XCircle className="w-5 h-5 shrink-0" /> :
-             <Clock className="w-5 h-5 shrink-0" />}
-            <span className="font-semibold text-sm capitalize">{kyc.status === 'pending' ? 'Under Review' : kyc.status}</span>
-          </div>
-        ) : null}
-
-        {isEditable && (
           <div className="space-y-4">
-            <div className="bg-card border-none border-border border-dashed rounded-2xl p-5 flex flex-col items-center justify-center gap-2 border-[1.5px] border-dashed border-muted-foreground/20">
-              <div className="w-12 h-12 bg-background rounded-full flex items-center justify-center mb-1">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6Z" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M14 8H16" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M10 16H16" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M10 12H16" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="7" cy="12" r="1" fill="#7C3AED"/>
-                  <circle cx="7" cy="16" r="1" fill="#7C3AED"/>
-                  <circle cx="10" cy="8" r="2" stroke="#7C3AED" strokeWidth="2"/>
-                </svg>
-              </div>
-              <h3 className="font-semibold text-sm">Identity Document</h3>
-              <Button variant="outline" size="sm" className="mt-2 h-9 rounded-lg bg-background border-border text-xs"><UploadCloud className="w-3.5 h-3.5 mr-2" /> Upload</Button>
-            </div>
-
-            <div className="bg-card border-none border-border border-dashed rounded-2xl p-5 flex flex-col items-center justify-center gap-2 border-[1.5px] border-dashed border-muted-foreground/20">
-              <div className="w-12 h-12 bg-background rounded-full flex items-center justify-center mb-1">
-                <Camera className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="font-semibold text-sm">Selfie</h3>
-              <Button variant="outline" size="sm" className="mt-2 h-9 rounded-lg bg-background border-border text-xs"><UploadCloud className="w-3.5 h-3.5 mr-2" /> Upload</Button>
-            </div>
-
-            <div className="bg-card border-none border-border border-dashed rounded-2xl p-5 flex flex-col items-center justify-center gap-2 border-[1.5px] border-dashed border-muted-foreground/20">
-              <div className="w-12 h-12 bg-background rounded-full flex items-center justify-center mb-1">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M14 2V8H20" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M16 13H8" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M16 17H8" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M10 9H8" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <h3 className="font-semibold text-sm">Proof of Address</h3>
-              <Button variant="outline" size="sm" className="mt-2 h-9 rounded-lg bg-background border-border text-xs"><UploadCloud className="w-3.5 h-3.5 mr-2" /> Upload</Button>
-            </div>
-
-            <Button 
-              className="w-full h-14 rounded-xl text-lg font-medium shadow-none mt-4" 
-              onClick={handleSubmit}
-              disabled={submitMutation.isPending}
-            >
-              {submitMutation.isPending ? "Submitting..." : "Submit for Review"}
-            </Button>
+            <Skeleton className="h-20 w-full rounded-2xl" />
+            <Skeleton className="h-40 w-full rounded-2xl" />
           </div>
+        ) : (
+          <>
+            {isVerified && (
+              <div className="p-5 rounded-2xl bg-green-500/10 flex items-center gap-4">
+                <CheckCircle2 className="w-10 h-10 text-green-500 shrink-0" />
+                <div>
+                  <p className="font-bold text-green-500">Identity Verified</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Your account is fully verified. All features and limits are unlocked.</p>
+                </div>
+              </div>
+            )}
+
+            {isPending && (
+              <div className="p-5 rounded-2xl bg-yellow-500/10 flex items-center gap-4">
+                <Clock className="w-10 h-10 text-yellow-500 shrink-0 animate-pulse" />
+                <div>
+                  <p className="font-bold text-yellow-500">Verification In Progress</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Didit is reviewing your documents. This usually takes under 2 minutes.</p>
+                </div>
+              </div>
+            )}
+
+            {isRejected && (
+              <div className="p-5 rounded-2xl bg-red-500/10 flex items-center gap-4">
+                <XCircle className="w-10 h-10 text-red-500 shrink-0" />
+                <div>
+                  <p className="font-bold text-red-500">Verification Failed</p>
+                  {kyc?.rejectionReason && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{kyc.rejectionReason}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-0.5">You can try again below.</p>
+                </div>
+              </div>
+            )}
+
+            {canStart && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-2xl font-bold mb-1">Verify your identity</h2>
+                  <p className="text-sm text-muted-foreground">Powered by Didit — takes under 2 minutes</p>
+                </div>
+
+                <div className="space-y-3">
+                  {STEPS.map((step, i) => (
+                    <div key={i} className="flex items-start gap-4 bg-card rounded-2xl p-4">
+                      <span className="text-2xl">{step.icon}</span>
+                      <div>
+                        <p className="font-semibold text-sm">{step.label}</p>
+                        <p className="text-xs text-muted-foreground">{step.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-card/60 rounded-xl p-3">
+                  <ShieldCheck className="w-4 h-4 shrink-0 text-primary mt-0.5" />
+                  <span>Your data is processed securely by Didit and is never stored on our servers. 220+ countries supported.</span>
+                </div>
+
+                <Button
+                  className="w-full h-14 rounded-xl text-lg font-semibold shadow-none"
+                  onClick={handleStart}
+                  disabled={sessionMutation.isPending}
+                >
+                  {sessionMutation.isPending ? (
+                    <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Starting…</>
+                  ) : (
+                    "Start Verification"
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {isPending && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card/60 rounded-xl p-3">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-yellow-500" />
+                <span>If you already completed verification, your status will update automatically once Didit finishes processing.</span>
+              </div>
+            )}
+          </>
         )}
       </div>
     </Layout>

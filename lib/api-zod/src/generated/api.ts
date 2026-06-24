@@ -436,6 +436,12 @@ export const SubmitKYCResponse = zod.object({
 })
 
 
+export const CreateKycSessionResponse = zod.object({
+  "url": zod.string(),
+  "sessionId": zod.string()
+})
+
+
 export const GetNotificationSettingsResponse = zod.object({
   "emailNotifications": zod.boolean(),
   "botAlerts": zod.boolean(),
