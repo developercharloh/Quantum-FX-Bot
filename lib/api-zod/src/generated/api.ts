@@ -436,6 +436,13 @@ export const SubmitKYCResponse = zod.object({
 })
 
 
+export const CreateKycSessionBody = zod.object({
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "country": zod.string(),
+  "documentType": zod.string()
+})
+
 export const CreateKycSessionResponse = zod.object({
   "url": zod.string(),
   "sessionId": zod.string()

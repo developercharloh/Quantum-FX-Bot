@@ -273,6 +273,13 @@ export interface KYCStatus {
   rejectionReason?: string | null;
 }
 
+export interface KYCSessionInput {
+  firstName: string;
+  lastName: string;
+  country: string;
+  documentType: string;
+}
+
 export interface KYCSession {
   url: string;
   sessionId: string;

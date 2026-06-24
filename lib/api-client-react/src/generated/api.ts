@@ -60,6 +60,7 @@ import type {
   HealthStatus,
   KYCInput,
   KYCSession,
+  KYCSessionInput,
   KYCStatus,
   ListMarketplaceBotsParams,
   ListTransactionsParams,
@@ -2468,14 +2469,15 @@ export const getCreateKycSessionUrl = () => {
   return `/api/profile/kyc/session`
 }
 
-export const createKycSession = async ( options?: RequestInit): Promise<KYCSession> => {
+export const createKycSession = async (kYCSessionInput: KYCSessionInput, options?: RequestInit): Promise<KYCSession> => {
 
   return customFetch<KYCSession>(getCreateKycSessionUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      kYCSessionInput,)
   }
 );}
 
@@ -2483,8 +2485,8 @@ export const createKycSession = async ( options?: RequestInit): Promise<KYCSessi
 
 
 export const getCreateKycSessionMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createKycSession>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createKycSession>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createKycSession>>, TError,{data: BodyType<KYCSessionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createKycSession>>, TError,{data: BodyType<KYCSessionInput>}, TContext> => {
 
 const mutationKey = ['createKycSession'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -2496,10 +2498,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createKycSession>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createKycSession>>, {data: BodyType<KYCSessionInput>}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  createKycSession(requestOptions)
+          return  createKycSession(data,requestOptions)
         }
 
 
@@ -2510,15 +2512,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateKycSessionMutationResult = NonNullable<Awaited<ReturnType<typeof createKycSession>>>
-
+    export type CreateKycSessionMutationBody = BodyType<KYCSessionInput>
     export type CreateKycSessionMutationError = ErrorType<unknown>
 
     export const useCreateKycSession = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createKycSession>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createKycSession>>, TError,{data: BodyType<KYCSessionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createKycSession>>,
         TError,
-        void,
+        {data: BodyType<KYCSessionInput>},
         TContext
       > => {
       return useMutation(getCreateKycSessionMutationOptions(options));

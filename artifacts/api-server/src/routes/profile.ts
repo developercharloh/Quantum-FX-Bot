@@ -149,6 +149,13 @@ router.post("/profile/kyc/session", async (req, res) => {
   const { user } = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
+  const { firstName, lastName, country, documentType } = req.body as {
+    firstName: string; lastName: string; country: string; documentType: string;
+  };
+  if (!firstName || !lastName || !country || !documentType) {
+    return res.status(400).json({ error: "firstName, lastName, country and documentType are required" });
+  }
+
   const apiKey = process.env["DIDIT_API_KEY"];
   const workflowId = process.env["DIDIT_WORKFLOW_ID"];
   const callbackUrl = process.env["DIDIT_CALLBACK_URL"] ?? "https://quantum-fx-bot.site/profile/kyc";
@@ -158,36 +165,46 @@ router.post("/profile/kyc/session", async (req, res) => {
   }
 
   try {
+    // Save personal details to profile
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+    await db.update(usersTable).set({ fullName, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
+    const existingProfile = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, user.id)).limit(1);
+    if (existingProfile.length === 0) {
+      await db.insert(userProfilesTable).values({ userId: user.id, country });
+    } else {
+      await db.update(userProfilesTable).set({ country }).where(eq(userProfilesTable.userId, user.id));
+    }
+
+    // Create Didit session
     const response = await fetch("https://verification.didit.me/v3/session/", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey },
-      body: JSON.stringify({
-        workflow_id: workflowId,
-        callback: callbackUrl,
-        vendor_data: String(user.id),
-      }),
+      body: JSON.stringify({ workflow_id: workflowId, callback: callbackUrl, vendor_data: String(user.id) }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
       logger.error({ status: response.status, errText }, "Didit session creation failed");
-      return res.status(502).json({ error: "Failed to create verification session" });
+      return res.status(502).json({ error: "Failed to create verification session", detail: errText });
     }
 
     const data = await response.json() as { session_id: string; url: string };
 
-    const existing = await db.select().from(kycTable).where(eq(kycTable.userId, user.id)).limit(1);
-    if (existing.length > 0) {
-      await db.update(kycTable).set({ diditSessionId: data.session_id, status: "pending", submittedAt: new Date() }).where(eq(kycTable.userId, user.id));
+    // Persist session + document type
+    const existingKyc = await db.select().from(kycTable).where(eq(kycTable.userId, user.id)).limit(1);
+    if (existingKyc.length > 0) {
+      await db.update(kycTable)
+        .set({ diditSessionId: data.session_id, documentType, status: "pending", submittedAt: new Date() })
+        .where(eq(kycTable.userId, user.id));
     } else {
-      await db.insert(kycTable).values({ userId: user.id, status: "pending", submittedAt: new Date(), diditSessionId: data.session_id });
+      await db.insert(kycTable).values({ userId: user.id, documentType, status: "pending", submittedAt: new Date(), diditSessionId: data.session_id });
     }
     await db.update(usersTable).set({ kycStatus: "pending" }).where(eq(usersTable.id, user.id));
 
     return res.json({ url: data.url, sessionId: data.session_id });
-  } catch (err) {
-    logger.error({ err }, "Didit session error");
-    return res.status(500).json({ error: "Internal error creating KYC session" });
+  } catch (err: any) {
+    logger.error({ errMsg: err?.message, stack: err?.stack }, "Didit session error");
+    return res.status(500).json({ error: "Internal error creating KYC session", detail: err?.message ?? String(err) });
   }
 });
 

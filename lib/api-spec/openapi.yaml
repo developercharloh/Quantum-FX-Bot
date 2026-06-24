@@ -656,6 +656,12 @@ paths:
     post:
       operationId: createKycSession
       tags: [profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KYCSessionInput"
       responses:
         "200":
           description: Didit verification session created
@@ -1720,6 +1726,15 @@ components:
         rejectionReason:
           type: ["string", "null"]
       required: [status]
+
+    KYCSessionInput:
+      type: object
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        country: { type: string }
+        documentType: { type: string }
+      required: [firstName, lastName, country, documentType]
 
     KYCSession:
       type: object
