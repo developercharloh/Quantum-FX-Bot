@@ -115,7 +115,7 @@ export default function Dashboard() {
                   <Skeleton className="h-7 w-24" />
                 ) : (
                   <div className="text-xl font-bold text-white tracking-tight">
-                    {formatUSD(summary?.totalBalance)}
+                    {formatUSD(summary?.availableBalance)}
                   </div>
                 )}
                 <div className="text-[11px] text-muted-foreground">— Available Balance</div>

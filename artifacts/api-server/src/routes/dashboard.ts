@@ -21,24 +21,32 @@ router.get("/dashboard/summary", async (req, res) => {
   const userBots = await db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id));
   const activeBots = userBots.filter(b => b.status === "running");
 
-  // Get transactions for balance
+  // Get ALL transactions (not just completed) so pending withdrawals lock funds immediately
   const txns = await db.select().from(transactionsTable).where(
-    and(eq(transactionsTable.userId, user.id), eq(transactionsTable.status, "completed"))
+    eq(transactionsTable.userId, user.id)
   );
-  
+
   let balance = 0;
+  let pendingOut = 0;
   for (const t of txns) {
     const amt = parseFloat(t.amount);
-    if (t.type === "deposit" || t.type === "trade_profit") balance += amt;
-    if (t.type === "withdrawal" || t.type === "trade_loss" || t.type === "bot_purchase") balance -= amt;
+    if (t.status === "completed") {
+      if (t.type === "deposit" || t.type === "trade_profit") balance += amt;
+      if (t.type === "withdrawal" || t.type === "trade_loss" || t.type === "bot_purchase") balance -= amt;
+    }
+    // Pending withdrawals & purchases lock funds so users can't double-spend
+    if (t.status === "pending" && (t.type === "withdrawal" || t.type === "bot_purchase")) {
+      pendingOut += amt;
+    }
   }
 
+  const availableBalance = Math.max(0, balance - pendingOut);
   const todayProfit = activeBots.reduce((sum, b) => sum + parseFloat(b.profitToday), 0);
   const totalEarnings = userBots.reduce((sum, b) => sum + parseFloat(b.profitTotal), 0);
 
   return res.json({
     totalBalance: Math.max(0, balance + totalEarnings),
-    availableBalance: Math.max(0, balance),
+    availableBalance,
     todayProfit,
     todayProfitPercent: todayProfit > 0 ? 5.3 : 0,
     totalEarnings,
