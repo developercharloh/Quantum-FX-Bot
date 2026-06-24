@@ -6,13 +6,31 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CheckCircle, XCircle, Clock, ChevronDown } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Copy, Check } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-primary/10 hover:bg-primary/20 text-primary font-medium transition-colors shrink-0"
+    >
+      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
 
 const typeOptions = ["all", "deposit", "withdrawal"] as const;
 const statusOptions = ["all", "pending", "completed", "rejected"] as const;
@@ -113,15 +131,18 @@ export default function Finance() {
                       <p className="text-[11px] text-muted-foreground mt-0.5">{txn.paymentMethod}</p>
                     )}
                     {txn.type === 'withdrawal' && txn.walletAddress && (
-                      <div className="mt-1 space-y-0.5">
+                      <div className="mt-1.5 p-2 rounded-lg bg-secondary/60 space-y-1.5">
                         {txn.network && (
-                          <p className="text-[10px] font-medium text-primary/80">
-                            Network: <span className="font-semibold">{txn.network}</span>
+                          <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+                            {txn.network} Network
                           </p>
                         )}
-                        <p className="text-[10px] text-muted-foreground font-mono break-all leading-tight">
-                          {txn.walletAddress}
-                        </p>
+                        <div className="flex items-start gap-2">
+                          <p className="text-[10px] text-muted-foreground font-mono break-all leading-tight flex-1">
+                            {txn.walletAddress}
+                          </p>
+                          <CopyButton text={txn.walletAddress} />
+                        </div>
                       </div>
                     )}
                     <p className="text-[10px] text-muted-foreground/60 mt-0.5">{format(new Date(txn.createdAt), "PP · p")}</p>

@@ -9,7 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+function CopyAddressButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 hover:bg-primary/20 text-primary font-medium transition-colors shrink-0"
+    >
+      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
 
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
@@ -337,11 +355,14 @@ export default function UserDetail() {
                               <TableCell className="capitalize">
                                 <div>{txn.type.replace('_', ' ')}</div>
                                 {txn.type === 'withdrawal' && txn.walletAddress && (
-                                  <div className="mt-0.5 space-y-0.5">
+                                  <div className="mt-1 p-1.5 rounded-md bg-secondary/60 space-y-1">
                                     {txn.network && (
-                                      <div className="text-[10px] text-primary/80 font-medium">Network: {txn.network}</div>
+                                      <div className="text-[10px] font-semibold text-primary uppercase tracking-wide">{txn.network} Network</div>
                                     )}
-                                    <div className="text-[10px] text-muted-foreground font-mono break-all leading-tight max-w-[140px]">{txn.walletAddress}</div>
+                                    <div className="flex items-start gap-1.5">
+                                      <div className="text-[10px] text-muted-foreground font-mono break-all leading-tight max-w-[120px]">{txn.walletAddress}</div>
+                                      <CopyAddressButton text={txn.walletAddress} />
+                                    </div>
                                   </div>
                                 )}
                               </TableCell>
