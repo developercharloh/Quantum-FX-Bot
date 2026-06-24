@@ -63,7 +63,7 @@ export default function Finance() {
   return (
     <div className="p-4 space-y-4 pb-2">
       <div className="pt-1">
-        <h1 className="text-xl font-bold tracking-tight">Finance</h1>
+        <h1 className="text-xl font-bold tracking-tight">Wallet</h1>
         <p className="text-xs text-muted-foreground">Money movement & ledger</p>
       </div>
 

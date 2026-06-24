@@ -33,7 +33,7 @@ export default function Cashier() {
   return (
     <Layout showNav>
       <div className="p-5 pb-8 space-y-6">
-        <h1 className="text-2xl font-bold tracking-tight">Cashier</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Wallet</h1>
         
         <div className="space-y-3">
           {menuItems.map((item) => {

@@ -11,7 +11,7 @@ const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
   { path: "/users", label: "Users", icon: Users },
   { path: "/bots", label: "Bots", icon: Bot },
-  { path: "/finance", label: "Finance", icon: CircleDollarSign },
+  { path: "/finance", label: "Wallet", icon: CircleDollarSign },
   { path: "/support", label: "Support", icon: LifeBuoy },
   { path: "/settings", label: "Settings", icon: Settings },
 ];
