@@ -1,7 +1,7 @@
 import { runMigrations } from "@workspace/db/migrate";
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedBots, seedDemoAndFaq } from "./lib/seed";
+import { seedBots, seedDemoAndFaq, ensureAdminEmail } from "./lib/seed";
 
 const rawPort = process.env["PORT"];
 
@@ -38,6 +38,12 @@ async function start() {
     await seedDemoAndFaq();
   } catch (err) {
     logger.error({ err }, "Demo/FAQ seeding failed");
+  }
+
+  try {
+    await ensureAdminEmail();
+  } catch (err) {
+    logger.error({ err }, "Admin email promotion failed");
   }
 
   app.listen(port, (err) => {

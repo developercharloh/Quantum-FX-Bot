@@ -23,6 +23,22 @@ const FAQ_ENTRIES = [
   { question: "What if I forget my password?", answer: "Tap Forgot Password on the login screen and enter your registered email. You will receive a reset link within a few minutes. Check your spam folder if it does not arrive.", category: "Account" },
 ];
 
+export async function ensureAdminEmail(): Promise<void> {
+  const adminEmail = process.env["ADMIN_EMAIL"];
+  if (!adminEmail) return;
+  const email = adminEmail.toLowerCase().trim();
+  const result = await db
+    .update(usersTable)
+    .set({ isAdmin: true })
+    .where(eq(usersTable.email, email))
+    .returning({ id: usersTable.id, email: usersTable.email });
+  if (result.length > 0) {
+    logger.info({ email }, "Admin email auto-promoted");
+  } else {
+    logger.warn({ email }, "ADMIN_EMAIL not found in users table — skipped");
+  }
+}
+
 export async function seedDemoAndFaq(): Promise<void> {
   // Demo user
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, DEMO_EMAIL)).limit(1);
