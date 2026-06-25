@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { Bot, Eye, EyeOff, Lock, User, ShieldCheck, AlertCircle } from "lucide-react";
+import { Bot, Eye, EyeOff, Lock, User, ShieldCheck, AlertCircle, Mail } from "lucide-react";
 
 interface LoginProps {
   onLogin: () => void;
 }
 
-const ADMIN_USERNAME = "admin.quantum-bot";
-const ADMIN_PASSWORD = "admin@2027/org";
-
 export default function Login({ onLogin }: LoginProps) {
+  const [email, setEmail]       = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw]     = useState(false);
@@ -16,20 +14,42 @@ export default function Login({ onLogin }: LoginProps) {
   const [error, setError]       = useState("");
   const [shake, setShake]       = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const triggerShake = (msg: string) => {
+    setError(msg);
+    setShake(true);
+    setTimeout(() => setShake(false), 600);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      setLoading(true);
+    try {
+      const base = window.location.hostname !== "localhost"
+        ? "https://quantum-fx-bot.site"
+        : "";
+      const res = await fetch(`${base}/api/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), username, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        triggerShake(data.error ?? "Login failed.");
+        return;
+      }
+
+      // Success — short delay for UX then grant access
       setTimeout(() => {
         localStorage.setItem("qfx_admin_auth", "1");
         onLogin();
-      }, 1100);
-    } else {
-      setError("Invalid credentials. Access denied.");
-      setShake(true);
-      setTimeout(() => setShake(false), 600);
+      }, 900);
+    } catch {
+      triggerShake("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,7 +72,7 @@ export default function Login({ onLogin }: LoginProps) {
 
       {/* Card */}
       <div
-        className={`relative z-10 w-full max-w-[400px] transition-all duration-150 ${shake ? "translate-x-2" : ""}`}
+        className="relative z-10 w-full max-w-[420px]"
         style={{ animation: shake ? "shake 0.4s ease" : "none" }}
       >
         {/* Logo + brand */}
@@ -64,7 +84,7 @@ export default function Login({ onLogin }: LoginProps) {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Quantum FX</h1>
-          <p className="text-sm text-purple-300/80 mt-1 font-medium tracking-widest uppercase text-[11px]">
+          <p className="text-[11px] text-purple-300/80 mt-1 font-medium tracking-widest uppercase">
             Admin Portal
           </p>
         </div>
@@ -74,14 +94,33 @@ export default function Login({ onLogin }: LoginProps) {
           {/* Access badge */}
           <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-xl px-3 py-2 mb-6">
             <ShieldCheck className="w-4 h-4 text-purple-400 shrink-0" />
-            <span className="text-[11px] text-purple-300 font-medium">Secure administrator access only</span>
+            <span className="text-[11px] text-purple-300 font-medium">Promoted admin accounts only</span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Account Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="Your platform email address"
+                  autoComplete="email"
+                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+                  required
+                />
+              </div>
+            </div>
+
             {/* Username */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Username
+                Admin Username
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -100,7 +139,7 @@ export default function Login({ onLogin }: LoginProps) {
             {/* Password */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Password
+                Admin Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -126,9 +165,9 @@ export default function Login({ onLogin }: LoginProps) {
 
             {/* Error */}
             {error && (
-              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-                <span className="text-xs text-red-300">{error}</span>
+              <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <span className="text-xs text-red-300 leading-snug">{error}</span>
               </div>
             )}
 
@@ -150,7 +189,7 @@ export default function Login({ onLogin }: LoginProps) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="4" />
                     <path className="opacity-75" fill="white" d="M4 12a8 8 0 018-8v4l3-3-3-3V0a12 12 0 00-12 12h4z" />
                   </svg>
-                  Authenticating…
+                  Verifying access…
                 </span>
               ) : (
                 "Sign In to Admin Panel"
@@ -159,7 +198,6 @@ export default function Login({ onLogin }: LoginProps) {
           </form>
         </div>
 
-        {/* Footer */}
         <p className="text-center text-[11px] text-slate-600 mt-6">
           Quantum FX Bot · Admin Portal · Internal Use Only
         </p>

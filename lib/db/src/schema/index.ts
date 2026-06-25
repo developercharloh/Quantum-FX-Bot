@@ -12,6 +12,7 @@ export const usersTable = pgTable("users", {
   avatarUrl: text("avatar_url"),
   kycStatus: varchar("kyc_status", { length: 50 }).notNull().default("not_verified"),
   status: varchar("status", { length: 20 }).notNull().default("active"),
+  isAdmin: boolean("is_admin").notNull().default(false),
   twoFAEnabled: boolean("two_fa_enabled").notNull().default(false),
   twoFASecret: text("two_fa_secret"),
   referralCode: varchar("referral_code", { length: 50 }).notNull(),

@@ -9,7 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle, KeyRound, Plus, Minus, CreditCard, Copy, Check, ShieldCheck, ShieldOff } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,7 @@ export default function UserDetail() {
   const [balanceNote, setBalanceNote] = useState("");
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
   const [tempPassword, setTempPassword] = useState("");
+  const [promoteLoading, setPromoteLoading] = useState(false);
 
   const handleToggleStatus = () => {
     if (!user) return;
@@ -96,6 +97,25 @@ export default function UserDetail() {
         }
       }
     );
+  };
+
+  const handleToggleAdmin = async () => {
+    if (!user) return;
+    const isAdmin = (user as any).isAdmin as boolean;
+    const action = isAdmin ? "Revoke admin access from" : "Promote";
+    if (!confirm(`${action} ${user.fullName}?`)) return;
+    setPromoteLoading(true);
+    try {
+      const base = window.location.hostname !== "localhost" ? "https://quantum-fx-bot.site" : "";
+      const res = await fetch(`${base}/api/admin/users/${userId}/promote`, { method: "POST" });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Request failed");
+      toast({ title: isAdmin ? "Admin access revoked" : "User promoted to admin" });
+      queryClient.invalidateQueries({ queryKey: getAdminGetUserQueryKey(userId) });
+    } catch (err: any) {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setPromoteLoading(false);
+    }
   };
 
   const handleAdjustBalance = (type: "credit" | "debit") => {
@@ -219,6 +239,17 @@ export default function UserDetail() {
                     data-testid="btn-reset-password"
                   >
                     <KeyRound className="w-4 h-4 mr-2" /> Reset Password
+                  </Button>
+                  <Button
+                    variant={(user as any).isAdmin ? "outline" : "default"}
+                    className={(user as any).isAdmin ? "border-amber-500 text-amber-400 hover:bg-amber-500/10" : "bg-purple-600 hover:bg-purple-700 text-white"}
+                    onClick={handleToggleAdmin}
+                    disabled={promoteLoading}
+                    data-testid="btn-promote-admin"
+                  >
+                    {(user as any).isAdmin
+                      ? <><ShieldOff className="w-4 h-4 mr-2" /> Revoke Admin</>
+                      : <><ShieldCheck className="w-4 h-4 mr-2" /> Promote to Admin</>}
                   </Button>
                 </div>
               </CardContent>

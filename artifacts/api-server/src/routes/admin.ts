@@ -222,6 +222,7 @@ router.get("/admin/users/:id", async (req, res) => {
     email: user.email,
     status: user.status,
     kycStatus: user.kycStatus,
+    isAdmin: user.isAdmin,
     balance: Math.max(0, Math.round(balance * 100) / 100),
     totalBots: userBots.length,
     avatarUrl: user.avatarUrl,
@@ -900,6 +901,88 @@ router.post("/admin/chat/:userId", async (req, res) => {
     message: msg.message,
     createdAt: msg.createdAt.toISOString(),
   });
+});
+
+// ---------------- Admin Login ----------------
+// Verifies email belongs to an active promoted-admin user AND the shared
+// admin credentials are correct. Returns 200 on success, 401/403 on failure.
+const ADMIN_USERNAME = "admin.quantum-bot";
+const ADMIN_PASSWORD = "admin@2027/org";
+
+router.post("/admin/login", async (req, res) => {
+  const { email, username, password } = req.body ?? {};
+
+  if (!email || !username || !password) {
+    return res.status(400).json({ error: "Email, username and password are required." });
+  }
+
+  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: "Invalid credentials. Access denied." });
+  }
+
+  const [user] = await db.select().from(usersTable)
+    .where(eq(usersTable.email, String(email).toLowerCase().trim()))
+    .limit(1);
+
+  if (!user) {
+    return res.status(403).json({ error: "No account found with that email address." });
+  }
+  if (user.status !== "active") {
+    return res.status(403).json({ error: "Your account has been suspended." });
+  }
+  if (!user.isAdmin) {
+    return res.status(403).json({ error: "You have not been granted admin access. Contact the platform owner." });
+  }
+
+  return res.json({ ok: true, name: user.fullName });
+});
+
+// ---------------- Promote / Demote Admin ----------------
+router.post("/admin/users/:id/promote", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const next = !user.isAdmin;
+  await db.update(usersTable).set({ isAdmin: next }).where(eq(usersTable.id, id));
+
+  return res.json({ isAdmin: next });
+});
+
+// ---------------- Admin Login ----------------
+// Validates: email exists + active + isAdmin + static credentials match.
+router.post("/admin/login", async (req, res) => {
+  const { email, username, password } = req.body ?? {};
+  if (!email || !username || !password)
+    return res.status(400).json({ error: "Email, username and password are required." });
+
+  if (username !== "admin.quantum-bot" || password !== "admin@2027/org")
+    return res.status(401).json({ error: "Invalid credentials. Access denied." });
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, String(email).toLowerCase().trim())).limit(1);
+  if (!user)
+    return res.status(403).json({ error: "No account found for this email. Sign up on the platform first." });
+  if (user.status !== "active")
+    return res.status(403).json({ error: "Your account is suspended. Contact support." });
+  if (!user.isAdmin)
+    return res.status(403).json({ error: "You have not been granted admin access. Ask the administrator to promote your account." });
+
+  return res.json({ ok: true, name: user.fullName });
+});
+
+// ---------------- Promote / Demote Admin ----------------
+router.post("/admin/users/:id/promote", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const next = !user.isAdmin;
+  await db.update(usersTable).set({ isAdmin: next }).where(eq(usersTable.id, id));
+  return res.json({ ok: true, isAdmin: next });
 });
 
 // ---------------- Broadcast ----------------
