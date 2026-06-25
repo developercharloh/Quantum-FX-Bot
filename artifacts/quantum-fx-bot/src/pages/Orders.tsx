@@ -37,9 +37,31 @@ export default function Orders() {
     query: { refetchInterval: 4000 } as any,
   });
 
-  // Countdown state — keyed by positionId
-  const [remainingMs, setRemainingMs] = useState<number>(0);
-  const [activeTradeId, setActiveTradeId] = useState<number | null>(null);
+  // Read saved trade synchronously so filtering works on first render
+  const [activeTradeId, setActiveTradeId] = useState<number | null>(() => {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return null;
+      const saved = JSON.parse(raw) as { positionId: number; endTimeMs: number };
+      if (!saved.positionId || !saved.endTimeMs) return null;
+      // Expired — clear stale entry
+      if (saved.endTimeMs < Date.now()) {
+        localStorage.removeItem(SAVE_KEY);
+        return null;
+      }
+      return saved.positionId;
+    } catch { return null; }
+  });
+
+  const [remainingMs, setRemainingMs] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return 0;
+      const saved = JSON.parse(raw) as { positionId: number; endTimeMs: number };
+      return Math.max(0, (saved.endTimeMs ?? 0) - Date.now());
+    } catch { return 0; }
+  });
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Clear-history timestamp (positions closed before this are hidden)
@@ -47,34 +69,26 @@ export default function Orders() {
     return parseInt(localStorage.getItem(CLEAR_KEY) ?? "0", 10);
   });
 
-  // Read saved trade from localStorage on mount
+  // Start countdown timer if there's an active trade
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as { positionId: number; endTimeMs: number };
-      if (!saved.positionId || !saved.endTimeMs) return;
-      setActiveTradeId(saved.positionId);
-      const remaining = saved.endTimeMs - Date.now();
-      setRemainingMs(Math.max(0, remaining));
-
-      if (remaining > 0) {
-        timerRef.current = setInterval(() => {
-          setRemainingMs(prev => {
-            const next = prev - 1000;
-            if (next <= 0) {
-              clearInterval(timerRef.current!);
-              return 0;
-            }
-            return next;
-          });
-        }, 1000);
-      }
-    } catch { /* ignore */ }
+    if (!activeTradeId || remainingMs <= 0) return;
+    timerRef.current = setInterval(() => {
+      setRemainingMs(prev => {
+        const next = prev - 1000;
+        if (next <= 0) {
+          clearInterval(timerRef.current!);
+          localStorage.removeItem(SAVE_KEY);
+          setActiveTradeId(null);
+          return 0;
+        }
+        return next;
+      });
+    }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
+  }, [activeTradeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const open   = positions.filter(p => p.status === "open");
+  // Only show "open" positions that belong to the current active trade session
+  const open   = positions.filter(p => p.status === "open" && p.id === activeTradeId);
   const closed = positions.filter(p =>
     p.status !== "open" &&
     (!p.closedAt || new Date(p.closedAt).getTime() >= clearedBefore)
