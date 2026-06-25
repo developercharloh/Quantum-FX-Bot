@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { db, botsTable, usersTable, faqTable, notificationSettingsTable, kycTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, notInArray } from "drizzle-orm";
 import { logger } from "./logger";
 
 function hashPassword(p: string) {
@@ -63,7 +63,6 @@ type SeedBot = {
 // idempotently on every server start so the marketplace exists in any database
 // (fresh production DBs included), matching bots by name to preserve existing IDs.
 const BOT_CATALOG: SeedBot[] = [
-  // --- Free bots — Medium risk, ≥80% win rate ---
   {
     name: "Starter Signal Bot",
     description:
@@ -82,25 +81,6 @@ const BOT_CATALOG: SeedBot[] = [
     winRate: "81.00",
     riskLevel: "Medium",
   },
-  // --- Cheap paid bots ($100–$300) — Medium risk, ≥80% win rate ---
-  {
-    name: "Gold Scalper Bot",
-    description:
-      "High-frequency scalping on gold and commodities with tight risk control and consistent moderate-volatility returns.",
-    category: "Commodities",
-    price: "100",
-    winRate: "82.00",
-    riskLevel: "Medium",
-  },
-  {
-    name: "Forex Turbo Bot",
-    description:
-      "Fast-moving forex bot that captures intraday momentum across major currency pairs.",
-    category: "Forex",
-    price: "180",
-    winRate: "83.00",
-    riskLevel: "Medium",
-  },
   {
     name: "Breakout Pro Bot",
     description:
@@ -110,16 +90,6 @@ const BOT_CATALOG: SeedBot[] = [
     winRate: "84.00",
     riskLevel: "Medium",
   },
-  // --- Expensive bots ($340+) — Low risk, ≥85% win rate ---
-  {
-    name: "Scalping Pro Bot",
-    description:
-      "Precision scalping engine that books consistent small wins per session with low drawdown.",
-    category: "Forex",
-    price: "340",
-    winRate: "85.00",
-    riskLevel: "Low",
-  },
   {
     name: "Crypto Hunter Bot",
     description:
@@ -127,33 +97,6 @@ const BOT_CATALOG: SeedBot[] = [
     category: "Crypto",
     price: "450",
     winRate: "86.00",
-    riskLevel: "Low",
-  },
-  {
-    name: "Mean Reversion Bot",
-    description:
-      "Trades mean-reversion setups on commodities, fading overextended moves back toward fair value.",
-    category: "Commodities",
-    price: "550",
-    winRate: "87.00",
-    riskLevel: "Low",
-  },
-  {
-    name: "AI Trend Master",
-    description:
-      "AI-driven trend-following model that adapts to changing market regimes for steady, low-risk performance.",
-    category: "AI",
-    price: "700",
-    winRate: "91.00",
-    riskLevel: "Low",
-  },
-  {
-    name: "Momentum Quant Bot",
-    description:
-      "Quantitative momentum strategy that rotates into the strongest trending assets with institutional-grade risk controls.",
-    category: "AI",
-    price: "850",
-    winRate: "89.00",
     riskLevel: "Low",
   },
   {
@@ -204,6 +147,12 @@ export async function seedBots(): Promise<void> {
       inserted += 1;
     }
   }
+
+  // Hide any bots no longer in the catalog so they don't appear in the marketplace
+  const catalogNames = BOT_CATALOG.map(b => b.name);
+  await db.update(botsTable)
+    .set({ isMarketplace: false })
+    .where(notInArray(botsTable.name, catalogNames));
 
   logger.info({ inserted, updated, total: BOT_CATALOG.length }, "Bot catalog seeded");
 }

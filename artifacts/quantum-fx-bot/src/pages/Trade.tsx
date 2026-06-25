@@ -26,12 +26,7 @@ type Step = "configure" | "running" | "result";
 const STORAGE_KEY = "qfx_active_trade";
 
 const RUNTIMES = [
-  { value: 1,  label: "1 Minute"  },
-  { value: 2,  label: "2 Minutes" },
-  { value: 5,  label: "5 Minutes" },
-  { value: 10, label: "10 Minutes"},
-  { value: 15, label: "15 Minutes"},
-  { value: 30, label: "30 Minutes"},
+  { value: 5, label: "5 Minutes" },
 ];
 
 const AI_MESSAGES = [
