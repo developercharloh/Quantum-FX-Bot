@@ -4,7 +4,7 @@ import { useGetProfile, useUpdateProfile } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft, Loader2, Pencil, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -98,6 +98,17 @@ const COUNTRIES = [
   { name: "🇿🇲 Zambia", dial: "+260" }, { name: "🇿🇼 Zimbabwe", dial: "+263" },
 ];
 
+function ReadField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs text-muted-foreground font-medium">{label}</p>
+      <div className="bg-card h-14 rounded-xl px-4 flex items-center">
+        <span className="text-sm font-medium">{value || <span className="text-muted-foreground/50">—</span>}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function PersonalInfo() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -105,6 +116,7 @@ export default function PersonalInfo() {
   const { data: profile, isLoading } = useGetProfile();
   const updateMutation = useUpdateProfile();
 
+  const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("");
@@ -120,6 +132,16 @@ export default function PersonalInfo() {
 
   const selectedCountry = COUNTRIES.find((c) => c.name === country);
 
+  const handleCancel = () => {
+    if (profile) {
+      setFullName(profile.fullName ?? "");
+      setPhone((profile as any).phone ?? "");
+      setCountry((profile as any).country ?? "");
+    }
+    setError("");
+    setEditing(false);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || fullName.trim().length < 2) {
@@ -130,7 +152,10 @@ export default function PersonalInfo() {
     updateMutation.mutate(
       { data: { fullName, phone, country } },
       {
-        onSuccess: () => toast({ title: "Profile updated successfully" }),
+        onSuccess: () => {
+          toast({ title: "Profile updated successfully" });
+          setEditing(false);
+        },
         onError: (err: any) => toast({ title: "Update failed", description: err?.message, variant: "destructive" }),
       }
     );
@@ -147,18 +172,33 @@ export default function PersonalInfo() {
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl font-bold tracking-tight">Personal Information</h1>
+          <h1 className="text-xl font-bold tracking-tight flex-1">Personal Information</h1>
+          {!isLoading && (
+            <button
+              type="button"
+              onClick={() => editing ? handleCancel() : setEditing(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-card transition-colors hover:bg-primary/10"
+              title={editing ? "Cancel editing" : "Edit personal details"}
+            >
+              {editing ? <X className="w-4.5 h-4.5 text-muted-foreground" /> : <Pencil className="w-4 h-4 text-primary" />}
+            </button>
+          )}
         </div>
+
+        {!editing && !isLoading && (
+          <p className="text-xs text-muted-foreground -mt-2 flex items-center gap-1.5">
+            <Pencil className="w-3 h-3" /> Tap the edit icon to update your details
+          </p>
+        )}
 
         {isLoading ? (
           <div className="space-y-6">
-            {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-2xl" />)}
+            {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
           </div>
-        ) : (
+        ) : editing ? (
           <form onSubmit={handleSubmit} className="space-y-6">
-
             <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Full Name</label>
+              <label className="text-xs text-muted-foreground font-medium">Full Name</label>
               <Input
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -168,8 +208,8 @@ export default function PersonalInfo() {
               {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
 
-            <div className="space-y-2 opacity-70">
-              <label className="text-sm text-muted-foreground">Email Address</label>
+            <div className="space-y-2 opacity-60">
+              <label className="text-xs text-muted-foreground font-medium">Email Address</label>
               <Input
                 value={profile?.email ?? ""}
                 className="bg-card border-none h-14 rounded-xl px-4"
@@ -179,7 +219,7 @@ export default function PersonalInfo() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Phone Number</label>
+              <label className="text-xs text-muted-foreground font-medium">Phone Number</label>
               <div className="flex gap-2">
                 {selectedCountry && (
                   <div className="flex items-center bg-card rounded-xl px-3 h-14 shrink-0 text-sm text-muted-foreground font-medium">
@@ -196,7 +236,7 @@ export default function PersonalInfo() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Country</label>
+              <label className="text-xs text-muted-foreground font-medium">Country</label>
               <select
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
@@ -212,14 +252,34 @@ export default function PersonalInfo() {
               </select>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full h-14 rounded-xl text-lg font-medium shadow-none mt-4"
-              disabled={updateMutation.isPending}
-            >
-              {updateMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Changes"}
-            </Button>
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 h-14 rounded-xl text-base font-medium"
+                onClick={handleCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 h-14 rounded-xl text-base font-medium shadow-none"
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Changes"}
+              </Button>
+            </div>
           </form>
+        ) : (
+          <div className="space-y-5">
+            <ReadField label="Full Name" value={fullName} />
+            <ReadField label="Email Address" value={profile?.email ?? ""} />
+            <ReadField
+              label="Phone Number"
+              value={selectedCountry ? `${selectedCountry.dial} ${phone}` : phone || ""}
+            />
+            <ReadField label="Country" value={country} />
+          </div>
         )}
       </div>
     </Layout>
