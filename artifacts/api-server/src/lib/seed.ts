@@ -146,7 +146,6 @@ export async function purgeTestUsers(): Promise<void> {
 
 export async function seedBots(): Promise<void> {
   let inserted = 0;
-  let updated = 0;
 
   for (const bot of BOT_CATALOG) {
     const existing = await db
@@ -155,20 +154,8 @@ export async function seedBots(): Promise<void> {
       .where(eq(botsTable.name, bot.name))
       .limit(1);
 
-    if (existing.length > 0) {
-      await db
-        .update(botsTable)
-        .set({
-          description: bot.description,
-          category: bot.category,
-          price: bot.price,
-          winRate: bot.winRate,
-          riskLevel: bot.riskLevel,
-          isMarketplace: true,
-        })
-        .where(eq(botsTable.id, existing[0]!.id));
-      updated += 1;
-    } else {
+    // Only insert if the bot doesn't exist yet — never overwrite admin edits
+    if (existing.length === 0) {
       await db.insert(botsTable).values({
         name: bot.name,
         description: bot.description,
@@ -182,11 +169,5 @@ export async function seedBots(): Promise<void> {
     }
   }
 
-  // Hide any bots no longer in the catalog so they don't appear in the marketplace
-  const catalogNames = BOT_CATALOG.map(b => b.name);
-  await db.update(botsTable)
-    .set({ isMarketplace: false })
-    .where(notInArray(botsTable.name, catalogNames));
-
-  logger.info({ inserted, updated, total: BOT_CATALOG.length }, "Bot catalog seeded");
+  logger.info({ inserted, total: BOT_CATALOG.length }, "Bot catalog seeded");
 }
