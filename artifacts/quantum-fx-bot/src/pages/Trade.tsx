@@ -630,8 +630,6 @@ export default function Trade() {
                     { k: "Bot",       v: bot?.name ?? "—", c: "" },
                     { k: "Stake",     v: `$${stakeNum.toFixed(2)}`, c: "" },
                     { k: "Duration",  v: RUNTIMES.find(r => r.value === runtime)?.label ?? "", c: "" },
-                    { k: "Target",    v: `+$${bestSignal.suggestedTp}`, c: "text-green-400" },
-                    { k: "Stop Loss", v: `-$${bestSignal.suggestedSl}`, c: "text-red-400" },
                   ].map(({ k, v, c }) => (
                     <div key={k} className="flex items-center justify-between">
                       <span className="text-[11px] text-muted-foreground">{k}</span>
@@ -747,12 +745,6 @@ export default function Trade() {
               <div className="relative h-1.5 w-full rounded-full bg-background overflow-hidden">
                 <div className={`h-full rounded-full transition-all duration-700 ${posUp ? "bg-green-500" : "bg-red-500"}`} style={{ width:`${pct}%` }} />
               </div>
-              {pos && (
-                <div className="flex justify-between text-[10px] mt-1.5 text-muted-foreground">
-                  <span className="text-red-400">SL −${pos.stopLoss.toFixed(0)}</span>
-                  <span className="text-green-400">TP +${pos.targetProfit.toFixed(0)}</span>
-                </div>
-              )}
             </div>
 
             {/* AI analysis */}
