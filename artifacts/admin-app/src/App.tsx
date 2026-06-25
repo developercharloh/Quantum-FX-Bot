@@ -16,10 +16,13 @@ import Support from "@/pages/Support";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
-// Initialize API client.
-// VITE_ADMIN_API_BASE is set at build time by Render (see render.yaml).
-// In dev it is unset: requests stay same-origin and the shared proxy routes /api to the API server.
-setBaseUrl(import.meta.env.VITE_ADMIN_API_BASE || null);
+// In dev (localhost) requests stay same-origin — the shared proxy routes /api to Express.
+// In production the admin app is on a different origin, so point directly at the API domain.
+setBaseUrl(
+  typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "https://quantum-fx-bot.site"
+    : null
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
