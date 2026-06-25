@@ -192,20 +192,9 @@ export default function BotDetail() {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 mt-4">
+        <div className="mt-4">
           <Button
-            className={`flex-1 h-14 rounded-xl text-[15px] font-medium shadow-none ${
-              bot?.status === "running"
-                ? "bg-transparent border border-red-500/50 text-red-500 hover:bg-red-500/10"
-                : "bg-primary text-white"
-            }`}
-            onClick={handleToggle}
-            disabled={isLoading || toggleMutation.isPending}
-          >
-            {toggleMutation.isPending ? "Updating..." : bot?.status === "running" ? "Pause Bot" : "Start Bot"}
-          </Button>
-          <Button
-            className="flex-1 h-14 rounded-xl text-[15px] font-medium shadow-none bg-primary text-white hover:bg-primary/90"
+            className="w-full h-14 rounded-xl text-[15px] font-semibold shadow-none bg-primary text-white hover:bg-primary/90"
             onClick={() => setLocation(`/bots/${id}/analytics`)}
           >
             View Analytics
