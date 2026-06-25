@@ -192,16 +192,9 @@ export default function BotDetail() {
         </div>
 
         {/* Actions */}
-        <div className="mt-4 space-y-3">
+        <div className="mt-4">
           <Button
             className="w-full h-14 rounded-xl text-[15px] font-bold shadow-none bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90"
-            onClick={() => setLocation(`/trade?botId=${id}`)}
-          >
-            Start Bot
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full h-12 rounded-xl text-[14px] font-semibold shadow-none border-border/50"
             onClick={() => setLocation(`/bots/${id}/analytics`)}
           >
             View Analytics
