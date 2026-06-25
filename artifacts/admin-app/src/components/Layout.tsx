@@ -44,7 +44,7 @@ export default function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Scrollable Content */}
-      <main className="flex-1 overflow-y-auto mt-14 mb-[calc(4rem+2.25rem)]">
+      <main className="flex-1 overflow-y-auto mt-14 mb-16">
         {children}
       </main>
 
@@ -76,26 +76,6 @@ export default function Layout({ children }: LayoutProps) {
           })}
         </nav>
 
-        {/* Footer URLs */}
-        <div className="flex items-center justify-center gap-3 px-4 pb-2">
-          <a
-            href="https://quantum-fx-bot.onrender.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[9px] text-muted-foreground/60 hover:text-primary transition-colors truncate"
-          >
-            🌐 quantum-fx-bot.onrender.com
-          </a>
-          <span className="text-muted-foreground/30 text-[9px]">·</span>
-          <a
-            href="https://admin-app-ogdq.onrender.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[9px] text-muted-foreground/60 hover:text-primary transition-colors truncate"
-          >
-            🛡 admin-app-ogdq.onrender.com
-          </a>
-        </div>
       </div>
     </div>
   );
