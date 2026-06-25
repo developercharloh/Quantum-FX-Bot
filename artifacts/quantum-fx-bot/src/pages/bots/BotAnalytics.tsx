@@ -36,10 +36,10 @@ function PeriodDropdown({ value, onChange }: { value: string; onChange: (id: str
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 bg-background/60 border border-white/10 text-xs font-semibold px-3 py-1.5 rounded-lg text-foreground"
+        className="flex items-center gap-1.5 bg-[#1a2235] border border-white/10 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
       >
         {selected.label}
-        <ChevronDown className="w-3 h-3 text-muted-foreground" />
+        <ChevronDown className="w-3 h-3 text-white/60" />
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 z-50 w-36 bg-[#1a2235] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
@@ -49,12 +49,12 @@ function PeriodDropdown({ value, onChange }: { value: string; onChange: (id: str
               onClick={() => { onChange(p.id); setOpen(false); }}
               className={`w-full text-left px-4 py-3 transition-colors ${
                 p.id === value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-foreground hover:bg-white/5"
+                  ? "bg-primary text-white"
+                  : "text-white/80 hover:bg-white/10"
               }`}
             >
               <p className="text-xs font-semibold">{p.label}</p>
-              <p className={`text-[10px] mt-0.5 ${p.id === value ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{p.sub}</p>
+              <p className={`text-[10px] mt-0.5 ${p.id === value ? "text-white/70" : "text-white/40"}`}>{p.sub}</p>
             </button>
           ))}
         </div>

@@ -94,21 +94,21 @@ function PeriodDropdown({ value, onChange }: { value: string; onChange: (id: str
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 bg-[#1a2235] border border-border/40 text-xs font-medium px-3 py-1.5 rounded-lg text-foreground"
+        className="flex items-center gap-1.5 bg-[#1a2235] border border-white/10 text-xs font-medium px-3 py-1.5 rounded-lg text-white"
       >
         {selected.label}
-        <ChevronDown className="w-3 h-3 text-muted-foreground" />
+        <ChevronDown className="w-3 h-3 text-white/60" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-36 bg-[#1a2235] border border-border/40 rounded-xl shadow-xl overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 z-50 w-36 bg-[#1a2235] border border-white/10 rounded-xl shadow-xl overflow-hidden">
           {PERIODS.map(p => (
             <button
               key={p.id}
               onClick={() => { onChange(p.id); setOpen(false); }}
               className={`w-full text-left px-4 py-2.5 text-xs transition-colors ${
                 p.id === value
-                  ? "bg-primary text-primary-foreground font-semibold"
-                  : "text-foreground hover:bg-card"
+                  ? "bg-primary text-white font-semibold"
+                  : "text-white/80 hover:bg-white/10"
               }`}
             >
               {p.label}
