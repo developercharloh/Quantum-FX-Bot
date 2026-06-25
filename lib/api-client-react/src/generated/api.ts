@@ -36,6 +36,7 @@ import type {
   AdminListTransactionsParams,
   AdminListUsersParams,
   AdminOverview,
+  AdminRefundByUidInput,
   AdminResetPasswordResult,
   AdminReviewDepositInput,
   AdminSettings,
@@ -4044,6 +4045,71 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAdminAdjustBalanceMutationOptions(options));
+    }
+
+export const getAdminRefundByUidUrl = () => {
+
+
+
+
+  return `/api/admin/refund-by-uid`
+}
+
+export const adminRefundByUid = async (adminRefundByUidInput: AdminRefundByUidInput, options?: RequestInit): Promise<AdminUser> => {
+
+  return customFetch<AdminUser>(getAdminRefundByUidUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminRefundByUidInput,)
+  }
+);}
+
+
+
+
+export const getAdminRefundByUidMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRefundByUid>>, TError,{data: BodyType<AdminRefundByUidInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminRefundByUid>>, TError,{data: BodyType<AdminRefundByUidInput>}, TContext> => {
+
+const mutationKey = ['adminRefundByUid'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminRefundByUid>>, {data: BodyType<AdminRefundByUidInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminRefundByUid(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminRefundByUidMutationResult = NonNullable<Awaited<ReturnType<typeof adminRefundByUid>>>
+    export type AdminRefundByUidMutationBody = BodyType<AdminRefundByUidInput>
+    export type AdminRefundByUidMutationError = ErrorType<unknown>
+
+    export const useAdminRefundByUid = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRefundByUid>>, TError,{data: BodyType<AdminRefundByUidInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminRefundByUid>>,
+        TError,
+        {data: BodyType<AdminRefundByUidInput>},
+        TContext
+      > => {
+      return useMutation(getAdminRefundByUidMutationOptions(options));
     }
 
 export const getAdminListKycUrl = (params?: AdminListKycParams,) => {

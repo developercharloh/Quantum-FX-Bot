@@ -4,11 +4,13 @@ import {
   useAdminListUsers,
   useAdminListKyc,
   useAdminReviewKyc,
-  getAdminListKycQueryKey
+  useAdminRefundByUid,
+  getAdminListKycQueryKey,
+  getAdminListUsersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Search, ChevronRight, CheckCircle, XCircle } from "lucide-react";
+import { Search, ChevronRight, CheckCircle, XCircle, Landmark } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Users() {
@@ -25,13 +28,38 @@ export default function Users() {
   const { data: users, isLoading: usersLoading } = useAdminListUsers({ search: debouncedSearch || undefined });
   const { data: kycItems, isLoading: kycLoading } = useAdminListKyc({ status: "pending" });
 
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundUid, setRefundUid] = useState("");
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundNote, setRefundNote] = useState("");
+
   const reviewKyc = useAdminReviewKyc();
+  const refundMutation = useAdminRefundByUid();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setDebouncedSearch(search);
+  };
+
+  const handleRefund = () => {
+    const amt = parseFloat(refundAmount);
+    if (!refundUid.trim() || isNaN(amt) || amt <= 0) return;
+    refundMutation.mutate(
+      { data: { accountUid: refundUid.trim().toUpperCase(), amount: amt, note: refundNote || "Admin refund" } },
+      {
+        onSuccess: (u) => {
+          toast({ title: `Refunded $${amt.toFixed(2)} to ${u.fullName}` });
+          setRefundOpen(false);
+          setRefundUid(""); setRefundAmount(""); setRefundNote("");
+          queryClient.invalidateQueries({ queryKey: getAdminListUsersQueryKey() });
+        },
+        onError: (err) => {
+          toast({ title: "Refund failed", description: err.message, variant: "destructive" });
+        }
+      }
+    );
   };
 
   const handleKycReview = (userId: number, action: "approve" | "reject") => {
@@ -51,10 +79,68 @@ export default function Users() {
 
   return (
     <div className="p-4 space-y-4 pb-2">
-      <div className="pt-1">
-        <h1 className="text-xl font-bold tracking-tight">Users</h1>
-        <p className="text-xs text-muted-foreground">Accounts & KYC management</p>
+      <div className="pt-1 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Users</h1>
+          <p className="text-xs text-muted-foreground">Accounts & KYC management</p>
+        </div>
+        <Button size="sm" className="h-8 gap-1.5 rounded-xl" onClick={() => setRefundOpen(true)}>
+          <Landmark className="w-3.5 h-3.5" /> Refund by UID
+        </Button>
       </div>
+
+      <Dialog open={refundOpen} onOpenChange={setRefundOpen}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Refund by Account UID</DialogTitle>
+            <DialogDescription>
+              Enter the user's Account UID and the amount to credit their balance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Account UID</label>
+              <Input
+                placeholder="e.g. QFXA1B2C3D4"
+                value={refundUid}
+                onChange={e => setRefundUid(e.target.value.toUpperCase())}
+                className="font-mono uppercase rounded-xl"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Amount (USD)</label>
+              <Input
+                type="number"
+                placeholder="0.00"
+                min="0.01"
+                step="0.01"
+                value={refundAmount}
+                onChange={e => setRefundAmount(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Note (optional)</label>
+              <Input
+                placeholder="Refund reason..."
+                value={refundNote}
+                onChange={e => setRefundNote(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="rounded-xl" onClick={() => setRefundOpen(false)}>Cancel</Button>
+            <Button
+              className="rounded-xl"
+              onClick={handleRefund}
+              disabled={refundMutation.isPending || !refundUid.trim() || !refundAmount}
+            >
+              {refundMutation.isPending ? "Processing..." : "Send Refund"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="w-full h-9">
@@ -105,13 +191,13 @@ export default function Users() {
                               {user.status}
                             </Badge>
                           </div>
-                          <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+                          </div>
                           <div className="flex items-center gap-3 mt-1">
+                            <span className="text-[11px] font-mono font-bold text-primary/80 bg-primary/8 px-1.5 py-0.5 rounded">{user.accountUid}</span>
                             <span className="text-[11px] text-emerald-400 font-medium">${user.balance.toFixed(2)}</span>
                             <span className="text-[11px] text-muted-foreground">{user.totalBots} bots</span>
-                            <Badge variant={user.kycStatus === "verified" ? "default" : user.kycStatus === "pending" ? "secondary" : "outline"} className="text-[10px] h-4 px-1.5">
-                              KYC: {user.kycStatus}
-                            </Badge>
                           </div>
                         </div>
                         <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />

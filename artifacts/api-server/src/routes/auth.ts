@@ -30,6 +30,13 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
+function generateAccountUid(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let uid = "QFX";
+  for (let i = 0; i < 8; i++) uid += chars[Math.floor(Math.random() * chars.length)];
+  return uid;
+}
+
 function generateReferralCode(): string {
   return crypto.randomBytes(4).toString("hex").toUpperCase();
 }
@@ -64,6 +71,7 @@ router.post("/auth/register", async (req, res) => {
   }
 
   const [user] = await db.insert(usersTable).values({
+    accountUid: generateAccountUid(),
     fullName,
     email,
     passwordHash: hashPassword(password),
@@ -238,6 +246,7 @@ router.get("/auth/me", async (req, res) => {
 
   return res.json({
     id: user.id,
+    accountUid: user.accountUid,
     fullName: user.fullName,
     email: user.email,
     avatarUrl: user.avatarUrl,

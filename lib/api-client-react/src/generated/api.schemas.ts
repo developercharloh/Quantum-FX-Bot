@@ -241,6 +241,7 @@ export interface TeamEarnings {
 
 export interface Profile {
   id: number;
+  accountUid: string;
   fullName: string;
   email: string;
   /** @nullable */
@@ -406,6 +407,7 @@ export interface AdminOverview {
 
 export interface AdminUser {
   id: number;
+  accountUid: string;
   fullName: string;
   email: string;
   status: string;
@@ -431,6 +433,7 @@ export interface AdminUserBot {
 
 export interface AdminUserDetail {
   id: number;
+  accountUid: string;
   fullName: string;
   email: string;
   status: string;
@@ -455,6 +458,12 @@ export interface AdminUserDetail {
 
 export interface AdminUserStatusInput {
   status: string;
+}
+
+export interface AdminRefundByUidInput {
+  accountUid: string;
+  amount: number;
+  note?: string;
 }
 
 export interface AdminResetPasswordResult {

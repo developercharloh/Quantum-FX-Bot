@@ -8,6 +8,7 @@
 
 export interface Profile {
   id: number;
+  accountUid: string;
   fullName: string;
   email: string;
   /** @nullable */

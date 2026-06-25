@@ -482,6 +482,7 @@ export const GetTeamEarningsOverviewResponse = zod.object({
 
 export const GetProfileResponse = zod.object({
   "id": zod.number(),
+  "accountUid": zod.string(),
   "fullName": zod.string(),
   "email": zod.string(),
   "phone": zod.string().nullish(),
@@ -501,6 +502,7 @@ export const UpdateProfileBody = zod.object({
 
 export const UpdateProfileResponse = zod.object({
   "id": zod.number(),
+  "accountUid": zod.string(),
   "fullName": zod.string(),
   "email": zod.string(),
   "phone": zod.string().nullish(),
@@ -711,6 +713,7 @@ export const AdminListUsersQueryParams = zod.object({
 
 export const AdminListUsersResponseItem = zod.object({
   "id": zod.number(),
+  "accountUid": zod.string(),
   "fullName": zod.string(),
   "email": zod.string(),
   "status": zod.string(),
@@ -730,6 +733,7 @@ export const AdminGetUserParams = zod.object({
 
 export const AdminGetUserResponse = zod.object({
   "id": zod.number(),
+  "accountUid": zod.string(),
   "fullName": zod.string(),
   "email": zod.string(),
   "status": zod.string(),
@@ -780,6 +784,7 @@ export const AdminSetUserStatusBody = zod.object({
 
 export const AdminSetUserStatusResponse = zod.object({
   "id": zod.number(),
+  "accountUid": zod.string(),
   "fullName": zod.string(),
   "email": zod.string(),
   "status": zod.string(),
@@ -812,6 +817,28 @@ export const AdminAdjustBalanceBody = zod.object({
 
 export const AdminAdjustBalanceResponse = zod.object({
   "id": zod.number(),
+  "accountUid": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "status": zod.string(),
+  "kycStatus": zod.string(),
+  "balance": zod.number(),
+  "totalBots": zod.number(),
+  "avatarUrl": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+export const AdminRefundByUidBody = zod.object({
+  "accountUid": zod.string(),
+  "amount": zod.number(),
+  "note": zod.string().optional()
+})
+
+export const AdminRefundByUidResponse = zod.object({
+  "id": zod.number(),
+  "accountUid": zod.string(),
   "fullName": zod.string(),
   "email": zod.string(),
   "status": zod.string(),

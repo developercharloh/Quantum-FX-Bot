@@ -157,6 +157,7 @@ router.get("/admin/users", async (req, res) => {
     const balance = (txnByUser.get(u.id) ?? 0) + (profitByUser.get(u.id) ?? 0);
     return {
       id: u.id,
+      accountUid: u.accountUid,
       fullName: u.fullName,
       email: u.email,
       status: u.status,
@@ -171,7 +172,10 @@ router.get("/admin/users", async (req, res) => {
 
   if (search) {
     result = result.filter(
-      (u) => u.fullName.toLowerCase().includes(search) || u.email.toLowerCase().includes(search),
+      (u) =>
+        u.fullName.toLowerCase().includes(search) ||
+        u.email.toLowerCase().includes(search) ||
+        u.accountUid.toLowerCase().includes(search),
     );
   }
 
@@ -213,6 +217,7 @@ router.get("/admin/users/:id", async (req, res) => {
 
   return res.json({
     id: user.id,
+    accountUid: user.accountUid,
     fullName: user.fullName,
     email: user.email,
     status: user.status,
@@ -323,6 +328,29 @@ router.post("/admin/users/:id/adjust-balance", async (req, res) => {
   });
 
   const updated = await getAdminUser(id);
+  return res.json(updated);
+});
+
+// ---------------- Refund by UID ----------------
+router.post("/admin/refund-by-uid", async (req, res) => {
+  const { accountUid, amount, note } = req.body as { accountUid?: string; amount?: number; note?: string };
+  if (!accountUid || typeof accountUid !== "string") return res.status(400).json({ error: "accountUid required" });
+  if (!amount || typeof amount !== "number" || amount <= 0) return res.status(400).json({ error: "amount must be a positive number" });
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.accountUid, accountUid.trim().toUpperCase())).limit(1);
+  if (!user) return res.status(404).json({ error: "No user found with that UID" });
+
+  const desc = (note?.trim() || `Refund by admin`);
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "deposit",
+    amount: amount.toFixed(2),
+    status: "completed",
+    paymentMethod: "admin",
+    description: desc,
+  });
+
+  const updated = await getAdminUser(user.id);
   return res.json(updated);
 });
 

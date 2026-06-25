@@ -10,6 +10,7 @@ import type { AdminUserBot } from './adminUserBot';
 
 export interface AdminUserDetail {
   id: number;
+  accountUid: string;
   fullName: string;
   email: string;
   status: string;

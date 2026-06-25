@@ -37,6 +37,7 @@ router.get("/profile", async (req, res) => {
 
   return res.json({
     id: user.id,
+    accountUid: user.accountUid,
     fullName: user.fullName,
     email: user.email,
     phone: profile?.phone ?? null,

@@ -8,6 +8,7 @@
 
 export interface AdminUser {
   id: number;
+  accountUid: string;
   fullName: string;
   email: string;
   status: string;

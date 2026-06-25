@@ -181,6 +181,13 @@ export default function UserDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
+                  <div className="text-sm font-medium text-muted-foreground mb-1">Account UID</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-base tracking-widest text-primary">{user.accountUid}</span>
+                    <CopyAddressButton text={user.accountUid} />
+                  </div>
+                </div>
+                <div>
                   <div className="text-sm font-medium text-muted-foreground">Joined</div>
                   <div>{format(new Date(user.createdAt), "PPp")}</div>
                 </div>

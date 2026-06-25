@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLogout, useGetProfile } from "@workspace/api-client-react";
@@ -10,7 +11,9 @@ import {
   Bell, 
   HelpCircle, 
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -18,6 +21,14 @@ export default function Profile() {
   const [, setLocation] = useLocation();
   const { user, setAuth } = useAuth();
   const { data: profile, isLoading } = useGetProfile();
+  const [copied, setCopied] = useState(false);
+  const handleCopyUid = async () => {
+    const uid = profile?.accountUid;
+    if (!uid) return;
+    await navigator.clipboard.writeText(uid);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   const logoutMutation = useLogout();
   const queryClient = useQueryClient();
 
@@ -70,11 +81,21 @@ export default function Profile() {
             <div className="space-y-2 flex flex-col items-center">
               <Skeleton className="h-6 w-32" />
               <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-8 w-40 mt-1" />
             </div>
           ) : (
             <div className="text-center">
               <h2 className="text-xl font-bold tracking-tight mb-1">{profile?.fullName || user?.fullName}</h2>
               <p className="text-sm text-muted-foreground">{profile?.email || user?.email}</p>
+              {profile?.accountUid && (
+                <button
+                  onClick={handleCopyUid}
+                  className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-colors"
+                >
+                  <span className="text-[11px] font-mono font-bold tracking-widest">{profile.accountUid}</span>
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              )}
             </div>
           )}
         </div>

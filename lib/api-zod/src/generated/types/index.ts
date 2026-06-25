@@ -24,6 +24,7 @@ export * from './adminListTransactionsParams';
 export * from './adminListUsersParams';
 export * from './adminOverview';
 export * from './adminPaymentMethod';
+export * from './adminRefundByUidInput';
 export * from './adminResetPasswordResult';
 export * from './adminReviewDepositInput';
 export * from './adminSettings';
