@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { db, botsTable, usersTable, faqTable, notificationSettingsTable, kycTable } from "@workspace/db";
-import { eq, sql, notInArray } from "drizzle-orm";
+import { db, botsTable, usersTable, faqTable, notificationSettingsTable, kycTable, sessionsTable, userBotsTable, positionsTable, transactionsTable, earningsTable, notificationsTable, depositSessionsTable, supportTicketsTable, userProfilesTable, referralsTable } from "@workspace/db";
+import { eq, sql, notInArray, inArray, or, like } from "drizzle-orm";
 import { logger } from "./logger";
 
 function hashPassword(p: string) {
@@ -129,6 +129,42 @@ const BOT_CATALOG: SeedBot[] = [
     riskLevel: "Low",
   },
 ];
+
+// Delete users whose emails use obviously fake domains (test/migration artifacts).
+// Runs once on startup; idempotent — safe to leave in place.
+const FAKE_EMAIL_PATTERNS = ["%@ex.com", "%@example.com"];
+
+export async function purgeTestUsers(): Promise<void> {
+  const fakeUsers = await db
+    .select({ id: usersTable.id, email: usersTable.email })
+    .from(usersTable)
+    .where(or(...FAKE_EMAIL_PATTERNS.map((p) => like(usersTable.email, p))));
+
+  if (fakeUsers.length === 0) {
+    logger.info("purgeTestUsers: no fake users found");
+    return;
+  }
+
+  const ids = fakeUsers.map((u) => u.id);
+  logger.info({ ids, emails: fakeUsers.map((u) => u.email) }, "purgeTestUsers: deleting fake users");
+
+  // Delete child rows in dependency order before removing the parent user rows.
+  await db.delete(supportTicketsTable).where(inArray(supportTicketsTable.userId, ids));
+  await db.delete(depositSessionsTable).where(inArray(depositSessionsTable.userId, ids));
+  await db.delete(positionsTable).where(inArray(positionsTable.userId, ids));
+  await db.delete(earningsTable).where(inArray(earningsTable.userId, ids));
+  await db.delete(notificationsTable).where(inArray(notificationsTable.userId, ids));
+  await db.delete(notificationSettingsTable).where(inArray(notificationSettingsTable.userId, ids));
+  await db.delete(userBotsTable).where(inArray(userBotsTable.userId, ids));
+  await db.delete(transactionsTable).where(inArray(transactionsTable.userId, ids));
+  await db.delete(sessionsTable).where(inArray(sessionsTable.userId, ids));
+  await db.delete(kycTable).where(inArray(kycTable.userId, ids));
+  await db.delete(userProfilesTable).where(inArray(userProfilesTable.userId, ids));
+  await db.delete(referralsTable).where(inArray(referralsTable.referrerId, ids));
+  await db.delete(usersTable).where(inArray(usersTable.id, ids));
+
+  logger.info({ count: ids.length }, "purgeTestUsers: done");
+}
 
 export async function seedBots(): Promise<void> {
   let inserted = 0;

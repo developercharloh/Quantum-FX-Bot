@@ -1,7 +1,7 @@
 import { runMigrations } from "@workspace/db/migrate";
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedBots, seedDemoAndFaq, ensureAdminEmail } from "./lib/seed";
+import { seedBots, seedDemoAndFaq, ensureAdminEmail, purgeTestUsers } from "./lib/seed";
 
 const rawPort = process.env["PORT"];
 
@@ -26,6 +26,12 @@ async function start() {
     // Crashing here on a transient DB connection failure (e.g. free-tier DB sleeping)
     // would take the entire service down unnecessarily.
     logger.warn({ err }, "Database migration skipped (non-fatal) — schema may already be current");
+  }
+
+  try {
+    await purgeTestUsers();
+  } catch (err) {
+    logger.error({ err }, "Test user purge failed");
   }
 
   try {
