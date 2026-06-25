@@ -1,12 +1,13 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
+import { setBaseUrl } from "@workspace/api-client-react";
 
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Layout from "@/components/Layout";
+import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Users from "@/pages/Users";
 import UserDetail from "@/pages/UserDetail";
@@ -16,8 +17,6 @@ import Support from "@/pages/Support";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
-// In dev (localhost) requests stay same-origin — the shared proxy routes /api to Express.
-// In production the admin app is on a different origin, so point directly at the API domain.
 setBaseUrl(
   typeof window !== "undefined" && window.location.hostname !== "localhost"
     ? "https://quantum-fx-bot.site"
@@ -33,9 +32,9 @@ const queryClient = new QueryClient({
   },
 });
 
-function Router() {
+function Router({ onLogout }: { onLogout: () => void }) {
   return (
-    <Layout>
+    <Layout onLogout={onLogout}>
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/users" component={Users} />
@@ -51,6 +50,8 @@ function Router() {
 }
 
 function App() {
+  const [authed, setAuthed] = useState(() => localStorage.getItem("qfx_admin_auth") === "1");
+
   useEffect(() => {
     const saved = localStorage.getItem("qfx_theme") ?? "dark";
     if (saved === "dark") {
@@ -60,11 +61,27 @@ function App() {
     }
   }, []);
 
+  const handleLogin = () => setAuthed(true);
+
+  const handleLogout = () => {
+    localStorage.removeItem("qfx_admin_auth");
+    setAuthed(false);
+  };
+
+  if (!authed) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Login onLogin={handleLogin} />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <Router onLogout={handleLogout} />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

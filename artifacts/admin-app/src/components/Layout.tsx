@@ -1,10 +1,11 @@
 import { useState, ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Bot, CircleDollarSign, LifeBuoy, Settings, Sun, Moon } from "lucide-react";
+import { LayoutDashboard, Users, Bot, CircleDollarSign, LifeBuoy, Settings, Sun, Moon, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
   children: ReactNode;
+  onLogout: () => void;
 }
 
 const navItems = [
@@ -45,7 +46,7 @@ function ThemeToggle() {
   );
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({ children, onLogout }: LayoutProps) {
   const [location] = useLocation();
 
   return (
@@ -65,13 +66,20 @@ export default function Layout({ children }: LayoutProps) {
           <ThemeToggle />
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
-              <span className="text-[10px] font-bold text-primary">OP</span>
+              <span className="text-[10px] font-bold text-primary">AD</span>
             </div>
-            <div className="text-right">
-              <p className="text-xs font-medium leading-none">Operator</p>
+            <div className="text-right hidden sm:block">
+              <p className="text-xs font-medium leading-none">Admin</p>
               <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Internal Access</p>
             </div>
           </div>
+          <button
+            onClick={onLogout}
+            title="Sign out"
+            className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5 text-red-400" />
+          </button>
         </div>
       </header>
 
