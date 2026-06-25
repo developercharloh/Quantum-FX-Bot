@@ -17,13 +17,9 @@ import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
 // Initialize API client.
-// In dev: null = same-origin (shared proxy routes /api to Express).
-// In production on the custom domain: point to the main app origin.
-const apiBase = import.meta.env.VITE_ADMIN_API_BASE
-  || (typeof window !== "undefined" && window.location.hostname !== "localhost"
-      ? "https://quantum-fx-bot.onrender.com"
-      : null);
-setBaseUrl(apiBase);
+// VITE_ADMIN_API_BASE is set at build time by Render (see render.yaml).
+// In dev it is unset: requests stay same-origin and the shared proxy routes /api to the API server.
+setBaseUrl(import.meta.env.VITE_ADMIN_API_BASE || null);
 setAuthTokenGetter(() => import.meta.env.VITE_ADMIN_API_KEY || "");
 
 const queryClient = new QueryClient({
