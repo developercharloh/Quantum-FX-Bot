@@ -58,7 +58,7 @@ function CountUpStat({ stat }: { stat: Stat }) {
   }, [stat.value]);
   return (
     <div ref={ref} className="bg-card rounded-2xl p-4 border border-white/5">
-      <div className="text-2xl font-bold tracking-tight text-white">{formatStat(val, stat)}</div>
+      <div className="text-2xl font-bold tracking-tight text-foreground">{formatStat(val, stat)}</div>
       <div className="text-[11px] text-muted-foreground mt-1">{stat.label}</div>
     </div>
   );

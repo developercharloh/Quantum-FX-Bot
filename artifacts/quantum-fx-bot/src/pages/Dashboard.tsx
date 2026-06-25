@@ -268,11 +268,11 @@ export default function Dashboard() {
               {loadingSummary ? (
                 <Skeleton className="h-6 w-24" />
               ) : balanceVisible ? (
-                <p className="text-lg font-bold text-white tracking-tight leading-none">
+                <p className="text-lg font-bold text-foreground tracking-tight leading-none">
                   {formatUSD(summary?.availableBalance)}
                 </p>
               ) : (
-                <p className="text-lg font-bold text-white tracking-tight leading-none tracking-widest">
+                <p className="text-lg font-bold text-foreground tracking-tight leading-none tracking-widest">
                   ••••••
                 </p>
               )}

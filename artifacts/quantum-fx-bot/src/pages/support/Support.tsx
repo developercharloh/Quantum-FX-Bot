@@ -62,7 +62,7 @@ export default function Support() {
             ) : (
               (faqs || []).slice(0, 8).map((faq, index) => (
                 <AccordionItem key={faq.id} value={`item-${index}`} className="border-none bg-card rounded-2xl px-4">
-                  <AccordionTrigger className="text-left text-[13px] font-semibold hover:no-underline py-4 text-white">
+                  <AccordionTrigger className="text-left text-[13px] font-semibold hover:no-underline py-4 text-foreground">
                     {faq.question}
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground text-xs leading-relaxed pb-4">
