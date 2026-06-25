@@ -1,7 +1,7 @@
 import { runMigrations } from "@workspace/db/migrate";
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedBots } from "./lib/seed";
+import { seedBots, seedDemoAndFaq } from "./lib/seed";
 
 const rawPort = process.env["PORT"];
 
@@ -31,8 +31,13 @@ async function start() {
   try {
     await seedBots();
   } catch (err) {
-    // Seeding is best-effort: log and continue so the server still boots.
     logger.error({ err }, "Bot seeding failed");
+  }
+
+  try {
+    await seedDemoAndFaq();
+  } catch (err) {
+    logger.error({ err }, "Demo/FAQ seeding failed");
   }
 
   app.listen(port, (err) => {
