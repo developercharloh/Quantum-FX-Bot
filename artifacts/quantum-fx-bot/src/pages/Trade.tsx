@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   TrendingUp, TrendingDown, Zap, Activity, Clock, Check,
   ArrowUpRight, ArrowDownRight, ChevronDown, CheckCircle2,
-  XCircle, Bot as BotIcon, BarChart2, Bell,
+  XCircle, Bot as BotIcon, BarChart2, Bell, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -377,12 +377,25 @@ export default function Trade() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePositionId]);
 
+  // Clear-history for journal
+  const [journalClearedBefore, setJournalClearedBefore] = useState<number>(() =>
+    parseInt(localStorage.getItem("qfx_cleared_positions_before") ?? "0", 10)
+  );
+  const handleClearJournal = () => {
+    const now = Date.now();
+    localStorage.setItem("qfx_cleared_positions_before", String(now));
+    setJournalClearedBefore(now);
+  };
+
   const timerProgress = totalSecs > 0 ? secondsLeft / totalSecs : 0;
   const dashOffset    = CIRCUMFERENCE * (1 - timerProgress);
   const mm = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
   const ss = (secondsLeft % 60).toString().padStart(2, "0");
 
-  const history    = (positions || []).filter(p => p.status !== "open").slice(0, 30);
+  const history    = (positions || [])
+    .filter(p => p.status !== "open")
+    .filter(p => !p.closedAt || new Date(p.closedAt).getTime() >= journalClearedBefore)
+    .slice(0, 30);
   const bestSignal = signals.length ? [...signals].sort((a, b) => b.confidence - a.confidence)[0] : null;
 
   // Running-view derived values
@@ -636,6 +649,11 @@ export default function Trade() {
                 <h2 className="text-sm font-bold">Trade Journal</h2>
                 {history.length > 0 && (
                   <span className="text-[10px] text-muted-foreground bg-card rounded-full px-2 py-0.5">{history.length} trades</span>
+                )}
+                {history.length > 0 && (
+                  <button onClick={handleClearJournal} className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors">
+                    <Trash2 className="w-3 h-3" />Clear
+                  </button>
                 )}
               </div>
               {JournalRows}

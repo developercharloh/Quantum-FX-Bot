@@ -52,7 +52,12 @@ function Router() {
 
 function App() {
   useEffect(() => {
-    document.documentElement.classList.add("dark");
+    const saved = localStorage.getItem("qfx_theme") ?? "dark";
+    if (saved === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   }, []);
 
   return (

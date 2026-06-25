@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
+import { useState, ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Bot, CircleDollarSign, LifeBuoy, Settings } from "lucide-react";
+import { LayoutDashboard, Users, Bot, CircleDollarSign, LifeBuoy, Settings, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
@@ -8,13 +8,42 @@ interface LayoutProps {
 }
 
 const navItems = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/users", label: "Users", icon: Users },
-  { path: "/bots", label: "Bots", icon: Bot },
-  { path: "/finance", label: "Wallet", icon: CircleDollarSign },
-  { path: "/support", label: "Support", icon: LifeBuoy },
-  { path: "/settings", label: "Settings", icon: Settings },
+  { path: "/",        label: "Dashboard", icon: LayoutDashboard },
+  { path: "/users",   label: "Users",     icon: Users           },
+  { path: "/bots",    label: "Bots",      icon: Bot             },
+  { path: "/finance", label: "Wallet",    icon: CircleDollarSign},
+  { path: "/support", label: "Support",   icon: LifeBuoy        },
+  { path: "/settings",label: "Settings",  icon: Settings        },
 ];
+
+function ThemeToggle() {
+  const [isDark, setIsDark] = useState(() =>
+    (localStorage.getItem("qfx_theme") ?? "dark") === "dark"
+  );
+
+  const toggle = () => {
+    const next = !isDark;
+    setIsDark(next);
+    localStorage.setItem("qfx_theme", next ? "dark" : "light");
+    if (next) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      aria-label="Toggle theme"
+      className="w-8 h-8 rounded-full bg-background border border-border/40 flex items-center justify-center hover:bg-muted transition-colors"
+    >
+      {isDark
+        ? <Sun  className="w-4 h-4 text-amber-400" />
+        : <Moon className="w-4 h-4 text-primary"   />}
+    </button>
+  );
+}
 
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
@@ -32,13 +61,16 @@ export default function Layout({ children }: LayoutProps) {
             <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Admin Panel</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
-            <span className="text-[10px] font-bold text-primary">OP</span>
-          </div>
-          <div className="text-right">
-            <p className="text-xs font-medium leading-none">Operator</p>
-            <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Internal Access</p>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
+              <span className="text-[10px] font-bold text-primary">OP</span>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-medium leading-none">Operator</p>
+              <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Internal Access</p>
+            </div>
           </div>
         </div>
       </header>
@@ -48,9 +80,8 @@ export default function Layout({ children }: LayoutProps) {
         {children}
       </main>
 
-      {/* Bottom Navigation + Footer */}
+      {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border">
-        {/* Nav Tabs */}
         <nav className="flex items-center justify-around h-16 px-1">
           {navItems.map((item) => {
             const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
@@ -75,7 +106,6 @@ export default function Layout({ children }: LayoutProps) {
             );
           })}
         </nav>
-
       </div>
     </div>
   );
