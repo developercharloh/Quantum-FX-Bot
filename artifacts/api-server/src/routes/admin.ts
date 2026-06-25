@@ -801,7 +801,7 @@ router.put("/admin/settings", async (req, res) => {
 // ---------------- Live Chat ----------------
 router.get("/admin/chat", async (req, res) => {
   // Latest message per user
-  const rows = await db.execute(sql`
+  const result = await db.execute(sql`
     SELECT
       cm.user_id,
       u.full_name,
@@ -820,8 +820,9 @@ router.get("/admin/chat", async (req, res) => {
     ORDER BY cm.created_at DESC
   `);
 
-  return res.json((rows as unknown as any[]).map((r: any) => ({
-    userId: r.user_id,
+  const rows = Array.isArray(result) ? result : (result as any).rows ?? [];
+  return res.json(rows.map((r: any) => ({
+    userId: Number(r.user_id),
     userName: r.full_name,
     userEmail: r.email,
     lastMessage: r.last_message,
