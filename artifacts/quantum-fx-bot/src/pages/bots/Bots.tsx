@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Activity, Zap, Menu, Bell } from "lucide-react";
+import { ChevronRight, Zap, Menu, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -115,13 +115,6 @@ export default function Bots() {
                       </div>
                     </div>
 
-                    <Button
-                      className="w-full h-10 rounded-xl text-sm font-bold shadow-none bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90"
-                      onClick={() => setLocation(`/start-bot?botId=${bot.id}`)}
-                    >
-                      <Activity className="w-3.5 h-3.5 mr-1.5" />
-                      Start Bot
-                    </Button>
                   </CardContent>
                 </Card>
               ))
