@@ -64,8 +64,8 @@ function simulateWalk(p: { id: number; targetProfit: string; stopLoss: string; w
   const sl = parseFloat(p.stopLoss);
   const winRate = parseFloat(p.winRate) || 0;
   const unit = sl > 0 ? sl : 50;
-  const amp = unit * 0.02;
-  const drift = unit * 0.0001 * (0.5 + winRate / 100);
+  const amp   = unit * 0.012;                              // tighter oscillation
+  const drift = unit * 0.005 * (0.5 + winRate / 100);     // strong positive bias — always in profit quickly
 
   const wanted = Math.floor(elapsedMs / STEP_MS);
   const steps = Math.min(wanted, MAX_STEPS);

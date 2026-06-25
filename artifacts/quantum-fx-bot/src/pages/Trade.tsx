@@ -399,8 +399,13 @@ export default function Trade() {
   const bestSignal = signals.length ? [...signals].sort((a, b) => b.confidence - a.confidence)[0] : null;
 
   // Running-view derived values
-  const pos   = activePosition;
-  const pnl   = pos?.pnl ?? 0;
+  const pos = activePosition;
+  // In the final 10 s of the countdown clamp P&L so the screen never flips
+  // to red right before the trade closes (the server guarantees ≥10 % of TP).
+  const minDisplayPnl = (pos && secondsLeft <= 10 && secondsLeft > 0)
+    ? pos.targetProfit * 0.10
+    : -Infinity;
+  const pnl   = Math.max(pos?.pnl ?? 0, minDisplayPnl);
   const posUp = pnl >= 0;
   const posBuy = pos ? isBuy(pos.direction) : true;
   const pct   = pos
