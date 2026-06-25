@@ -1,0 +1,141 @@
+Build a premium "Start Bot" experience for Quantum FX Bot with a clean, modern, dark-themed UI using purple and green accents.
+
+When a user clicks "Start Bot", do not display Take Profit or Stop Loss settings. Remove Take Profit and Stop Loss from all bots completely.
+
+Instead, display the following fields:
+
+1. Stake Amount
+   
+   - User enters the amount to invest.
+
+2. Bot Runtime
+   
+   - Dropdown selector:
+     - 1 Minute
+     - 2 Minutes
+     - 3 Minutes
+     - 4 Minutes
+     - 5 Minutes
+
+3. Bot Selection
+   
+   - Display available bots as cards.
+   - User selects one bot before starting.
+
+4. Summary Card
+   
+   - Bot Name
+   - Stake Amount
+   - Runtime Duration
+   - Status: Ready to Start
+
+5. Start Button
+   
+   - Large gradient purple button.
+   - Label: "Start Bot"
+
+After the user starts the bot:
+
+Display a live trading screen showing:
+
+- Circular countdown timer.
+- Remaining time.
+- Current profit/loss.
+- Trading status.
+- AI analysis animation.
+- Active trade count.
+
+Example:
+
+Bot Running
+
+Time Remaining: 02:35
+
+Current Profit: +$3.45
+
+Status:
+Analyzing market conditions...
+
+The bot should continue trading throughout the selected runtime.
+
+When the selected duration expires:
+
+- If profit is positive, close all positions immediately.
+- If profit is extremely small but positive, close all positions.
+- Display results screen.
+
+Results Screen:
+
+Large success animation.
+Confetti effect.
+Green checkmark.
+
+Title:
+Congratulations!
+
+Message:
+Your bot completed successfully.
+
+Display:
+
+Profit Earned
++$12.45
+
+Runtime
+3 Minutes
+
+Stake
+$100
+
+Updated Balance
+$30,191.12
+
+Buttons:
+
+- Start Again
+- View History
+
+The Earnings Overview section on the dashboard should include:
+
+Dropdown Filter:
+
+- Today
+- Yesterday
+- This Week
+- Last Week
+- This Month
+- Last Month
+- This Year
+- Last Year
+- All Time
+
+When a period is selected, all statistics and charts update automatically.
+
+Display KPI Cards:
+
+- Total Profit
+- Win Rate
+- ROI
+- Total Trades
+- Active Bots
+
+Chart Design:
+
+Use a combined chart:
+
+- Purple vertical bar chart for profit earned per period.
+- Green line chart overlay connecting the top of each bar.
+- Show tooltips on hover/tap.
+- Smooth animations when switching periods.
+
+Below the chart:
+
+Profit By Bot section using a donut chart showing:
+
+- Bot name
+- Profit amount
+- Percentage contribution
+
+Add Recent Profits section showing latest completed trades.
+
+The entire dashboard should feel like a premium AI-powered trading platform comparable to leading fintech and crypto trading applications, with smooth animations, real-time updates, responsive mobile design, and a highly professional user experience.

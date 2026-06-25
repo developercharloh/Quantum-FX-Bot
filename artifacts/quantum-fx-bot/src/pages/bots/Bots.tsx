@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Play, Pause, Activity, Zap, Menu, Bell } from "lucide-react";
+import { ChevronRight, Activity, Zap, Menu, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -78,13 +78,12 @@ export default function Bots() {
               Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)
             ) : (myBots || []).length > 0 ? (
               myBots?.map((bot: Bot, i) => (
-                <Card 
-                  key={bot.id} 
-                  className="bg-card border-none rounded-2xl shadow-none cursor-pointer"
-                  onClick={() => setLocation(`/bots/${bot.id}`)}
-                >
+                <Card key={bot.id} className="bg-card border-none rounded-2xl shadow-none">
                   <CardContent className="p-4 flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
+                    <div
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => setLocation(`/bots/${bot.id}`)}
+                    >
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold
                           ${i % 3 === 0 ? 'bg-gradient-to-br from-orange-400 to-red-500' : 
@@ -97,14 +96,14 @@ export default function Bots() {
                           <div className={`text-[10px] px-2 py-0.5 rounded-full inline-flex items-center ${
                             bot.status === 'running' ? 'text-green-500 bg-green-500/10' : 'text-muted-foreground bg-muted'
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${bot.status === 'running' ? 'bg-green-500' : 'bg-muted-foreground'}`}></span>
+                            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${bot.status === 'running' ? 'bg-green-500' : 'bg-muted-foreground'}`} />
                             {bot.status === 'running' ? 'Running' : 'Paused'}
                           </div>
                         </div>
                       </div>
                       <ChevronRight className="w-5 h-5 text-muted-foreground opacity-50" />
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <div className="text-[10px] text-muted-foreground mb-1">Profit Today</div>
@@ -115,6 +114,14 @@ export default function Bots() {
                         <div className="text-sm font-bold">{bot.winRate}%</div>
                       </div>
                     </div>
+
+                    <Button
+                      className="w-full h-10 rounded-xl text-sm font-bold shadow-none bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90"
+                      onClick={() => setLocation(`/start-bot?botId=${bot.id}`)}
+                    >
+                      <Activity className="w-3.5 h-3.5 mr-1.5" />
+                      Start Bot
+                    </Button>
                   </CardContent>
                 </Card>
               ))

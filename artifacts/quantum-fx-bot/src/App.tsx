@@ -44,6 +44,7 @@ import Dashboard from "@/pages/Dashboard";
 import Bots from "@/pages/bots/Bots";
 import BotDetail from "@/pages/bots/BotDetail";
 import BotAnalytics from "@/pages/bots/BotAnalytics";
+import StartBot from "@/pages/bots/StartBot";
 import Cashier from "@/pages/cashier/Cashier";
 import Deposit from "@/pages/cashier/Deposit";
 import DepositStatus from "@/pages/cashier/DepositStatus";
@@ -84,6 +85,9 @@ function Router() {
       </Route>
       <Route path="/bots">
         <AuthGuard><Bots /></AuthGuard>
+      </Route>
+      <Route path="/start-bot">
+        <AuthGuard><StartBot /></AuthGuard>
       </Route>
       <Route path="/bots/:id/analytics">
         <AuthGuard><BotAnalytics /></AuthGuard>
