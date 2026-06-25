@@ -77,4 +77,4 @@ services:
         value: /
       # API ORIGIN only (no /api suffix — generated client paths already include it).
       - key: VITE_ADMIN_API_BASE
-        value: https://quantum-fx-bot.onrender.com
+        value: https://quantum-fx-bot.site
