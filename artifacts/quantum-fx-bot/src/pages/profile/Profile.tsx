@@ -92,7 +92,7 @@ export default function Profile() {
                   onClick={handleCopyUid}
                   className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-colors"
                 >
-                  <span className="text-[11px] font-mono font-bold tracking-widest">{profile.accountUid}</span>
+                  <span className="text-[11px] font-mono font-bold tracking-widest"><span className="opacity-60 mr-1">UID</span>{profile.accountUid}</span>
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               )}
