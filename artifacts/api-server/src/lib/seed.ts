@@ -3,15 +3,6 @@ import { db, botsTable, usersTable, faqTable, notificationSettingsTable, kycTabl
 import { eq, sql, notInArray, inArray, or, like } from "drizzle-orm";
 import { logger } from "./logger";
 
-function hashPassword(p: string) {
-  return crypto.createHash("sha256").update(p + "quantum_salt_2024").digest("hex");
-}
-
-const DEMO_EMAIL = "demo@quantumfx.com";
-const DEMO_PASSWORD = "Demo1234!";
-const DEMO_UID = "QFXDEMO0001";
-const DEMO_NAME = "Demo User";
-
 const FAQ_ENTRIES = [
   { question: "How do I deposit funds?", answer: "Go to Wallet > Deposit, choose your preferred method (USDT TRC20/ERC20, BTC, or card), and follow the on-screen instructions. Your balance updates once the transaction is confirmed.", category: "Deposits" },
   { question: "How do I start a trading bot?", answer: "Go to Bots > Marketplace, select a bot, and tap Buy Bot. Once purchased, the bot activates automatically and begins trading on your behalf.", category: "Bots" },
@@ -45,23 +36,6 @@ export async function ensureAdminEmail(): Promise<void> {
 }
 
 export async function seedDemoAndFaq(): Promise<void> {
-  // Demo user
-  const existing = await db.select().from(usersTable).where(eq(usersTable.email, DEMO_EMAIL)).limit(1);
-  if (existing.length === 0) {
-    const [user] = await db.insert(usersTable).values({
-      fullName: DEMO_NAME,
-      email: DEMO_EMAIL,
-      passwordHash: hashPassword(DEMO_PASSWORD),
-      accountUid: DEMO_UID,
-      kycStatus: "verified",
-      twoFAEnabled: false,
-      referralCode: "DEMOREF01",
-    }).returning();
-    await db.insert(notificationSettingsTable).values({ userId: user.id, emailNotifications: true, botAlerts: true, depositWithdrawal: true, promotions: false });
-    await db.insert(kycTable).values({ userId: user.id, status: "not_submitted" });
-    logger.info({ id: user.id }, "Demo user seeded");
-  }
-
   // FAQ
   const count = await db.select({ c: sql<number>`count(*)::int` }).from(faqTable);
   if ((count[0]?.c ?? 0) === 0) {
@@ -133,12 +107,16 @@ const BOT_CATALOG: SeedBot[] = [
 // Delete users whose emails use obviously fake domains (test/migration artifacts).
 // Runs once on startup; idempotent — safe to leave in place.
 const FAKE_EMAIL_PATTERNS = ["%@ex.com", "%@example.com"];
+const DEMO_EMAILS_TO_PURGE = ["demo@quantumfx.com"];
 
 export async function purgeTestUsers(): Promise<void> {
   const fakeUsers = await db
     .select({ id: usersTable.id, email: usersTable.email })
     .from(usersTable)
-    .where(or(...FAKE_EMAIL_PATTERNS.map((p) => like(usersTable.email, p))));
+    .where(or(
+      ...FAKE_EMAIL_PATTERNS.map((p) => like(usersTable.email, p)),
+      ...DEMO_EMAILS_TO_PURGE.map((e) => eq(usersTable.email, e)),
+    ));
 
   if (fakeUsers.length === 0) {
     logger.info("purgeTestUsers: no fake users found");
