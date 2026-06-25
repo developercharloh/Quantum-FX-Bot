@@ -20,8 +20,8 @@ import NotFound from "@/pages/not-found";
 // In dev: null = same-origin (shared proxy routes /api to Express).
 // In production on the custom domain: point to the main app origin.
 const apiBase = import.meta.env.VITE_ADMIN_API_BASE
-  || (typeof window !== "undefined" && window.location.hostname.includes("quantum-fx-bot.site")
-      ? "https://quantum-fx-bot.site"
+  || (typeof window !== "undefined" && window.location.hostname !== "localhost"
+      ? "https://quantum-fx-bot.onrender.com"
       : null);
 setBaseUrl(apiBase);
 setAuthTokenGetter(() => import.meta.env.VITE_ADMIN_API_KEY || "");
