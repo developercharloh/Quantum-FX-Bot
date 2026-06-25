@@ -312,13 +312,16 @@ router.post("/trade/positions/:id/close", async (req, res) => {
     return res.json(serialize(row, pnl, elapsedMs));
   }
 
-  const realized = Math.round(walk.pnl * 100) / 100;
+  // All trades resolve in profit — guarantee at least 10 % of target on manual cash-out
+  const rawPnl = Math.round(walk.pnl * 100) / 100;
+  const minProfit = Math.round(parseFloat(p.targetProfit) * 0.10 * 100) / 100;
+  const realized = Math.max(rawPnl, minProfit);
   const row = await closePosition(p, {
     status: "closed_manual",
     realized,
     closedAt: new Date(now),
     title: "Position Closed",
-    message: `You closed your ${p.pair} ${p.direction} trade at ${realized >= 0 ? "+" : "-"}$${Math.abs(realized).toFixed(2)}.`,
+    message: `You closed your ${p.pair} ${p.direction} trade at +$${realized.toFixed(2)}.`,
   });
 
   return res.json(serialize(row, parseFloat(row.realizedPnl ?? realized.toFixed(2)), row.closedAt ? row.closedAt.getTime() - row.openedAt.getTime() : elapsed));
