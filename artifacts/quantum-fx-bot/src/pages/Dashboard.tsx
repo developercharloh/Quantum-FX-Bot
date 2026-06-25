@@ -8,7 +8,7 @@ import {
   useListNotifications,
 } from "@workspace/api-client-react";
 import {
-  Bell, Wallet, Activity, Zap, Menu, Eye, User, LifeBuoy, LogOut,
+  Bell, Wallet, Activity, Zap, Menu, Eye, EyeOff, User, LifeBuoy, LogOut,
   ChevronDown, ArrowUpRight, TrendingUp, Info, ChevronRight, Bot,
 } from "lucide-react";
 import {
@@ -138,6 +138,7 @@ function StatCard({ label, value, sub, subColor }: { label: string; value: strin
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [period, setPeriod] = useState("this_week");
+  const [balanceVisible, setBalanceVisible] = useState(true);
   const [, setLocation] = useLocation();
   const { user, logout } = useAuth();
 
@@ -248,26 +249,35 @@ export default function Dashboard() {
         {/* ── Balance cards ───────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3 px-4 mb-4">
           {/* Available Balance */}
-          <Link href="/cashier">
-            <div className="bg-card rounded-2xl p-4 space-y-3 cursor-pointer">
-              <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center">
-                  <Eye className="w-4 h-4 text-muted-foreground" />
-                </div>
+          <div className="bg-card rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setBalanceVisible(v => !v)}
+                className="w-8 h-8 rounded-full bg-background flex items-center justify-center"
+              >
+                {balanceVisible
+                  ? <Eye className="w-4 h-4 text-muted-foreground" />
+                  : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              <Link href="/cashier">
                 <Wallet className="w-4 h-4 text-muted-foreground/40" />
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground mb-1">Available Balance</p>
-                {loadingSummary ? (
-                  <Skeleton className="h-6 w-24" />
-                ) : (
-                  <p className="text-lg font-bold text-white tracking-tight leading-none">
-                    {formatUSD(summary?.availableBalance)}
-                  </p>
-                )}
-              </div>
+              </Link>
             </div>
-          </Link>
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">Available Balance</p>
+              {loadingSummary ? (
+                <Skeleton className="h-6 w-24" />
+              ) : balanceVisible ? (
+                <p className="text-lg font-bold text-white tracking-tight leading-none">
+                  {formatUSD(summary?.availableBalance)}
+                </p>
+              ) : (
+                <p className="text-lg font-bold text-white tracking-tight leading-none tracking-widest">
+                  ••••••
+                </p>
+              )}
+            </div>
+          </div>
 
           {/* Total Profit */}
           <Link href="/trade">
