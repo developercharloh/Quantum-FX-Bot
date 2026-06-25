@@ -63,7 +63,9 @@ function PeriodDropdown({ value, onChange }: { value: string; onChange: (id: str
   );
 }
 
-function MultiLineTick({ x, y, payload }: any) {
+function MultiLineTick({ x, y, payload, index, visibleTicksCount }: any) {
+  // Only render every other tick when there are many data points
+  if (visibleTicksCount > 8 && index % 2 !== 0) return null;
   const lines = (payload.value as string).split("\n");
   return (
     <g transform={`translate(${x},${y})`}>
@@ -248,8 +250,8 @@ export default function BotAnalytics() {
                       tick={<MultiLineTick />}
                       tickLine={false}
                       axisLine={false}
-                      interval={0}
-                      height={40}
+                      interval="preserveStartEnd"
+                      height={36}
                     />
                     <YAxis
                       tickLine={false}
