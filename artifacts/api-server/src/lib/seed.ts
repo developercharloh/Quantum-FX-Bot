@@ -23,19 +23,24 @@ const FAQ_ENTRIES = [
   { question: "What if I forget my password?", answer: "Tap Forgot Password on the login screen and enter your registered email. You will receive a reset link within a few minutes. Check your spam folder if it does not arrive.", category: "Account" },
 ];
 
+// Primary admin accounts — always promoted on startup regardless of env vars.
+const SEED_ADMINS = ["mrcharlohfx@gmail.com"];
+
 export async function ensureAdminEmail(): Promise<void> {
-  const adminEmail = process.env["ADMIN_EMAIL"];
-  if (!adminEmail) return;
-  const email = adminEmail.toLowerCase().trim();
-  const result = await db
-    .update(usersTable)
-    .set({ isAdmin: true })
-    .where(eq(usersTable.email, email))
-    .returning({ id: usersTable.id, email: usersTable.email });
-  if (result.length > 0) {
-    logger.info({ email }, "Admin email auto-promoted");
-  } else {
-    logger.warn({ email }, "ADMIN_EMAIL not found in users table — skipped");
+  const fromEnv = process.env["ADMIN_EMAIL"];
+  const emails = [...SEED_ADMINS, ...(fromEnv ? [fromEnv.toLowerCase().trim()] : [])];
+
+  for (const email of [...new Set(emails)]) {
+    const result = await db
+      .update(usersTable)
+      .set({ isAdmin: true })
+      .where(eq(usersTable.email, email))
+      .returning({ id: usersTable.id, email: usersTable.email });
+    if (result.length > 0) {
+      logger.info({ email }, "Admin email auto-promoted");
+    } else {
+      logger.warn({ email }, "Admin seed email not found in users table — skipped");
+    }
   }
 }
 
