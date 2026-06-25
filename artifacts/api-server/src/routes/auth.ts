@@ -2,12 +2,23 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable, notificationSettingsTable, kycTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
+import { verifySync } from "otplib";
 import {
   RegisterBody,
   LoginBody,
   ForgotPasswordBody,
   ResetPasswordBody,
 } from "@workspace/api-zod";
+
+// In-memory store for pending 2FA logins (tempToken → { userId, expires })
+const pending2FA = new Map<string, { userId: number; expires: number }>();
+// Clean up expired entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of pending2FA) {
+    if (v.expires < now) pending2FA.delete(k);
+  }
+}, 5 * 60 * 1000);
 
 const router = Router();
 
@@ -111,6 +122,55 @@ router.post("/auth/login", async (req, res) => {
     return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
   }
 
+  // If 2FA is enabled, return a temp token instead of a full session
+  if (user.twoFAEnabled && user.twoFASecret) {
+    const tempToken = crypto.randomBytes(24).toString("hex");
+    pending2FA.set(tempToken, { userId: user.id, expires: Date.now() + 5 * 60 * 1000 });
+    return res.json({ requires2FA: true, tempToken });
+  }
+
+  const token = generateToken();
+  await db.insert(sessionsTable).values({
+    userId: user.id,
+    token,
+    device: getUserAgent(req),
+    ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
+    location: "Unknown",
+  });
+
+  return res.json({
+    token,
+    user: {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      kycStatus: user.kycStatus,
+      createdAt: user.createdAt.toISOString(),
+    },
+  });
+});
+
+// Verify 2FA code after password login
+router.post("/auth/2fa/verify", async (req, res) => {
+  const { tempToken, code } = req.body;
+  if (!tempToken || !code) return res.status(400).json({ error: "Missing tempToken or code" });
+
+  const pending = pending2FA.get(tempToken);
+  if (!pending || pending.expires < Date.now()) {
+    pending2FA.delete(tempToken);
+    return res.status(401).json({ error: "Session expired. Please log in again." });
+  }
+
+  const users = await db.select().from(usersTable).where(eq(usersTable.id, pending.userId)).limit(1);
+  if (users.length === 0) return res.status(401).json({ error: "User not found" });
+  const user = users[0];
+
+  if (!user.twoFASecret || !verifySync({ token: code, secret: user.twoFASecret }).valid) {
+    return res.status(401).json({ error: "Invalid 2FA code" });
+  }
+
+  pending2FA.delete(tempToken);
   const token = generateToken();
   await db.insert(sessionsTable).values({
     userId: user.id,

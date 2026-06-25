@@ -2,6 +2,8 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable, kycTable, notificationSettingsTable, userProfilesTable } from "@workspace/db";
 import { eq, ne } from "drizzle-orm";
 import crypto from "crypto";
+import { generateSecret, generateURI, verifySync } from "otplib";
+import QRCode from "qrcode";
 import {
   UpdateProfileBody,
   ChangePasswordBody,
@@ -110,22 +112,62 @@ router.get("/profile/2fa", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   const { user } = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-  return res.json({ enabled: user.twoFAEnabled, qrCode: null });
+  return res.json({ enabled: user.twoFAEnabled });
 });
 
-router.post("/profile/2fa", async (req, res) => {
+// Generate secret + QR code (does NOT enable yet — user must verify first)
+router.post("/profile/2fa/setup", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   const { user } = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const parsed = Toggle2FABody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const secret = generateSecret();
+  const otpauthUrl = generateURI({ issuer: "Quantum FX Bot", label: user.email, secret });
+  const qrCode = await QRCode.toDataURL(otpauthUrl);
 
-  await db.update(usersTable).set({ twoFAEnabled: parsed.data.enable, updatedAt: new Date() })
+  // Save secret to DB (not enabled yet)
+  await db.update(usersTable).set({ twoFASecret: secret, updatedAt: new Date() })
     .where(eq(usersTable.id, user.id));
 
-  return res.json({ enabled: parsed.data.enable, qrCode: null });
+  return res.json({ secret, qrCode });
+});
+
+// Verify code and activate 2FA
+router.post("/profile/2fa/enable", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const { user } = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: "Code is required" });
+  if (!user.twoFASecret) return res.status(400).json({ error: "Run setup first" });
+
+  const isValid = verifySync({ token: code, secret: user.twoFASecret }).valid;
+  if (!isValid) return res.status(400).json({ error: "Invalid code. Check your authenticator app." });
+
+  await db.update(usersTable).set({ twoFAEnabled: true, updatedAt: new Date() })
+    .where(eq(usersTable.id, user.id));
+
+  return res.json({ enabled: true });
+});
+
+// Verify current code and disable 2FA
+router.post("/profile/2fa/disable", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const { user } = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: "Code is required" });
+  if (!user.twoFASecret) return res.status(400).json({ error: "2FA is not configured" });
+
+  const isValid = verifySync({ token: code, secret: user.twoFASecret }).valid;
+  if (!isValid) return res.status(400).json({ error: "Invalid code. 2FA was not disabled." });
+
+  await db.update(usersTable).set({ twoFAEnabled: false, twoFASecret: null, updatedAt: new Date() })
+    .where(eq(usersTable.id, user.id));
+
+  return res.json({ enabled: false });
 });
 
 router.get("/profile/kyc", async (req, res) => {
