@@ -121,14 +121,20 @@ async function closePosition(
       return cur[0] ?? p;
     }
 
-    await tx.insert(transactionsTable).values({
-      userId: p.userId,
-      type: opts.realized >= 0 ? "trade_profit" : "trade_loss",
-      amount: Math.abs(opts.realized).toFixed(2),
-      status: "completed",
-      paymentMethod: "balance",
-      description: `${opts.title}: ${p.pair} ${p.direction} (${p.botName})`,
-    });
+    // Return the stake plus any profit. Stake was already deducted on trade open
+    // as a trade_loss, so we only need to credit back (stake + realized).
+    // If the full stake is lost (returnAmount = 0) skip the credit entry.
+    const returnAmount = parseFloat(p.stake) + opts.realized;
+    if (returnAmount > 0) {
+      await tx.insert(transactionsTable).values({
+        userId: p.userId,
+        type: "trade_profit",
+        amount: returnAmount.toFixed(2),
+        status: "completed",
+        paymentMethod: "balance",
+        description: `${opts.title}: ${p.pair} ${p.direction} (${p.botName})`,
+      });
+    }
     await tx.insert(earningsTable).values({ userId: p.userId, amount: opts.realized.toFixed(2), source: "trade" });
     await tx.insert(notificationsTable).values({
       userId: p.userId,
@@ -234,8 +240,17 @@ router.post("/trade/execute", async (req, res) => {
     status: "open",
   }).returning();
 
-  // Count the trade as started. Realized P&L is recorded only on close, in the
-  // transaction ledger, so it is intentionally NOT written to bot profit fields.
+  // Deduct stake from balance immediately so the dashboard reflects it.
+  // On close, the stake is returned along with the realized P&L.
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "trade_loss",
+    amount: stake.toFixed(2),
+    status: "completed",
+    paymentMethod: "balance",
+    description: `Trade stake: ${signal.pair} ${signal.direction} (${bot.name})`,
+  });
+
   await db.update(userBotsTable).set({ totalTrades: ub.totalTrades + 1 }).where(eq(userBotsTable.id, ub.id));
 
   return res.json(serialize(inserted[0], 0, 0));
