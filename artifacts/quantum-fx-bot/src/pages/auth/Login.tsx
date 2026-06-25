@@ -11,7 +11,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Loader2, ShieldCheck, ChevronLeft } from "lucide-react";
-import { SiGoogle, SiApple } from "react-icons/si";
 import { QuantumLogo } from "@/components/QuantumLogo";
 
 const loginSchema = z.object({
@@ -200,21 +199,7 @@ export default function Login() {
           </form>
         </Form>
 
-        <div className="relative w-full my-8">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-          <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or continue with</span></div>
-        </div>
-
-        <div className="flex gap-4 w-full mb-8">
-          <Button variant="outline" className="flex-1 h-14 rounded-xl border-border bg-transparent hover:bg-card gap-2.5 text-base font-medium">
-            <SiGoogle className="w-5 h-5 text-[#EA4335]" /> Google
-          </Button>
-          <Button variant="outline" className="flex-1 h-14 rounded-xl border-border bg-transparent hover:bg-card gap-2.5 text-base font-medium">
-            <SiApple className="w-5 h-5" /> Apple
-          </Button>
-        </div>
-
-        <div className="mt-auto pb-6 text-center text-sm text-muted-foreground">
+        <div className="mt-8 pb-6 text-center text-sm text-muted-foreground">
           Don't have an account?{" "}
           <Link href="/register" className="text-primary font-medium">Register</Link>
         </div>
