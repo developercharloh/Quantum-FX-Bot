@@ -16,34 +16,34 @@ type SeedBot = {
 // idempotently on every server start so the marketplace exists in any database
 // (fresh production DBs included), matching bots by name to preserve existing IDs.
 const BOT_CATALOG: SeedBot[] = [
-  // --- Free bots ---
+  // --- Free bots — Medium risk, ≥80% win rate ---
   {
     name: "Starter Signal Bot",
     description:
       "A free entry-level bot that follows conservative trend signals. Perfect for trying out automated trading with zero cost.",
     category: "Forex",
     price: "0",
-    winRate: "70.00",
-    riskLevel: "Low",
+    winRate: "80.00",
+    riskLevel: "Medium",
   },
   {
     name: "Demo Pilot Bot",
     description:
-      "A free crypto bot for learning the ropes. Low-stakes momentum trades that help you understand how signal execution works.",
+      "A free crypto bot for learning the ropes. Balanced momentum trades that help you understand how signal execution works.",
     category: "Crypto",
     price: "0",
-    winRate: "72.00",
-    riskLevel: "Low",
+    winRate: "81.00",
+    riskLevel: "Medium",
   },
-  // --- Paid bots ($100 - $1000) ---
+  // --- Cheap paid bots ($100–$300) — Medium risk, ≥80% win rate ---
   {
     name: "Gold Scalper Bot",
     description:
-      "High-frequency scalping on gold and commodities with tight risk control and consistent low-volatility returns.",
+      "High-frequency scalping on gold and commodities with tight risk control and consistent moderate-volatility returns.",
     category: "Commodities",
     price: "100",
-    winRate: "88.00",
-    riskLevel: "Low",
+    winRate: "82.00",
+    riskLevel: "Medium",
   },
   {
     name: "Forex Turbo Bot",
@@ -51,7 +51,7 @@ const BOT_CATALOG: SeedBot[] = [
       "Fast-moving forex bot that captures intraday momentum across major currency pairs.",
     category: "Forex",
     price: "180",
-    winRate: "85.00",
+    winRate: "83.00",
     riskLevel: "Medium",
   },
   {
@@ -60,26 +60,27 @@ const BOT_CATALOG: SeedBot[] = [
       "Detects and trades range breakouts on forex pairs, aiming to ride strong directional moves.",
     category: "Forex",
     price: "250",
-    winRate: "79.00",
+    winRate: "84.00",
     riskLevel: "Medium",
   },
+  // --- Expensive bots ($340+) — Low risk, ≥85% win rate ---
   {
     name: "Scalping Pro Bot",
     description:
-      "Aggressive scalping engine that books many small wins per session for active traders.",
+      "Precision scalping engine that books consistent small wins per session with low drawdown.",
     category: "Forex",
     price: "340",
-    winRate: "80.00",
-    riskLevel: "High",
+    winRate: "85.00",
+    riskLevel: "Low",
   },
   {
     name: "Crypto Hunter Bot",
     description:
-      "Hunts volatility across major cryptocurrencies, targeting high-reward swings with managed exposure.",
+      "Hunts high-probability setups across major cryptocurrencies with disciplined risk management.",
     category: "Crypto",
     price: "450",
-    winRate: "82.00",
-    riskLevel: "High",
+    winRate: "86.00",
+    riskLevel: "Low",
   },
   {
     name: "Mean Reversion Bot",
@@ -87,13 +88,13 @@ const BOT_CATALOG: SeedBot[] = [
       "Trades mean-reversion setups on commodities, fading overextended moves back toward fair value.",
     category: "Commodities",
     price: "550",
-    winRate: "83.00",
+    winRate: "87.00",
     riskLevel: "Low",
   },
   {
     name: "AI Trend Master",
     description:
-      "AI-driven trend-following model that adapts to changing market regimes for steady performance.",
+      "AI-driven trend-following model that adapts to changing market regimes for steady, low-risk performance.",
     category: "AI",
     price: "700",
     winRate: "91.00",
@@ -102,20 +103,20 @@ const BOT_CATALOG: SeedBot[] = [
   {
     name: "Momentum Quant Bot",
     description:
-      "Quantitative momentum strategy that rotates into the strongest trending assets across markets.",
+      "Quantitative momentum strategy that rotates into the strongest trending assets with institutional-grade risk controls.",
     category: "AI",
     price: "850",
-    winRate: "87.00",
-    riskLevel: "Medium",
+    winRate: "89.00",
+    riskLevel: "Low",
   },
   {
     name: "Quantum Apex Bot",
     description:
-      "Our flagship AI bot combining multiple models for premium signal quality and top-tier win rates.",
+      "Our flagship AI bot combining multiple models for premium signal quality, top-tier win rates, and the lowest drawdown.",
     category: "AI",
     price: "1000",
     winRate: "93.00",
-    riskLevel: "High",
+    riskLevel: "Low",
   },
 ];
 
