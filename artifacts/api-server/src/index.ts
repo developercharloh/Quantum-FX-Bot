@@ -22,10 +22,10 @@ async function start() {
     const migrationsFolder = await runMigrations();
     logger.info({ migrationsFolder }, "Database migrations applied");
   } catch (err) {
-    // Schema must be in sync before serving. Fail loudly so the platform retries
-    // rather than running against a stale/missing schema.
-    logger.error({ err }, "Database migration failed");
-    process.exit(1);
+    // Log and continue — schema is already applied by preDeployCommand (drizzle push).
+    // Crashing here on a transient DB connection failure (e.g. free-tier DB sleeping)
+    // would take the entire service down unnecessarily.
+    logger.warn({ err }, "Database migration skipped (non-fatal) — schema may already be current");
   }
 
   try {
