@@ -370,6 +370,15 @@ router.post("/admin/kyc/:userId/review", async (req, res) => {
     .where(eq(kycTable.userId, userId));
   await db.update(usersTable).set({ kycStatus: newStatus }).where(eq(usersTable.id, userId));
 
+  await db.insert(notificationsTable).values({
+    userId,
+    type: "kyc",
+    title: approve ? "KYC Verified ✓" : "KYC Rejected",
+    message: approve
+      ? "Your identity verification has been approved. You now have full access to all features."
+      : `Your KYC submission was rejected. Reason: ${parsed.data.reason ?? "Please resubmit with clearer documents."}`,
+  });
+
   const [row] = await db
     .select({ kyc: kycTable, user: usersTable })
     .from(kycTable)

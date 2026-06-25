@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, transactionsTable, depositSessionsTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, transactionsTable, depositSessionsTable, notificationsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { CreateWithdrawalBody } from "@workspace/api-zod";
 import { getAvailableBalance } from "../utils/balance.js";
@@ -198,6 +198,13 @@ router.post("/cashier/withdraw", async (req, res) => {
     walletAddress,
     description: `Withdrawal via ${paymentMethod}`,
   }).returning();
+
+  await db.insert(notificationsTable).values({
+    userId: user.id,
+    type: "withdrawal",
+    title: "Withdrawal Requested",
+    message: `Your withdrawal of $${amount.toFixed(2)} via ${paymentMethod} has been submitted and is pending review.`,
+  });
 
   return res.status(201).json({
     id: txn.id,
