@@ -210,11 +210,11 @@ router.post("/trade/execute", async (req, res) => {
   if (stopLoss <= 0) return res.status(400).json({ error: "Stop loss must be greater than 0" });
   if (stake <= 0) return res.status(400).json({ error: "Stake must be greater than 0" });
 
-  // Must own the bot
+  // Must own the bot — botId is the userBotsTable.id returned by GET /api/bots
   const rows = await db.select({ ub: userBotsTable, bot: botsTable })
     .from(userBotsTable)
     .innerJoin(botsTable, eq(userBotsTable.botId, botsTable.id))
-    .where(and(eq(userBotsTable.userId, user.id), eq(userBotsTable.botId, botId)))
+    .where(and(eq(userBotsTable.userId, user.id), eq(userBotsTable.id, botId)))
     .limit(1);
 
   if (rows.length === 0) return res.status(400).json({ error: "You don't own this bot. Purchase it first." });
