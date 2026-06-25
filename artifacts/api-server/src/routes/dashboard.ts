@@ -85,18 +85,19 @@ router.get("/dashboard/earnings-chart", async (req, res) => {
   switch (period) {
     case "today": {
       const start = startOfDay(now);
-      intervals = eachHourOfInterval({ start, end: now });
+      // 6 buckets: 12AM, 4AM, 8AM, 12PM, 4PM, 8PM
+      intervals = [0, 4, 8, 12, 16, 20].map(h => { const d = new Date(start); d.setHours(h); return d; });
       labelFn = (d) => format(d, "ha");
-      keyFn = (d) => d.toISOString();
+      keyFn = (d) => format(d, "HH");
       offset = 0;
       break;
     }
     case "yesterday": {
       const yStart = startOfDay(subDays(now, 1));
-      const yEnd = new Date(yStart); yEnd.setHours(23);
-      intervals = eachHourOfInterval({ start: yStart, end: yEnd });
+      // 6 buckets: 12AM, 4AM, 8AM, 12PM, 4PM, 8PM
+      intervals = [0, 4, 8, 12, 16, 20].map(h => { const d = new Date(yStart); d.setHours(h); return d; });
       labelFn = (d) => format(d, "ha");
-      keyFn = (d) => d.toISOString();
+      keyFn = (d) => format(d, "HH");
       offset = 1000;
       break;
     }
