@@ -110,21 +110,57 @@ router.get("/bots/:id/analytics/:period", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const period = req.params.period || "7D";
-  const days = period === "7D" ? 7 : period === "30D" ? 30 : 90;
+  const botId = parseInt(req.params.id);
+  const period = req.params.period || "daily";
 
-  const points = [];
-  let value = 100;
+  // seed based on bot + user so values are deterministic
+  const seed = botId * 100 + user.id;
+  const rng = (i: number, base: number) => {
+    const x = Math.sin(seed + i + base) * 10000;
+    return x - Math.floor(x);
+  };
+
   const now = new Date();
+  const points: { date: string; label: string; profit: number; cumulative: number }[] = [];
 
-  for (let i = days; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    value += (Math.random() - 0.3) * 20;
-    points.push({
-      date: date.toISOString().split("T")[0],
-      value: Math.max(0, Math.round(value * 100) / 100),
-    });
+  if (period === "daily") {
+    // last 14 days
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const profit = parseFloat(((rng(i, 0) * 80) - 10).toFixed(2));
+      points.push({ date: d.toISOString().split("T")[0], label: d.toLocaleDateString("en", { month: "short", day: "numeric" }), profit, cumulative: 0 });
+    }
+  } else if (period === "weekly") {
+    // last 12 weeks
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i * 7);
+      const profit = parseFloat(((rng(i, 500) * 200) - 20).toFixed(2));
+      const weekNum = Math.ceil((d.getDate() + (new Date(d.getFullYear(), d.getMonth(), 1).getDay())) / 7);
+      points.push({ date: d.toISOString().split("T")[0], label: `W${weekNum}\n${d.toLocaleDateString("en", { month: "short" })}`, profit, cumulative: 0 });
+    }
+  } else if (period === "monthly") {
+    // last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const profit = parseFloat(((rng(i, 1000) * 500) - 50).toFixed(2));
+      points.push({ date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: d.toLocaleDateString("en", { month: "short", year: "2-digit" }), profit, cumulative: 0 });
+    }
+  } else {
+    // yearly — last 5 years
+    for (let i = 4; i >= 0; i--) {
+      const yr = now.getFullYear() - i;
+      const profit = parseFloat(((rng(i, 2000) * 2000) - 200).toFixed(2));
+      points.push({ date: `${yr}`, label: `${yr}`, profit, cumulative: 0 });
+    }
+  }
+
+  // compute cumulative
+  let cum = 0;
+  for (const p of points) {
+    cum = parseFloat((cum + p.profit).toFixed(2));
+    p.cumulative = cum;
   }
 
   return res.json(points);

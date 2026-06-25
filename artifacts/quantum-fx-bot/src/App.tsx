@@ -43,6 +43,7 @@ import ResetPassword from "@/pages/auth/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import Bots from "@/pages/bots/Bots";
 import BotDetail from "@/pages/bots/BotDetail";
+import BotAnalytics from "@/pages/bots/BotAnalytics";
 import Cashier from "@/pages/cashier/Cashier";
 import Deposit from "@/pages/cashier/Deposit";
 import DepositStatus from "@/pages/cashier/DepositStatus";
@@ -83,6 +84,9 @@ function Router() {
       </Route>
       <Route path="/bots">
         <AuthGuard><Bots /></AuthGuard>
+      </Route>
+      <Route path="/bots/:id/analytics">
+        <AuthGuard><BotAnalytics /></AuthGuard>
       </Route>
       <Route path="/bots/:id">
         <AuthGuard><BotDetail /></AuthGuard>
