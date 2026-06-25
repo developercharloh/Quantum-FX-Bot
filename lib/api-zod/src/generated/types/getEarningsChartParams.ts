@@ -5,8 +5,7 @@
  * Quantum FX Bot API
  * OpenAPI spec version: 0.1.0
  */
-import type { GetEarningsChartPeriod } from './getEarningsChartPeriod';
 
 export type GetEarningsChartParams = {
-period?: GetEarningsChartPeriod;
+period?: string;
 };

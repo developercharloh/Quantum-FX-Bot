@@ -170,7 +170,6 @@ paths:
           in: query
           schema:
             type: string
-            enum: [7D, 30D, 90D]
       responses:
         "200":
           description: Earnings chart data
@@ -180,6 +179,20 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ChartPoint"
+
+  /dashboard/profit-by-bot:
+    get:
+      operationId: getProfitByBot
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Profit breakdown by bot
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BotProfitItem"
 
   /dashboard/recent-activity:
     get:
@@ -1633,22 +1646,49 @@ components:
           type: number
         totalEarnings:
           type: number
+        totalProfit:
+          type: number
         earningsChangePercent:
           type: number
         activeBots:
           type: integer
         totalBots:
           type: integer
-      required: [totalBalance, availableBalance, todayProfit, todayProfitPercent, totalEarnings, earningsChangePercent, activeBots, totalBots]
+        winRate:
+          type: number
+        roi:
+          type: number
+        totalTrades:
+          type: integer
+      required: [totalBalance, availableBalance, todayProfit, todayProfitPercent, totalEarnings, totalProfit, earningsChangePercent, activeBots, totalBots, winRate, roi, totalTrades]
 
     ChartPoint:
       type: object
       properties:
         date:
           type: string
-        value:
+        label:
+          type: string
+        profit:
           type: number
-      required: [date, value]
+        cumulative:
+          type: number
+      required: [date, label, profit, cumulative]
+
+    BotProfitItem:
+      type: object
+      properties:
+        botId:
+          type: integer
+        botName:
+          type: string
+        profit:
+          type: number
+        percentage:
+          type: number
+        color:
+          type: string
+      required: [botId, botName, profit, percentage, color]
 
     ActivityItem:
       type: object

@@ -109,14 +109,28 @@ export interface DashboardSummary {
   todayProfit: number;
   todayProfitPercent: number;
   totalEarnings: number;
+  totalProfit: number;
   earningsChangePercent: number;
   activeBots: number;
   totalBots: number;
+  winRate: number;
+  roi: number;
+  totalTrades: number;
 }
 
 export interface ChartPoint {
   date: string;
-  value: number;
+  label: string;
+  profit: number;
+  cumulative: number;
+}
+
+export interface BotProfitItem {
+  botId: number;
+  botName: string;
+  profit: number;
+  percentage: number;
+  color: string;
 }
 
 export interface ActivityItem {
@@ -661,17 +675,8 @@ export interface AdminBroadcastInput {
 }
 
 export type GetEarningsChartParams = {
-period?: GetEarningsChartPeriod;
+period?: string;
 };
-
-export type GetEarningsChartPeriod = typeof GetEarningsChartPeriod[keyof typeof GetEarningsChartPeriod];
-
-
-export const GetEarningsChartPeriod = {
-  '7D': '7D',
-  '30D': '30D',
-  '90D': '90D',
-} as const;
 
 export type ListMarketplaceBotsParams = {
 category?: string;

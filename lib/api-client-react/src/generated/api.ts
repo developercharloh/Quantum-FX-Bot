@@ -50,6 +50,7 @@ import type {
   AuthResponse,
   Bot,
   BotDetail,
+  BotProfitItem,
   ChangePasswordInput,
   ChartPoint,
   ChatConversation,
@@ -720,6 +721,77 @@ export function useGetEarningsChart<TData = Awaited<ReturnType<typeof getEarning
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetEarningsChartQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetProfitByBotUrl = () => {
+
+
+
+
+  return `/api/dashboard/profit-by-bot`
+}
+
+export const getProfitByBot = async ( options?: RequestInit): Promise<BotProfitItem[]> => {
+
+  return customFetch<BotProfitItem[]>(getGetProfitByBotUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProfitByBotQueryKey = () => {
+    return [
+    `/api/dashboard/profit-by-bot`
+    ] as const;
+    }
+
+
+export const getGetProfitByBotQueryOptions = <TData = Awaited<ReturnType<typeof getProfitByBot>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProfitByBot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProfitByBotQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProfitByBot>>> = ({ signal }) => getProfitByBot({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProfitByBot>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProfitByBotQueryResult = NonNullable<Awaited<ReturnType<typeof getProfitByBot>>>
+export type GetProfitByBotQueryError = ErrorType<unknown>
+
+
+
+export function useGetProfitByBot<TData = Awaited<ReturnType<typeof getProfitByBot>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProfitByBot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProfitByBotQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

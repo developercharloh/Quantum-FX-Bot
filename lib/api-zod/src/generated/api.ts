@@ -82,21 +82,37 @@ export const GetDashboardSummaryResponse = zod.object({
   "todayProfit": zod.number(),
   "todayProfitPercent": zod.number(),
   "totalEarnings": zod.number(),
+  "totalProfit": zod.number(),
   "earningsChangePercent": zod.number(),
   "activeBots": zod.number(),
-  "totalBots": zod.number()
+  "totalBots": zod.number(),
+  "winRate": zod.number(),
+  "roi": zod.number(),
+  "totalTrades": zod.number()
 })
 
 
 export const GetEarningsChartQueryParams = zod.object({
-  "period": zod.enum(['7D', '30D', '90D']).optional()
+  "period": zod.coerce.string().optional()
 })
 
 export const GetEarningsChartResponseItem = zod.object({
   "date": zod.string(),
-  "value": zod.number()
+  "label": zod.string(),
+  "profit": zod.number(),
+  "cumulative": zod.number()
 })
 export const GetEarningsChartResponse = zod.array(GetEarningsChartResponseItem)
+
+
+export const GetProfitByBotResponseItem = zod.object({
+  "botId": zod.number(),
+  "botName": zod.string(),
+  "profit": zod.number(),
+  "percentage": zod.number(),
+  "color": zod.string()
+})
+export const GetProfitByBotResponse = zod.array(GetProfitByBotResponseItem)
 
 
 export const GetRecentActivityResponseItem = zod.object({
@@ -165,7 +181,9 @@ export const GetBotAnalyticsParams = zod.object({
 
 export const GetBotAnalyticsResponseItem = zod.object({
   "date": zod.string(),
-  "value": zod.number()
+  "label": zod.string(),
+  "profit": zod.number(),
+  "cumulative": zod.number()
 })
 export const GetBotAnalyticsResponse = zod.array(GetBotAnalyticsResponseItem)
 
@@ -455,7 +473,9 @@ export const GetTeamEarningsOverviewResponse = zod.object({
   "totalEarnings": zod.number(),
   "chart": zod.array(zod.object({
   "date": zod.string(),
-  "value": zod.number()
+  "label": zod.string(),
+  "profit": zod.number(),
+  "cumulative": zod.number()
 }))
 })
 

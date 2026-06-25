@@ -12,7 +12,11 @@ export interface DashboardSummary {
   todayProfit: number;
   todayProfitPercent: number;
   totalEarnings: number;
+  totalProfit: number;
   earningsChangePercent: number;
   activeBots: number;
   totalBots: number;
+  winRate: number;
+  roi: number;
+  totalTrades: number;
 }

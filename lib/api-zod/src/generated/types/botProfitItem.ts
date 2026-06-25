@@ -6,9 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ChartPoint {
-  date: string;
-  label: string;
+export interface BotProfitItem {
+  botId: number;
+  botName: string;
   profit: number;
-  cumulative: number;
+  percentage: number;
+  color: string;
 }
