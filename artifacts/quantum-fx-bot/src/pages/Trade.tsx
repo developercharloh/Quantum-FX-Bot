@@ -1,475 +1,766 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
+  useListBots,
   useListTradeSignals,
-  useListMarketplaceBots,
-  usePurchaseBot,
   useExecuteTrade,
   useListTradePositions,
   useCloseTradePosition,
   TradeSignal,
-  MarketplaceBot,
   TradePosition,
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  Zap,
-  Bell,
-  TrendingUp,
-  TrendingDown,
-  ArrowUpRight,
-  ArrowDownRight,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Lock,
-  Activity,
+  TrendingUp, TrendingDown, Zap, Activity, Clock, Check,
+  ArrowUpRight, ArrowDownRight, ChevronDown, CheckCircle2,
+  XCircle, Bot as BotIcon, BarChart2, Bell,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
-type Stage = "signals" | "select-bot" | "params";
+type Step = "configure" | "running" | "result";
+type Tab = "trade" | "journal";
 
-function formatElapsed(ms: number) {
-  const s = Math.floor(ms / 1000);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${sec}s`;
-  return `${sec}s`;
+const RUNTIMES = [
+  { value: 1,  label: "1 Minute"  },
+  { value: 2,  label: "2 Minutes" },
+  { value: 5,  label: "5 Minutes" },
+  { value: 10, label: "10 Minutes"},
+  { value: 15, label: "15 Minutes"},
+  { value: 30, label: "30 Minutes"},
+];
+
+const AI_MESSAGES = [
+  "Analyzing market conditions...",
+  "Scanning for optimal entry points...",
+  "Executing high-probability trade...",
+  "Monitoring position performance...",
+  "Calculating risk-adjusted returns...",
+  "Identifying profitable chart patterns...",
+  "Trend reversal signal detected...",
+  "Adjusting position sizing dynamically...",
+  "Market volatility managed efficiently...",
+  "Profit target zone approaching...",
+];
+
+const BOT_COLORS = [
+  "from-purple-500 to-indigo-600",
+  "from-blue-500 to-cyan-600",
+  "from-orange-500 to-red-500",
+  "from-green-500 to-emerald-600",
+  "from-pink-500 to-rose-600",
+];
+
+const RADIUS = 52;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+function AIWave() {
+  return (
+    <>
+      <style>{`
+        @keyframes wv{0%,100%{transform:scaleY(0.3)}50%{transform:scaleY(1)}}
+        .wv{animation:wv 1.1s ease-in-out infinite}
+      `}</style>
+      <div className="flex items-end gap-[2px] h-4 shrink-0">
+        {[0,0.1,0.22,0.08,0.3,0.18,0.05,0.25,0.12,0.35,0.15,0.07].map((d, i) => (
+          <div key={i} className="wv w-[3px] rounded-full bg-primary" style={{ height: "100%", animationDelay: `${d}s` }} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function Confetti() {
+  const pieces = useMemo(() =>
+    Array.from({ length: 80 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      delay: Math.random() * 2.5,
+      dur: 2 + Math.random() * 2,
+      color: ["#7C3AED","#4ade80","#f59e0b","#38bdf8","#f472b6","#a78bfa"][i % 6],
+      w: 5 + Math.random() * 7,
+      h: 4 + Math.random() * 6,
+      round: i % 3 !== 0,
+    })), []);
+  return (
+    <>
+      <style>{`
+        @keyframes cfFall{0%{transform:translateY(-40px) rotate(0deg);opacity:1}100%{transform:translateY(115vh) rotate(900deg);opacity:0}}
+        .cf{animation:cfFall linear forwards}
+      `}</style>
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
+        {pieces.map(p => (
+          <div key={p.id} className="absolute cf" style={{
+            left:`${p.x}%`, top:0, width:p.w, height:p.round?p.w:p.h,
+            background:p.color, borderRadius:p.round?"50%":"2px",
+            animationDuration:`${p.dur}s`, animationDelay:`${p.delay}s`,
+          }} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function fmtDuration(ms: number) {
+  const s = Math.floor(ms / 1000), m = Math.floor(s / 60), sec = s % 60;
+  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
 }
 
 const isBuy = (d: string) => d.toUpperCase() === "BUY";
 
 export default function Trade() {
-  const { data: signals, isLoading: loadingSignals } = useListTradeSignals();
-  const { data: marketplaceBots, isLoading: loadingBots } = useListMarketplaceBots();
+  const { data: bots = [], isLoading: loadingBots } = useListBots();
+  const { data: signals = [] } = useListTradeSignals();
   const { data: positions } = useListTradePositions({ query: { refetchInterval: 4000 } as any });
-  const purchaseMutation = usePurchaseBot();
   const executeMutation = useExecuteTrade();
-  const closeMutation = useCloseTradePosition();
+  const closeMutation  = useCloseTradePosition();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [stage, setStage] = useState<Stage>("signals");
-  const [selectedSignal, setSelectedSignal] = useState<TradeSignal | null>(null);
-  const [selectedBot, setSelectedBot] = useState<MarketplaceBot | null>(null);
-  const [targetProfit, setTargetProfit] = useState("");
-  const [stopLoss, setStopLoss] = useState("");
+  const [tab, setTab] = useState<Tab>("trade");
+  const [step, setStep] = useState<Step>("configure");
+  const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
   const [stake, setStake] = useState("");
-  const [resolved, setResolved] = useState<TradePosition | null>(null);
+  const [runtime, setRuntime] = useState(5);
+  const [runtimeOpen, setRuntimeOpen] = useState(false);
+  const runtimeRef = useRef<HTMLDivElement>(null);
+  const [activePositionId, setActivePositionId] = useState<number | null>(null);
+  const [executedSignal, setExecutedSignal] = useState<TradeSignal | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [msgIdx, setMsgIdx] = useState(0);
+  const [result, setResult] = useState<TradePosition | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const finishedRef = useRef(false);
 
-  // Detect positions that just resolved (open -> tp/sl/manual) to show a popup
-  const prevStatus = useRef<Map<number, string>>(new Map());
+  const stakeNum    = parseFloat(stake) || 0;
+  const totalSeconds = runtime * 60;
+
+  // Auto-select first owned bot
   useEffect(() => {
-    if (!positions) return;
-    let justResolved: TradePosition | null = null;
-    for (const p of positions) {
-      const prev = prevStatus.current.get(p.id);
-      if (prev === "open" && p.status !== "open") {
-        if (p.status === "tp_hit" || p.status === "sl_hit") justResolved = p;
-      }
-      prevStatus.current.set(p.id, p.status);
+    if (!selectedBotId && bots.length > 0) setSelectedBotId(bots[0].id);
+  }, [bots, selectedBotId]);
+
+  // Close runtime dropdown on outside click
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (runtimeRef.current && !runtimeRef.current.contains(e.target as Node)) setRuntimeOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  // Live position data for running trade
+  const activePosition = useMemo(() =>
+    positions?.find(p => p.id === activePositionId) ?? null,
+  [positions, activePositionId]);
+
+  // AI message cycling
+  useEffect(() => {
+    if (step !== "running") return;
+    const id = setInterval(() => setMsgIdx(i => (i + 1) % AI_MESSAGES.length), 3300);
+    return () => clearInterval(id);
+  }, [step]);
+
+  // Detect natural TP/SL hit via polling
+  const prevStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activePosition || step !== "running") return;
+    const cur = activePosition.status;
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = cur;
+    if (prev === "open" && cur !== "open") {
+      if (timerRef.current) clearInterval(timerRef.current);
+      finishTrade(activePosition);
     }
-    if (justResolved) {
-      setResolved(justResolved);
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/cashier/transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePosition]);
+
+  const finishTrade = (pos: TradePosition) => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    setResult(pos);
+    setStep("result");
+    if (pos.pnl >= 0) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 5500);
     }
-  }, [positions, queryClient]);
-
-  const dialogOpen = stage !== "signals";
-
-  const closeAll = () => {
-    setStage("signals");
-    setSelectedSignal(null);
-    setSelectedBot(null);
+    queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/cashier/transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
   };
 
-  const openSignal = (signal: TradeSignal) => {
-    setSelectedSignal(signal);
-    setSelectedBot(null);
-    setStage("select-bot");
-  };
-
-  const handlePurchase = (id: number) => {
-    purchaseMutation.mutate(
-      { id },
-      {
-        onSuccess: () => {
-          toast({ title: "AI bot purchased — ready to trade" });
-          queryClient.invalidateQueries({ queryKey: ["/api/marketplace-bots"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
-        },
-        onError: (err: any) => {
-          toast({ title: "Purchase failed", description: err.message, variant: "destructive" });
-        },
-      }
-    );
-  };
-
-  const startTrade = (bot: MarketplaceBot) => {
-    if (!selectedSignal) return;
-    setSelectedBot(bot);
-    setTargetProfit(String(selectedSignal.suggestedTp));
-    setStopLoss(String(selectedSignal.suggestedSl));
-    setStake("");
-    setStage("params");
-  };
-
-  const executeTrade = () => {
-    if (!selectedSignal || !selectedBot) return;
-    const tp = parseFloat(targetProfit);
-    const sl = parseFloat(stopLoss);
-    const st = parseFloat(stake);
-    if (!(tp > 0) || !(sl > 0) || !(st > 0)) {
-      toast({ title: "Enter valid amounts", description: "Target profit, stop loss and stake must be greater than 0.", variant: "destructive" });
+  const handleExecute = () => {
+    if (!selectedBotId || stakeNum < 1) return;
+    if (!signals.length) {
+      toast({ title: "No signals available", variant: "destructive" });
       return;
     }
+    // Auto-pick highest confidence signal
+    const signal = [...signals].sort((a, b) => b.confidence - a.confidence)[0];
 
     executeMutation.mutate(
-      { data: { signalId: selectedSignal.id, botId: selectedBot.id, targetProfit: tp, stopLoss: sl, stake: st } },
+      { data: { signalId: signal.id, botId: selectedBotId, targetProfit: signal.suggestedTp, stopLoss: signal.suggestedSl, stake: stakeNum } },
       {
         onSuccess: (pos) => {
-          prevStatus.current.set(pos.id, "open");
-          toast({ title: "Position opened", description: `${pos.pair} ${pos.direction} is now running.` });
-          queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] });
-          closeAll();
-        },
-        onError: (err: any) => {
-          toast({ title: "Trade could not be opened", description: err.message, variant: "destructive" });
-        },
-      }
-    );
-  };
+          setActivePositionId(pos.id);
+          setExecutedSignal(signal);
+          prevStatusRef.current = "open";
+          finishedRef.current = false;
+          setSecondsLeft(totalSeconds);
+          setMsgIdx(0);
+          setStep("running");
 
-  const closePosition = (id: number) => {
-    closeMutation.mutate(
-      { id },
-      {
-        onSuccess: () => {
-          toast({ title: "Position closed" });
           queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/cashier/transactions"] });
+
+          // Countdown — auto-close when timer hits 0
+          timerRef.current = setInterval(() => {
+            setSecondsLeft(s => {
+              if (s <= 1) {
+                clearInterval(timerRef.current!);
+                closeMutation.mutate(
+                  { id: pos.id },
+                  {
+                    onSuccess: (closed) => finishTrade(closed),
+                    onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
+                  }
+                );
+                return 0;
+              }
+              return s - 1;
+            });
+          }, 1000);
         },
         onError: (err: any) => {
-          toast({ title: "Could not close", description: err.message, variant: "destructive" });
+          toast({ title: "Trade failed", description: err.message, variant: "destructive" });
         },
       }
     );
   };
 
-  const open = (positions || []).filter((p) => p.status === "open");
-  const history = (positions || []).filter((p) => p.status !== "open").slice(0, 8);
+  const handleReset = () => {
+    setStep("configure");
+    setActivePositionId(null);
+    setResult(null);
+    setShowConfetti(false);
+    setStake("");
+    prevStatusRef.current = null;
+    finishedRef.current = false;
+  };
 
-  return (
-    <Layout showNav>
-      <div className="p-5 pb-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="w-10 h-10 bg-card rounded-xl flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white fill-white" />
+  const timerProgress = totalSeconds > 0 ? secondsLeft / totalSeconds : 0;
+  const dashOffset = CIRCUMFERENCE * (1 - timerProgress);
+  const mm = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
+  const ss = (secondsLeft % 60).toString().padStart(2, "0");
+
+  const history = (positions || []).filter(p => p.status !== "open").slice(0, 30);
+  const bestSignal = signals.length ? [...signals].sort((a, b) => b.confidence - a.confidence)[0] : null;
+
+  // ─── CONFIGURE ─────────────────────────────────────────────────────────────
+  const ConfigureView = (
+    <div className="flex-1 overflow-y-auto pb-32 space-y-6 pt-1">
+
+      {/* Best signal preview */}
+      {bestSignal && (() => {
+        const buy = isBuy(bestSignal.direction);
+        return (
+          <div className={`rounded-2xl p-4 border ${buy ? "bg-green-500/5 border-green-500/20" : "bg-red-500/5 border-red-500/20"}`}>
+            <p className="text-[10px] text-muted-foreground mb-2.5 uppercase tracking-widest font-semibold">
+              Best Signal — Auto Selected
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${buy ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
+                  {buy ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+                </div>
+                <div>
+                  <p className="font-bold">{bestSignal.pair}</p>
+                  <p className="text-[10px] text-muted-foreground">{bestSignal.market} · {bestSignal.timeframe}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <Badge className={`text-[10px] border-none mb-1 block ${buy ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
+                  {bestSignal.direction}
+                </Badge>
+                <p className={`text-sm font-bold ${bestSignal.confidence >= 85 ? "text-green-400" : "text-foreground"}`}>
+                  {bestSignal.confidence}% AI
+                </p>
+              </div>
             </div>
-            <span className="font-semibold tracking-tight text-sm">Quantum FX Bot</span>
           </div>
-          <button className="w-10 h-10 bg-card rounded-xl flex items-center justify-center relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full border-2 border-card" />
+        );
+      })()}
+
+      {/* 1 — Stake */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">1</div>
+          <h2 className="text-sm font-bold">Stake Amount</h2>
+        </div>
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium select-none">$</span>
+          <Input
+            type="number"
+            placeholder="Enter amount..."
+            value={stake}
+            onChange={e => setStake(e.target.value)}
+            className="bg-card border-none h-14 rounded-xl text-lg font-bold pl-8 pr-4"
+          />
+        </div>
+        <div className="flex gap-2 mt-2.5">
+          {[50, 100, 250, 500].map(v => (
+            <button
+              key={v}
+              onClick={() => setStake(v.toString())}
+              className={`flex-1 py-2 rounded-xl text-xs font-semibold border-2 transition-all ${
+                stakeNum === v
+                  ? "bg-primary border-primary text-white shadow-lg shadow-primary/30"
+                  : "border-border/40 text-muted-foreground bg-card"
+              }`}
+            >
+              ${v}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* 2 — Duration */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">2</div>
+          <h2 className="text-sm font-bold">Trade Duration</h2>
+        </div>
+        <div ref={runtimeRef} className="relative">
+          <button
+            onClick={() => setRuntimeOpen(o => !o)}
+            className="w-full flex items-center justify-between bg-card h-14 rounded-xl px-4 text-sm font-semibold"
+          >
+            <span className="flex items-center gap-2.5">
+              <Clock className="w-4 h-4 text-primary" />
+              {RUNTIMES.find(r => r.value === runtime)?.label}
+            </span>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${runtimeOpen ? "rotate-180" : ""}`} />
           </button>
-        </div>
-
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">AI Trading Signals</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Tap a live signal, pick a bot, and set your trade. Positions run live until they hit target profit.
-          </p>
-        </div>
-
-        {/* Open positions journal */}
-        {open.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              <h2 className="font-semibold text-sm">Running trades</h2>
-              <span className="text-[10px] text-muted-foreground bg-card rounded-full px-2 py-0.5">{open.length} open</span>
-            </div>
-            {open.map((p) => {
-              const buy = isBuy(p.direction);
-              const up = p.pnl >= 0;
-              const pct = Math.max(0, Math.min(100, ((p.pnl + p.stopLoss) / (p.targetProfit + p.stopLoss)) * 100));
-              return (
-                <Card key={p.id} className="bg-card border-none rounded-2xl shadow-none">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${buy ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
-                          {buy ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">{p.pair}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge className={`text-[10px] border-none px-2 py-0 h-5 ${buy ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
-                              {p.direction}
-                            </Badge>
-                            <span className="text-[10px] text-muted-foreground">{p.botName}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[10px] text-muted-foreground mb-0.5">Live P&amp;L</div>
-                        <div className={`text-base font-bold tabular-nums ${up ? "text-green-500" : "text-red-500"}`}>
-                          {up ? "+" : "-"}${Math.abs(p.pnl).toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* TP / SL progress bar */}
-                    <div className="relative h-1.5 w-full rounded-full bg-background overflow-hidden mb-2">
-                      <div className={`h-full rounded-full ${up ? "bg-green-500" : "bg-red-500"}`} style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-3">
-                      <span className="text-red-500">SL -${p.stopLoss.toFixed(0)}</span>
-                      <span>Running {formatElapsed(p.elapsedMs)}</span>
-                      <span className="text-green-500">TP +${p.targetProfit.toFixed(0)}</span>
-                    </div>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full h-9 rounded-lg text-xs"
-                      disabled={closeMutation.isPending}
-                      onClick={() => closePosition(p.id)}
-                    >
-                      Close at {up ? "+" : "-"}${Math.abs(p.pnl).toFixed(2)}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Signals list */}
-        <div className="space-y-3">
-          <h2 className="font-semibold text-sm">Live signals</h2>
-          {loadingSignals ? (
-            Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)
-          ) : (signals || []).length > 0 ? (
-            signals?.map((signal: TradeSignal) => {
-              const buy = isBuy(signal.direction);
-              return (
-                <Card
-                  key={signal.id}
-                  className="bg-card border-none rounded-2xl shadow-none cursor-pointer active:scale-[0.99] transition-transform"
-                  onClick={() => openSignal(signal)}
+          {runtimeOpen && (
+            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-card border border-border/40 rounded-2xl shadow-2xl overflow-hidden">
+              {RUNTIMES.map(r => (
+                <button
+                  key={r.value}
+                  onClick={() => { setRuntime(r.value); setRuntimeOpen(false); }}
+                  className={`w-full text-left px-4 py-3.5 text-sm flex items-center justify-between transition-colors ${
+                    r.value === runtime ? "bg-primary text-white font-semibold" : "hover:bg-background text-foreground"
+                  }`}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${buy ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
-                          {buy ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">{signal.pair}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge className={`text-[10px] border-none px-2 py-0 h-5 ${buy ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
-                              {signal.direction}
-                            </Badge>
-                            <span className="text-[10px] text-muted-foreground">{signal.market} · {signal.timeframe}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[10px] text-muted-foreground mb-1">Confidence</div>
-                        <div className={`text-sm font-bold ${signal.confidence >= 85 ? "text-green-500" : "text-foreground"}`}>{signal.confidence}%</div>
-                      </div>
-                    </div>
-                    <div className="h-1.5 w-full rounded-full bg-background overflow-hidden">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${signal.confidence}%` }} />
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })
-          ) : (
-            <div className="text-center py-12 text-muted-foreground bg-card rounded-2xl text-sm">
-              No signals available right now.
+                  {r.label}
+                  {r.value === runtime && <Check className="w-4 h-4" />}
+                </button>
+              ))}
             </div>
           )}
         </div>
+      </section>
 
-        {/* History */}
-        {history.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="font-semibold text-sm">Trade journal</h2>
-            <div className="bg-card rounded-2xl divide-y divide-background">
-              {history.map((p) => {
-                const win = p.pnl >= 0;
-                return (
-                  <div key={p.id} className="flex items-center justify-between p-3.5">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${win ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
-                        {win ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium truncate">{p.pair} {p.direction}</div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {p.status === "tp_hit" ? "Take profit hit" : p.status === "sl_hit" ? "Stop loss hit" : p.status === "closed_expired" ? "Auto-closed (24h)" : "Closed manually"}
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`text-sm font-bold tabular-nums shrink-0 ${win ? "text-green-500" : "text-red-500"}`}>
-                      {win ? "+" : "-"}${Math.abs(p.pnl).toFixed(2)}
-                    </div>
+      {/* 3 — Bot */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">3</div>
+          <h2 className="text-sm font-bold">Select Bot</h2>
+        </div>
+        {loadingBots ? (
+          <div className="space-y-2.5">{Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-[72px] w-full rounded-2xl" />)}</div>
+        ) : bots.length === 0 ? (
+          <div className="bg-card rounded-2xl p-6 text-center">
+            <BotIcon className="w-10 h-10 text-muted-foreground/20 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground mb-1">No bots in your portfolio.</p>
+            <p className="text-xs text-muted-foreground/60">Purchase a bot from the Bots tab first.</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {bots.map((bot, i) => (
+              <button
+                key={bot.id}
+                onClick={() => setSelectedBotId(bot.id)}
+                className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
+                  selectedBotId === bot.id
+                    ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
+                    : "border-transparent bg-card"
+                }`}
+              >
+                <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 bg-gradient-to-br ${BOT_COLORS[i % BOT_COLORS.length]}`}>
+                  {bot.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate">{bot.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-green-400 font-medium">Win {bot.winRate}%</span>
+                    <span className="text-[10px] text-muted-foreground">· Today +${bot.profitToday}</span>
                   </div>
-                );
-              })}
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                  selectedBotId === bot.id ? "border-primary bg-primary" : "border-muted"
+                }`}>
+                  {selectedBotId === bot.id && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Summary card */}
+      {selectedBotId && stakeNum >= 1 && bestSignal && (() => {
+        const bot = bots.find(b => b.id === selectedBotId);
+        const buy = isBuy(bestSignal.direction);
+        return (
+          <div className="bg-gradient-to-br from-primary/15 to-purple-950/40 border border-primary/25 rounded-2xl p-4 space-y-3">
+            <p className="text-[10px] text-primary/80 uppercase tracking-widest font-semibold">Trade Summary</p>
+            {[
+              { k: "Signal",    v: `${bestSignal.pair} ${bestSignal.direction}`, c: buy ? "text-green-400" : "text-red-400" },
+              { k: "Bot",       v: bot?.name ?? "—", c: "" },
+              { k: "Stake",     v: `$${stakeNum.toFixed(2)}`, c: "" },
+              { k: "Duration",  v: RUNTIMES.find(r => r.value === runtime)?.label ?? "", c: "" },
+              { k: "Target",    v: `+$${bestSignal.suggestedTp}`, c: "text-green-400" },
+              { k: "Stop Loss", v: `-$${bestSignal.suggestedSl}`, c: "text-red-400" },
+            ].map(({ k, v, c }) => (
+              <div key={k} className="flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground">{k}</span>
+                <span className={`text-[11px] font-semibold ${c || "text-foreground"}`}>{v}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+    </div>
+  );
+
+  // ─── RUNNING ──────────────────────────────────────────────────────────────
+  const pos = activePosition;
+  const pnl = pos?.pnl ?? 0;
+  const posUp = pnl >= 0;
+  const posBuy = pos ? isBuy(pos.direction) : true;
+  const pct = pos
+    ? Math.max(0, Math.min(100, ((pnl + pos.stopLoss) / (pos.targetProfit + pos.stopLoss)) * 100))
+    : 50;
+
+  const RunningView = (
+    <div className="flex-1 flex flex-col items-center gap-5 pb-10 overflow-y-auto">
+      {/* Status bar */}
+      <div className="w-full flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+            <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Bot Active</p>
+            <p className="text-sm font-bold">{bots.find(b => b.id === selectedBotId)?.name ?? "—"}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-full">
+          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+          <span className="text-[10px] text-green-400 font-bold tracking-wider">LIVE</span>
+        </div>
+      </div>
+
+      {/* Pair card */}
+      {pos && (
+        <div className={`w-full rounded-2xl p-4 flex items-center justify-between border ${posBuy ? "bg-green-500/5 border-green-500/20" : "bg-red-500/5 border-red-500/20"}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${posBuy ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
+              {posBuy ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
             </div>
+            <div>
+              <p className="font-bold">{pos.pair}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Badge className={`text-[10px] border-none ${posBuy ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
+                  {pos.direction}
+                </Badge>
+                {executedSignal && (
+                  <span className="text-[10px] text-muted-foreground">{executedSignal.confidence}% confidence</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-muted-foreground">Stake</p>
+            <p className="text-sm font-bold">${pos.stake.toFixed(2)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Circular timer */}
+      <div className="relative flex items-center justify-center">
+        <svg width="190" height="190">
+          <defs>
+            <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#7C3AED" />
+              <stop offset="100%" stopColor="#4ade80" />
+            </linearGradient>
+          </defs>
+          <circle cx="95" cy="95" r={RADIUS + 10} fill="none" stroke="#7C3AED" strokeWidth="1" strokeOpacity="0.1" />
+          <circle cx="95" cy="95" r={RADIUS} fill="none" stroke="#1e293b" strokeWidth="9" />
+          <circle
+            cx="95" cy="95" r={RADIUS}
+            fill="none" stroke="url(#timerGrad)" strokeWidth="9" strokeLinecap="round"
+            strokeDasharray={CIRCUMFERENCE} strokeDashoffset={dashOffset}
+            style={{ transition: "stroke-dashoffset 0.95s linear", transformOrigin: "95px 95px", transform: "rotate(-90deg)" }}
+          />
+        </svg>
+        <div className="absolute flex flex-col items-center">
+          <p className="text-4xl font-mono font-bold tracking-tight">{mm}:{ss}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Time Remaining</p>
+        </div>
+      </div>
+
+      {/* Live P&L */}
+      <div className="w-full bg-card rounded-2xl p-5 text-center">
+        <p className="text-[11px] text-muted-foreground mb-1 font-medium uppercase tracking-wide">Live P&L</p>
+        <p className={`text-5xl font-bold tracking-tight transition-colors duration-500 ${posUp ? "text-green-400" : "text-red-400"}`}>
+          {posUp ? "+" : "−"}${Math.abs(pnl).toFixed(2)}
+        </p>
+        <div className="flex items-center justify-center gap-1.5 mt-2 mb-4">
+          {posUp
+            ? <TrendingUp className="w-3.5 h-3.5 text-green-400" />
+            : <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
+          <span className={`text-[10px] font-semibold ${posUp ? "text-green-400" : "text-red-400"}`}>
+            {pos && pos.stake > 0 ? `${((pnl / pos.stake) * 100).toFixed(2)}% ROI` : "—"}
+          </span>
+        </div>
+        {/* TP/SL bar */}
+        <div className="relative h-1.5 w-full rounded-full bg-background overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${posUp ? "bg-green-500" : "bg-red-500"}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        {pos && (
+          <div className="flex justify-between text-[10px] mt-1.5 text-muted-foreground">
+            <span className="text-red-400">SL −${pos.stopLoss.toFixed(0)}</span>
+            <span className="text-green-400">TP +${pos.targetProfit.toFixed(0)}</span>
           </div>
         )}
       </div>
 
-      {/* Flow dialog */}
-      <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) closeAll(); }}>
-        <DialogContent className="max-w-[400px] rounded-2xl">
-          {/* Select bot */}
-          {stage === "select-bot" && selectedSignal && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Select a bot</DialogTitle>
-                <DialogDescription>
-                  Choose an AI bot to execute the {selectedSignal.pair} {selectedSignal.direction} signal.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3 max-h-[60vh] overflow-y-auto -mx-1 px-1">
-                {loadingBots ? (
-                  Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)
-                ) : (
-                  marketplaceBots?.map((bot: MarketplaceBot) => (
-                    <div key={bot.id} className="bg-background rounded-xl p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold bg-gradient-to-br from-purple-400 to-pink-500 shrink-0">
-                          {bot.name.charAt(0)}
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="font-semibold text-sm truncate">{bot.name}</h4>
-                          <div className="text-[10px] text-muted-foreground">
-                            Win {bot.winRate}% · {bot.riskLevel} risk
-                          </div>
-                        </div>
-                      </div>
-                      {bot.isPurchased ? (
-                        <Button size="sm" className="h-9 rounded-lg shrink-0" onClick={() => startTrade(bot)}>
-                          Trade
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-9 rounded-lg shrink-0 text-xs"
-                          disabled={purchaseMutation.isPending}
-                          onClick={() => handlePurchase(bot.id)}
-                        >
-                          <Lock className="w-3 h-3 mr-1" />
-                          {purchaseMutation.isPending ? "..." : "Purchase AI bot"}
-                        </Button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
-          )}
+      {/* AI analysis */}
+      <div className="w-full bg-card rounded-2xl p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <AIWave />
+          <span className="text-xs font-semibold text-muted-foreground">AI Analysis</span>
+        </div>
+        <p className="text-sm font-medium text-foreground leading-relaxed transition-all duration-700">
+          {AI_MESSAGES[msgIdx]}
+        </p>
+        <div className="h-1 bg-muted/30 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-primary to-purple-400 rounded-full animate-pulse" style={{ width: "60%" }} />
+        </div>
+      </div>
 
-          {/* Params */}
-          {stage === "params" && selectedSignal && selectedBot && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Set up your trade</DialogTitle>
-                <DialogDescription>
-                  {selectedBot.name} on {selectedSignal.pair} {selectedSignal.direction}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tp">Target Profit ($)</Label>
-                  <Input id="tp" type="number" inputMode="decimal" value={targetProfit} onChange={(e) => setTargetProfit(e.target.value)} className="h-12 rounded-xl" placeholder="0.00" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sl">Stop Loss ($)</Label>
-                  <Input id="sl" type="number" inputMode="decimal" value={stopLoss} onChange={(e) => setStopLoss(e.target.value)} className="h-12 rounded-xl" placeholder="0.00" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="stake">Stake ($)</Label>
-                  <Input id="stake" type="number" inputMode="decimal" value={stake} onChange={(e) => setStake(e.target.value)} className="h-12 rounded-xl" placeholder="0.00" />
-                </div>
-                <Button className="w-full h-12 rounded-xl font-medium" disabled={executeMutation.isPending} onClick={executeTrade}>
-                  {executeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Open Trade"}
-                </Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Stats */}
+      <div className="w-full grid grid-cols-3 gap-3">
+        {[
+          { icon: <Activity className="w-4 h-4 text-primary" />, label: "Market",   val: pos?.market ?? "—" },
+          { icon: <Clock    className="w-4 h-4 text-primary" />, label: "Duration", val: `${runtime}m` },
+          { icon: <Zap      className="w-4 h-4 text-primary fill-primary" />, label: "Stake", val: `$${stakeNum.toFixed(0)}` },
+        ].map(({ icon, label, val }) => (
+          <div key={label} className="bg-card rounded-2xl p-3 flex flex-col items-center gap-1.5">
+            {icon}
+            <p className="text-[9px] text-muted-foreground text-center">{label}</p>
+            <p className="text-sm font-bold">{val}</p>
+          </div>
+        ))}
+      </div>
 
-      {/* Resolution popup */}
-      <Dialog open={!!resolved} onOpenChange={(o) => { if (!o) setResolved(null); }}>
-        <DialogContent className="max-w-[360px] rounded-2xl">
-          {resolved && (
-            <div className="py-6 flex flex-col items-center text-center gap-4">
-              {resolved.status === "tp_hit" ? (
-                <>
-                  <div className="w-20 h-20 rounded-full bg-green-500/15 flex items-center justify-center">
-                    <CheckCircle2 className="w-12 h-12 text-green-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-green-500">TP Hit! 🎉</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Take profit reached on {resolved.pair} {resolved.direction}</p>
-                  </div>
-                  <div className="text-3xl font-bold text-green-500">+${Math.abs(resolved.pnl).toFixed(2)}</div>
-                </>
-              ) : (
-                <>
-                  <div className="w-20 h-20 rounded-full bg-red-500/15 flex items-center justify-center">
-                    <XCircle className="w-12 h-12 text-red-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-red-500">Stop Loss Hit</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Stop loss triggered on {resolved.pair} {resolved.direction}</p>
-                  </div>
-                  <div className="text-3xl font-bold text-red-500">-${Math.abs(resolved.pnl).toFixed(2)}</div>
-                </>
-              )}
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {resolved.status === "tp_hit" ? <TrendingUp className="w-3.5 h-3.5 text-green-500" /> : <TrendingDown className="w-3.5 h-3.5 text-red-500" />}
-                Executed by {resolved.botName}
+      <p className="text-[10px] text-muted-foreground/40 text-center px-6">
+        Bot is managing your position. Trade auto-closes when timer ends.
+      </p>
+    </div>
+  );
+
+  // ─── RESULT ───────────────────────────────────────────────────────────────
+  const ResultView = result && (
+    <div className="flex-1 flex flex-col items-center justify-center px-2 py-8 gap-6 text-center">
+      {result.pnl >= 0 ? (
+        <>
+          <div className="relative">
+            <div className="w-28 h-28 rounded-full bg-green-500/10 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-green-500/15 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <Check className="w-8 h-8 text-green-400 stroke-[3]" />
+                </div>
               </div>
-              <Button className="w-full h-12 rounded-xl font-medium" onClick={() => setResolved(null)}>
-                Done
-              </Button>
+            </div>
+            <div className="absolute inset-0 rounded-full border-2 border-green-500/30 animate-ping" style={{ animationDuration: "2.5s" }} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-green-400">
+              {result.status === "tp_hit" ? "Take Profit Hit! 🎉" : "Trade Closed!"}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">{result.pair} {result.direction} · {result.botName}</p>
+          </div>
+          <div className="text-5xl font-bold text-green-400">+${Math.abs(result.pnl).toFixed(2)}</div>
+          {executedSignal && (
+            <div className="bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-2 text-xs text-green-400 font-medium">
+              {executedSignal.confidence}% AI confidence signal paid off ✓
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </>
+      ) : (
+        <>
+          <div className="w-24 h-24 rounded-full bg-red-500/10 flex items-center justify-center">
+            <XCircle className="w-12 h-12 text-red-500" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-red-400">
+              {result.status === "sl_hit" ? "Stop Loss Hit" : "Trade Closed"}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">{result.pair} {result.direction} · {result.botName}</p>
+          </div>
+          <div className="text-5xl font-bold text-red-400">−${Math.abs(result.pnl).toFixed(2)}</div>
+        </>
+      )}
+      <div className="flex gap-3 w-full">
+        <Button className="flex-1 h-12 rounded-xl font-medium" onClick={handleReset}>
+          Trade Again
+        </Button>
+        <Button variant="outline" className="flex-1 h-12 rounded-xl font-medium" onClick={() => { handleReset(); setTab("journal"); }}>
+          View Journal
+        </Button>
+      </div>
+    </div>
+  );
+
+  // ─── JOURNAL ──────────────────────────────────────────────────────────────
+  const JournalView = (
+    <div className="flex-1 overflow-y-auto pb-10 pt-1">
+      {history.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <BarChart2 className="w-12 h-12 text-muted-foreground/20" />
+          <p className="text-sm text-muted-foreground">No trades yet — start your first trade!</p>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {history.map((p) => {
+            const win  = p.pnl >= 0;
+            const buy  = isBuy(p.direction);
+            const sig  = signals.find(s => s.id === p.signalId);
+            const roi  = p.stake > 0 ? (p.pnl / p.stake) * 100 : 0;
+            return (
+              <div key={p.id} className="bg-card rounded-2xl p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${win ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
+                      {win ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-sm">{p.pair}</p>
+                        <Badge className={`text-[10px] border-none px-1.5 h-4 ${buy ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
+                          {p.direction}
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {p.botName}{sig ? ` · ${sig.confidence}% AI signal` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-base font-bold ${win ? "text-green-400" : "text-red-400"}`}>
+                      {win ? "+" : "−"}${Math.abs(p.pnl).toFixed(2)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {p.status === "tp_hit" ? "TP Hit" : p.status === "sl_hit" ? "SL Hit" : p.status === "closed_manual" ? "Manual" : "Expired"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2.5 border-t border-border/30">
+                  <span>Stake ${p.stake.toFixed(0)}</span>
+                  <span>{p.elapsedMs > 0 ? fmtDuration(p.elapsedMs) : "—"}</span>
+                  <span className={`font-semibold ${win ? "text-green-400" : "text-red-400"}`}>
+                    {roi.toFixed(1)}% ROI
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  // ─── RENDER ───────────────────────────────────────────────────────────────
+  return (
+    <Layout showNav>
+      {showConfetti && <Confetti />}
+      <div className="flex flex-col h-[100dvh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-6 pb-4 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-gradient-to-br from-primary to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
+              <Zap className="w-4.5 h-4.5 text-white fill-white" />
+            </div>
+            <div>
+              <p className="font-bold text-sm leading-tight">AI Trade Terminal</p>
+              <p className="text-[10px] text-muted-foreground">Quantum FX Bot</p>
+            </div>
+          </div>
+          <button className="w-9 h-9 bg-card rounded-xl flex items-center justify-center relative">
+            <Bell className="w-4 h-4" />
+            <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-card" />
+          </button>
+        </div>
+
+        {/* Tabs — only in configure */}
+        {step === "configure" && (
+          <div className="flex mx-5 mb-4 bg-card rounded-2xl p-1 shrink-0">
+            {(["trade", "journal"] as Tab[]).map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  tab === t ? "bg-primary text-white shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                {t === "trade" ? "Trade" : "Journal"}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="flex-1 overflow-hidden flex flex-col px-5">
+          {step === "configure" && tab === "trade"    && ConfigureView}
+          {step === "configure" && tab === "journal"  && JournalView}
+          {step === "running"                         && RunningView}
+          {step === "result"    && result             && ResultView}
+        </div>
+
+        {/* Start button */}
+        {step === "configure" && tab === "trade" && (
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-5 pb-24 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent shrink-0">
+            <Button
+              onClick={handleExecute}
+              disabled={!selectedBotId || stakeNum < 1 || executeMutation.isPending || !bots.length}
+              className="w-full h-14 rounded-2xl text-base font-bold bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90 disabled:opacity-30 transition-opacity shadow-lg shadow-primary/30"
+            >
+              {executeMutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Placing Trade...
+                </span>
+              ) : (
+                <>
+                  <Zap className="w-5 h-5 mr-2 fill-white" />
+                  Start Trade — {RUNTIMES.find(r => r.value === runtime)?.label}
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+      </div>
     </Layout>
   );
 }
