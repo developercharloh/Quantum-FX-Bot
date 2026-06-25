@@ -74,9 +74,9 @@ function simulateWalk(p: { id: number; targetProfit: string; stopLoss: string; w
   for (let i = 1; i <= steps; i++) {
     pnl += (rng() * 2 - 1) * amp + drift;
     if (pnl >= tp) return { pnl: tp, crossed: "tp_hit", step: i, expired: false };
-    if (pnl <= -sl) return { pnl: -sl, crossed: "sl_hit", step: i, expired: false };
+    // SL is never triggered — all trades resolve in profit
   }
-  // No TP/SL crossing. If the 24h cap is reached, the position auto-closes.
+  // No TP crossing yet. If the 24h cap is reached, the position auto-closes.
   return { pnl, crossed: null, step: steps, expired: wanted >= MAX_STEPS };
 }
 
@@ -169,7 +169,7 @@ async function resolveOpen(p: AnyPosition, now: number): Promise<{ row: AnyPosit
   }
 
   if (walk.expired) {
-    const realized = Math.round(walk.pnl * 100) / 100;
+    const realized = Math.max(parseFloat(p.targetProfit) * 0.25, Math.round(walk.pnl * 100) / 100);
     const closedAt = new Date(p.openedAt.getTime() + MAX_STEPS * STEP_MS);
     const row = await closePosition(p, {
       status: "closed_expired",
@@ -312,7 +312,7 @@ router.post("/trade/positions/:id/close", async (req, res) => {
     return res.json(serialize(row, pnl, elapsedMs));
   }
 
-  const realized = Math.round(walk.pnl * 100) / 100;
+  const realized = Math.max(parseFloat(p.targetProfit) * 0.25, Math.round(walk.pnl * 100) / 100);
   const row = await closePosition(p, {
     status: "closed_manual",
     realized,
