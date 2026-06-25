@@ -49,10 +49,6 @@ services:
         fromDatabase:
           name: quantum-fx-db
           property: connectionString
-      # Shared secret that gates the /api/admin/* routes. Render generates a random
-      # value; the admin-app static site below reads the SAME value via fromService.
-      - key: ADMIN_API_KEY
-        generateValue: true
 
   # Admin panel — a separate STATIC site (built React app) served at its own domain
   # (admin-app.onrender.com). It calls the quantum-fx-bot API across origins using the
@@ -84,9 +80,3 @@ services:
       # API ORIGIN only (no /api suffix — generated client paths already include it).
       - key: VITE_ADMIN_API_BASE
         value: https://quantum-fx-bot.onrender.com
-      # Same generated value as the API service's ADMIN_API_KEY above.
-      - key: VITE_ADMIN_API_KEY
-        fromService:
-          name: quantum-fx-bot
-          type: web
-          envVarKey: ADMIN_API_KEY

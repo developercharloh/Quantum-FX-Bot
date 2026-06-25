@@ -20,7 +20,6 @@ import NotFound from "@/pages/not-found";
 // VITE_ADMIN_API_BASE is set at build time by Render (see render.yaml).
 // In dev it is unset: requests stay same-origin and the shared proxy routes /api to the API server.
 setBaseUrl(import.meta.env.VITE_ADMIN_API_BASE || null);
-setAuthTokenGetter(() => import.meta.env.VITE_ADMIN_API_KEY || "");
 
 const queryClient = new QueryClient({
   defaultOptions: {
