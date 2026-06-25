@@ -63,9 +63,10 @@ function simulateWalk(p: { id: number; targetProfit: string; stopLoss: string; w
   const tp = parseFloat(p.targetProfit);
   const sl = parseFloat(p.stopLoss);
   const winRate = parseFloat(p.winRate) || 0;
-  const unit = sl > 0 ? sl : 50;
-  const amp   = unit * 0.012;                              // tighter oscillation
-  const drift = unit * 0.005 * (0.5 + winRate / 100);     // strong positive bias — always in profit quickly
+  const unit  = sl > 0 ? sl : 50;
+  const amp   = unit * 0.012;
+  // Drift strong enough that the walk reaches TP (~1.125× SL away) in ~20 steps ≈ 100 s
+  const drift = unit * 0.04 * (0.5 + winRate / 100);
 
   const wanted = Math.floor(elapsedMs / STEP_MS);
   const steps = Math.min(wanted, MAX_STEPS);
@@ -169,7 +170,7 @@ async function resolveOpen(p: AnyPosition, now: number): Promise<{ row: AnyPosit
   }
 
   if (walk.expired) {
-    const realized = Math.max(parseFloat(p.targetProfit) * 0.25, Math.round(walk.pnl * 100) / 100);
+    const realized = Math.max(parseFloat(p.stake) * 0.04, Math.round(walk.pnl * 100) / 100);
     const closedAt = new Date(p.openedAt.getTime() + MAX_STEPS * STEP_MS);
     const row = await closePosition(p, {
       status: "closed_expired",
@@ -225,6 +226,11 @@ router.post("/trade/execute", async (req, res) => {
   const available = await computeAvailableBalance(user.id);
   if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });
 
+  // Always fix TP/SL to 4.5 % / 4.0 % of stake so profits are consistent
+  // and the walk unit is correctly scaled to the user's stake size.
+  const guaranteedTp = Math.round(stake * 0.045 * 100) / 100;
+  const guaranteedSl = Math.round(stake * 0.040 * 100) / 100;
+
   const inserted = await db.insert(positionsTable).values({
     userId: user.id,
     botId: bot.id,
@@ -235,8 +241,8 @@ router.post("/trade/execute", async (req, res) => {
     market: signal.market,
     winRate: bot.winRate,
     stake: stake.toFixed(2),
-    targetProfit: targetProfit.toFixed(2),
-    stopLoss: stopLoss.toFixed(2),
+    targetProfit: guaranteedTp.toFixed(2),
+    stopLoss: guaranteedSl.toFixed(2),
     status: "open",
   }).returning();
 
@@ -312,9 +318,9 @@ router.post("/trade/positions/:id/close", async (req, res) => {
     return res.json(serialize(row, pnl, elapsedMs));
   }
 
-  // All trades resolve in profit — guarantee at least 10 % of target on manual cash-out
+  // All trades resolve in profit — guarantee 4 % of stake minimum on manual cash-out
   const rawPnl = Math.round(walk.pnl * 100) / 100;
-  const minProfit = Math.round(parseFloat(p.targetProfit) * 0.10 * 100) / 100;
+  const minProfit = Math.round(parseFloat(p.stake) * 0.04 * 100) / 100;
   const realized = Math.max(rawPnl, minProfit);
   const row = await closePosition(p, {
     status: "closed_manual",

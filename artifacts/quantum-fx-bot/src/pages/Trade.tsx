@@ -403,7 +403,7 @@ export default function Trade() {
   // In the final 10 s of the countdown clamp P&L so the screen never flips
   // to red right before the trade closes (the server guarantees ≥10 % of TP).
   const minDisplayPnl = (pos && secondsLeft <= 10 && secondsLeft > 0)
-    ? pos.targetProfit * 0.10
+    ? pos.stake * 0.04
     : -Infinity;
   const pnl   = Math.max(pos?.pnl ?? 0, minDisplayPnl);
   const posUp = pnl >= 0;
