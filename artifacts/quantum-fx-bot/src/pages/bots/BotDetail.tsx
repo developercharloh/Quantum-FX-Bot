@@ -195,7 +195,7 @@ export default function BotDetail() {
         <div className="mt-4 space-y-3">
           <Button
             className="w-full h-14 rounded-xl text-[15px] font-bold shadow-none bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90"
-            onClick={() => setLocation(`/start-bot?botId=${id}`)}
+            onClick={() => setLocation(`/trade?botId=${id}`)}
           >
             Start Bot
           </Button>

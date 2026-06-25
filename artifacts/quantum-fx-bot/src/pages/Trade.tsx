@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   useListBots,
   useListTradeSignals,
@@ -148,10 +148,18 @@ export default function Trade() {
 
   const stakeNum = parseFloat(stake) || 0;
 
-  // Auto-select first bot
+  // Auto-select first bot (or bot from ?botId param)
   useEffect(() => {
-    if (!selectedBotId && bots.length > 0) setSelectedBotId(bots[0].id);
-  }, [bots, selectedBotId]);
+    if (bots.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const paramId = parseInt(params.get("botId") ?? "0", 10);
+    if (paramId && bots.some(b => b.id === paramId)) {
+      setSelectedBotId(paramId);
+    } else if (!selectedBotId) {
+      setSelectedBotId(bots[0].id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bots]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -355,6 +363,19 @@ export default function Trade() {
     prevStatusRef.current = null;
     finishedRef.current = false;
   };
+
+  const handleCashOut = useCallback(() => {
+    if (!activePositionId) return;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    closeMutation.mutate(
+      { id: activePositionId },
+      {
+        onSuccess: (closed) => finishTrade(closed),
+        onError: () => queryClient.invalidateQueries({ queryKey: ["/api/trade/positions"] }),
+      }
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePositionId]);
 
   const timerProgress = totalSecs > 0 ? secondsLeft / totalSecs : 0;
   const dashOffset    = CIRCUMFERENCE * (1 - timerProgress);
@@ -743,8 +764,27 @@ export default function Trade() {
               ))}
             </div>
 
+            {/* Cash Out */}
+            <Button
+              onClick={handleCashOut}
+              disabled={closeMutation.isPending}
+              className="w-full h-13 rounded-2xl text-[15px] font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 disabled:opacity-40 shadow-lg shadow-amber-500/20"
+            >
+              {closeMutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Cashing Out...
+                </span>
+              ) : (
+                <>
+                  <Zap className="w-5 h-5 mr-2 fill-white" />
+                  Cash Out — Take Profit Now
+                </>
+              )}
+            </Button>
+
             <p className="text-[10px] text-muted-foreground/40 text-center px-6 pb-2">
-              Bot is managing your position. Trade auto-closes when timer ends.
+              Cash out anytime to take current profits, or let the timer run for maximum returns.
             </p>
 
             {/* ── Journal below running trade ── */}
