@@ -134,7 +134,7 @@ export default function Dashboard() {
         {kpis.map(({ key, label, icon: Icon, color, format: fmt, sub }) => {
           const rawVal = key === "pendingWork" ? pendingWork : (overview as any)[key];
           const displayVal = fmt === "currency"
-            ? `$${Number(rawVal).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+            ? `$${Math.abs(Number(rawVal)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
             : Number(rawVal).toLocaleString();
           return (
             <Card key={key} className="rounded-2xl border-border/60">
