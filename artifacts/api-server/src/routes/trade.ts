@@ -312,7 +312,7 @@ router.post("/trade/positions/:id/close", async (req, res) => {
     return res.json(serialize(row, pnl, elapsedMs));
   }
 
-  const realized = Math.max(parseFloat(p.targetProfit) * 0.25, Math.round(walk.pnl * 100) / 100);
+  const realized = Math.round(walk.pnl * 100) / 100;
   const row = await closePosition(p, {
     status: "closed_manual",
     realized,
