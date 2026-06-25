@@ -58,26 +58,25 @@ type SeedBot = {
   riskLevel: string;
 };
 
-// The canonical trading-bot catalog. Two free bots so new users can start
-// trading immediately, plus paid bots spanning $100 to $1000. This is applied
-// idempotently on every server start so the marketplace exists in any database
-// (fresh production DBs included), matching bots by name to preserve existing IDs.
+// The canonical trading-bot catalog. All bots are paid. Applied idempotently on
+// every server start so the marketplace exists in any database (fresh production
+// DBs included), matching bots by name to preserve existing IDs.
 const BOT_CATALOG: SeedBot[] = [
   {
-    name: "Starter Signal Bot",
+    name: "Alpha Signal Bot",
     description:
-      "A free entry-level bot that follows conservative trend signals. Perfect for trying out automated trading with zero cost.",
+      "An entry-level forex signal bot that follows proven trend strategies. Ideal for traders starting their automated journey.",
     category: "Forex",
-    price: "0",
+    price: "99",
     winRate: "80.00",
     riskLevel: "Medium",
   },
   {
-    name: "Demo Pilot Bot",
+    name: "Momentum Crypto Bot",
     description:
-      "A free crypto bot for learning the ropes. Balanced momentum trades that help you understand how signal execution works.",
+      "Captures momentum swings across major crypto pairs using balanced risk management and high-frequency signal analysis.",
     category: "Crypto",
-    price: "0",
+    price: "149",
     winRate: "81.00",
     riskLevel: "Medium",
   },
