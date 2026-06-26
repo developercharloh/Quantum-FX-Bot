@@ -298,7 +298,11 @@ export default function Trade() {
       toast({ title: "No signals available", variant: "destructive" });
       return;
     }
-    const signal = [...signals].sort((a, b) => b.confidence - a.confidence)[0];
+    // Pick a random signal that is different from the last used pair
+    const lastPair = localStorage.getItem("qfx_last_pair") ?? "";
+    const pool = signals.filter(s => s.pair !== lastPair);
+    const candidates = pool.length > 0 ? pool : signals;
+    const signal = candidates[Math.floor(Math.random() * candidates.length)];
     const secs   = runtime * 60;
 
     executeMutation.mutate(
@@ -311,6 +315,7 @@ export default function Trade() {
             signalId: signal.id, signalConfidence: signal.confidence,
             signalPair: signal.pair, signalDirection: signal.direction,
           } as SavedTrade));
+          localStorage.setItem("qfx_last_pair", signal.pair);
 
           setActivePositionId(pos.id);
           setExecutedSignal(signal);
@@ -391,7 +396,14 @@ export default function Trade() {
     .filter(p => p.status !== "open")
     .filter(p => !p.closedAt || new Date(p.closedAt).getTime() >= journalClearedBefore)
     .slice(0, 30);
-  const bestSignal = signals.length ? [...signals].sort((a, b) => b.confidence - a.confidence)[0] : null;
+  // Show a random signal as "selected" — different from last used pair
+  const bestSignal = useMemo(() => {
+    if (!signals.length) return null;
+    const lastPair = localStorage.getItem("qfx_last_pair") ?? "";
+    const pool = signals.filter(s => s.pair !== lastPair);
+    const candidates = pool.length > 0 ? pool : signals;
+    return candidates[Math.floor(Date.now() / 60_000) % candidates.length];
+  }, [signals]);
 
   // Running-view derived values
   const pos = activePosition;
