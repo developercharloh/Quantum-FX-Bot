@@ -14,13 +14,42 @@ async function getUserFromToken(token: string | undefined) {
 }
 
 const SIGNALS = [
-  { id: "eurusd-buy", pair: "EUR/USD", direction: "BUY", market: "Forex", confidence: 92, timeframe: "15m", suggestedTp: 120, suggestedSl: 60 },
-  { id: "btcusd-buy", pair: "BTC/USD", direction: "BUY", market: "Crypto", confidence: 88, timeframe: "1h", suggestedTp: 250, suggestedSl: 110 },
-  { id: "gbpjpy-sell", pair: "GBP/JPY", direction: "SELL", market: "Forex", confidence: 81, timeframe: "30m", suggestedTp: 90, suggestedSl: 50 },
-  { id: "xauusd-buy", pair: "XAU/USD", direction: "BUY", market: "Commodities", confidence: 86, timeframe: "1h", suggestedTp: 180, suggestedSl: 90 },
-  { id: "ethusd-sell", pair: "ETH/USD", direction: "SELL", market: "Crypto", confidence: 78, timeframe: "15m", suggestedTp: 160, suggestedSl: 95 },
-  { id: "usdjpy-buy", pair: "USD/JPY", direction: "BUY", market: "Forex", confidence: 84, timeframe: "4h", suggestedTp: 110, suggestedSl: 55 },
+  // Major Forex
+  { id: "eurusd-buy",  pair: "EUR/USD", direction: "BUY",  market: "Forex",       confidence: 92, timeframe: "15m", suggestedTp: 120, suggestedSl: 60  },
+  { id: "gbpusd-buy",  pair: "GBP/USD", direction: "BUY",  market: "Forex",       confidence: 88, timeframe: "30m", suggestedTp: 130, suggestedSl: 65  },
+  { id: "usdjpy-buy",  pair: "USD/JPY", direction: "BUY",  market: "Forex",       confidence: 84, timeframe: "4h",  suggestedTp: 110, suggestedSl: 55  },
+  { id: "audusd-sell", pair: "AUD/USD", direction: "SELL", market: "Forex",       confidence: 79, timeframe: "1h",  suggestedTp: 100, suggestedSl: 50  },
+  { id: "usdcad-buy",  pair: "USD/CAD", direction: "BUY",  market: "Forex",       confidence: 81, timeframe: "30m", suggestedTp: 105, suggestedSl: 52  },
+  { id: "usdchf-sell", pair: "USD/CHF", direction: "SELL", market: "Forex",       confidence: 77, timeframe: "15m", suggestedTp: 95,  suggestedSl: 48  },
+  { id: "nzdusd-buy",  pair: "NZD/USD", direction: "BUY",  market: "Forex",       confidence: 76, timeframe: "1h",  suggestedTp: 90,  suggestedSl: 45  },
+  { id: "eurgbp-sell", pair: "EUR/GBP", direction: "SELL", market: "Forex",       confidence: 83, timeframe: "30m", suggestedTp: 100, suggestedSl: 50  },
+  { id: "eurjpy-buy",  pair: "EUR/JPY", direction: "BUY",  market: "Forex",       confidence: 85, timeframe: "1h",  suggestedTp: 115, suggestedSl: 57  },
+  { id: "gbpjpy-sell", pair: "GBP/JPY", direction: "SELL", market: "Forex",       confidence: 81, timeframe: "30m", suggestedTp: 90,  suggestedSl: 50  },
+  // Cryptocurrency
+  { id: "btcusd-buy",  pair: "BTC/USD", direction: "BUY",  market: "Crypto",      confidence: 89, timeframe: "1h",  suggestedTp: 250, suggestedSl: 110 },
+  { id: "ethusd-sell", pair: "ETH/USD", direction: "SELL", market: "Crypto",      confidence: 78, timeframe: "15m", suggestedTp: 160, suggestedSl: 95  },
+  { id: "ltcusd-buy",  pair: "LTC/USD", direction: "BUY",  market: "Crypto",      confidence: 74, timeframe: "30m", suggestedTp: 140, suggestedSl: 80  },
+  { id: "xrpusd-buy",  pair: "XRP/USD", direction: "BUY",  market: "Crypto",      confidence: 76, timeframe: "15m", suggestedTp: 130, suggestedSl: 75  },
+  { id: "adausd-sell", pair: "ADA/USD", direction: "SELL", market: "Crypto",      confidence: 72, timeframe: "1h",  suggestedTp: 125, suggestedSl: 70  },
+  { id: "solusd-buy",  pair: "SOL/USD", direction: "BUY",  market: "Crypto",      confidence: 80, timeframe: "30m", suggestedTp: 170, suggestedSl: 85  },
+  { id: "dotusd-sell", pair: "DOT/USD", direction: "SELL", market: "Crypto",      confidence: 73, timeframe: "1h",  suggestedTp: 135, suggestedSl: 72  },
+  { id: "maticusd-buy",pair: "MATIC/USD",direction:"BUY",  market: "Crypto",      confidence: 75, timeframe: "15m", suggestedTp: 130, suggestedSl: 68  },
+  // Commodities
+  { id: "xauusd-buy",  pair: "XAU/USD", direction: "BUY",  market: "Commodities", confidence: 87, timeframe: "1h",  suggestedTp: 180, suggestedSl: 90  },
 ];
+
+// Seeded shuffle so the signal order is different each minute but consistent
+// within the same minute (prevents flickering on re-renders).
+function shuffleSignals(seed: number) {
+  const arr = [...SIGNALS];
+  let s = seed >>> 0;
+  for (let i = arr.length - 1; i > 0; i--) {
+    s = (Math.imul(s ^ (s >>> 15), 0x6d2b79f5) + 0x9e3779b9) >>> 0;
+    const j = s % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
 async function computeAvailableBalance(userId: number): Promise<number> {
   const txns = await db.select().from(transactionsTable).where(
@@ -216,12 +245,13 @@ async function resolveOpen(
   return { row: p, pnl: walk.pnl, elapsedMs: elapsed };
 }
 
-// List AI trading signals
+// List AI trading signals — shuffled per-minute so the "best" signal rotates
 router.get("/trade/signals", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
-  return res.json(SIGNALS);
+  const minuteSeed = Math.floor(Date.now() / 60_000) ^ (user.id * 2654435761);
+  return res.json(shuffleSignals(minuteSeed));
 });
 
 // Open a trade position on a signal using an owned bot
