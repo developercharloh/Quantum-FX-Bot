@@ -172,7 +172,7 @@ export default function Landing() {
           <div className="flex items-center justify-between mb-1">
             <div>
               <span className="text-xs text-muted-foreground">Portfolio value</span>
-              <div className="text-2xl font-bold tracking-tight mt-0.5">$24,815.60</div>
+              <div className="text-2xl font-bold tracking-tight mt-0.5">$124,815.60</div>
             </div>
             <div className="text-right">
               <span className="text-xs text-green-500 bg-green-500/10 px-2.5 py-1.5 rounded-lg font-semibold border border-green-500/20">
