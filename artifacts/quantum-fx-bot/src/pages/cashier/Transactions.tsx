@@ -78,7 +78,9 @@ export default function Transactions() {
                         : <Zap className="w-4 h-4 text-primary fill-primary" />}
                   </div>
                   <div>
-                    <div className="font-semibold text-sm mb-0.5 capitalize">{tx.type.replace("_", " ")}</div>
+                    <div className="font-semibold text-sm mb-0.5 capitalize">{
+                      tx.type === "trade_loss" ? "Trade Capital" : tx.type.replace("_", " ")
+                    }</div>
                     <div className="text-xs text-muted-foreground">
                       {new Date(tx.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </div>
