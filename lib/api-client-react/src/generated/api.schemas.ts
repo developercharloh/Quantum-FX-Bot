@@ -683,6 +683,14 @@ export interface AdminBroadcastInput {
   message: string;
 }
 
+export interface AdminBroadcast {
+  id: number;
+  title: string;
+  message: string;
+  recipientCount: number;
+  createdAt: string;
+}
+
 export type GetEarningsChartParams = {
 period?: string;
 };
