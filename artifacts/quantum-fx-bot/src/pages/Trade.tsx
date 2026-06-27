@@ -5,6 +5,7 @@ import {
   useExecuteTrade,
   useListTradePositions,
   useCloseTradePosition,
+  useGetDashboardSummary,
   TradePosition,
 } from "@workspace/api-client-react";
 
@@ -117,6 +118,7 @@ export default function Trade() {
   const { data: bots = [], isLoading: loadingBots } = useListBots();
   const { data: signals = [] } = useListTradeSignals();
   const { data: positions } = useListTradePositions({ query: { refetchInterval: 4000 } as any });
+  const { data: summary } = useGetDashboardSummary({ query: { refetchInterval: 10000 } as any });
   const executeMutation = useExecuteTrade();
   const closeMutation   = useCloseTradePosition();
   const { toast } = useToast();
@@ -292,10 +294,20 @@ export default function Trade() {
     queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
   };
 
+  const availableBalance = summary?.availableBalance ?? 0;
+
   const handleExecute = () => {
     if (!selectedBotId || stakeNum < 1) return;
     if (!signals.length) {
       toast({ title: "No signals available", variant: "destructive" });
+      return;
+    }
+    if (stakeNum > availableBalance) {
+      toast({
+        title: "Insufficient balance",
+        description: `Your available balance is $${availableBalance.toFixed(2)}. Please deposit or reduce your stake.`,
+        variant: "destructive",
+      });
       return;
     }
     // Pick a random signal that is different from the last used pair
@@ -533,18 +545,26 @@ export default function Trade() {
 
             {/* 1 — Stake */}
             <section>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">1</div>
-                <h2 className="text-sm font-bold">Stake Amount</h2>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">1</div>
+                  <h2 className="text-sm font-bold">Stake Amount</h2>
+                </div>
+                <span className={`text-xs font-medium ${stakeNum > availableBalance && stakeNum > 0 ? "text-red-400" : "text-muted-foreground"}`}>
+                  Available: ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               </div>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium select-none">$</span>
                 <Input
                   type="number" placeholder="Enter amount..." value={stake}
                   onChange={e => setStake(e.target.value)}
-                  className="bg-card border-none h-14 rounded-xl text-lg font-bold pl-8 pr-4"
+                  className={`bg-card border-none h-14 rounded-xl text-lg font-bold pl-8 pr-4 ${stakeNum > availableBalance && stakeNum > 0 ? "ring-2 ring-red-500/60" : ""}`}
                 />
               </div>
+              {stakeNum > availableBalance && stakeNum > 0 && (
+                <p className="text-xs text-red-400 mt-1.5 font-medium">Stake exceeds your available balance</p>
+              )}
               <div className="flex gap-2 mt-2.5">
                 {[50, 100, 250, 500].map(v => (
                   <button
@@ -890,7 +910,7 @@ export default function Trade() {
           <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-5 pb-24 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
             <Button
               onClick={handleExecute}
-              disabled={!selectedBotId || stakeNum < 1 || executeMutation.isPending || !bots.length}
+              disabled={!selectedBotId || stakeNum < 1 || stakeNum > availableBalance || executeMutation.isPending || !bots.length}
               className="w-full h-14 rounded-2xl text-base font-bold bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90 disabled:opacity-30 transition-opacity shadow-lg shadow-primary/30"
             >
               {executeMutation.isPending ? (
