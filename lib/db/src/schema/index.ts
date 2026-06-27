@@ -250,6 +250,17 @@ export type PaymentMethod = {
   enabled: boolean;
 };
 
+// Broadcasts (admin-sent announcements log)
+export const broadcastsTable = pgTable("broadcasts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  recipientCount: integer("recipient_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type Broadcast = typeof broadcastsTable.$inferSelect;
+
 export const settingsTable = pgTable("settings", {
   id: serial("id").primaryKey(),
   appName: text("app_name").notNull().default("Quantum FX Bot"),
