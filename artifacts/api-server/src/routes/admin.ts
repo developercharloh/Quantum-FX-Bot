@@ -13,6 +13,7 @@ import {
   settingsTable,
   chatMessagesTable,
   depositSessionsTable,
+  broadcastsTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -969,7 +970,50 @@ router.post("/admin/broadcast", async (req, res) => {
       })),
     );
   }
+
+  // Log the broadcast so admins can view/delete it later
+  await db.insert(broadcastsTable).values({
+    title: parsed.data.title,
+    message: parsed.data.message,
+    recipientCount: users.length,
+  });
+
   return res.json({ message: `Broadcast sent to ${users.length} users` });
+});
+
+router.get("/admin/broadcasts", async (_req, res) => {
+  const rows = await db.select().from(broadcastsTable).orderBy(desc(broadcastsTable.createdAt));
+  return res.json(rows.map(r => ({
+    id: r.id,
+    title: r.title,
+    message: r.message,
+    recipientCount: r.recipientCount,
+    createdAt: r.createdAt.toISOString(),
+  })));
+});
+
+router.delete("/admin/broadcasts/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const rows = await db.select().from(broadcastsTable).where(eq(broadcastsTable.id, id));
+  if (!rows.length) return res.status(404).json({ error: "Not found" });
+
+  const { title, message } = rows[0];
+
+  // Remove the broadcast log
+  await db.delete(broadcastsTable).where(eq(broadcastsTable.id, id));
+
+  // Also delete the user-facing notifications that were created for this broadcast
+  await db.delete(notificationsTable).where(
+    and(
+      eq(notificationsTable.type, "announcement"),
+      eq(notificationsTable.title, title),
+      eq(notificationsTable.message, message),
+    ),
+  );
+
+  return res.json({ message: "Broadcast deleted" });
 });
 
 export default router;
