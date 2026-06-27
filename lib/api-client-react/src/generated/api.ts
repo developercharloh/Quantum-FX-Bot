@@ -26,6 +26,7 @@ import type {
   AdminBot,
   AdminBotInput,
   AdminBotUpdate,
+  AdminBroadcast,
   AdminBroadcastInput,
   AdminDepositSession,
   AdminKycItem,
@@ -5547,5 +5548,140 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAdminBroadcastMutationOptions(options));
+    }
+
+export const getAdminListBroadcastsUrl = () => {
+
+
+
+
+  return `/api/admin/broadcasts`
+}
+
+export const adminListBroadcasts = async ( options?: RequestInit): Promise<AdminBroadcast[]> => {
+
+  return customFetch<AdminBroadcast[]>(getAdminListBroadcastsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListBroadcastsQueryKey = () => {
+    return [
+    `/api/admin/broadcasts`
+    ] as const;
+    }
+
+
+export const getAdminListBroadcastsQueryOptions = <TData = Awaited<ReturnType<typeof adminListBroadcasts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListBroadcasts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListBroadcastsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListBroadcasts>>> = ({ signal }) => adminListBroadcasts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListBroadcasts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListBroadcastsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListBroadcasts>>>
+export type AdminListBroadcastsQueryError = ErrorType<unknown>
+
+
+
+export function useAdminListBroadcasts<TData = Awaited<ReturnType<typeof adminListBroadcasts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListBroadcasts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListBroadcastsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminDeleteBroadcastUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/broadcasts/${id}`
+}
+
+export const adminDeleteBroadcast = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getAdminDeleteBroadcastUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getAdminDeleteBroadcastMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteBroadcast>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminDeleteBroadcast>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['adminDeleteBroadcast'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDeleteBroadcast>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminDeleteBroadcast(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminDeleteBroadcastMutationResult = NonNullable<Awaited<ReturnType<typeof adminDeleteBroadcast>>>
+
+    export type AdminDeleteBroadcastMutationError = ErrorType<unknown>
+
+    export const useAdminDeleteBroadcast = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteBroadcast>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminDeleteBroadcast>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAdminDeleteBroadcastMutationOptions(options));
     }
 
