@@ -2,54 +2,13 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1782255329249,
-      "tag": "0000_next_dark_phoenix",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1782258749646,
-      "tag": "0001_sparkling_nightcrawler",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1782260000000,
-      "tag": "0002_didit_kyc_session",
-      "breakpoints": true
-    }
-    ,{
-      "idx": 3,
-      "version": "7",
-      "when": 1782320000000,
-      "tag": "0003_chat_messages",
-      "breakpoints": true
-    }
-    ,{
-      "idx": 4,
-      "version": "7",
-      "when": 1782380000000,
-      "tag": "0004_deposit_sessions",
-      "breakpoints": true
-    }
-    ,{
-      "idx": 5,
-      "version": "7",
-      "when": 1782440000000,
-      "tag": "0005_account_uid",
-      "breakpoints": true
-    }
-    ,{
-      "idx": 6,
-      "version": "7",
-      "when": 1782500000000,
-      "tag": "0006_is_admin",
-      "breakpoints": true
-    }
+    { "idx": 0, "version": "7", "when": 1782255329249, "tag": "0000_next_dark_phoenix", "breakpoints": true },
+    { "idx": 1, "version": "7", "when": 1782258749646, "tag": "0001_sparkling_nightcrawler", "breakpoints": true },
+    { "idx": 2, "version": "7", "when": 1782260000000, "tag": "0002_didit_kyc_session", "breakpoints": true },
+    { "idx": 3, "version": "7", "when": 1782320000000, "tag": "0003_chat_messages", "breakpoints": true },
+    { "idx": 4, "version": "7", "when": 1782380000000, "tag": "0004_deposit_sessions", "breakpoints": true },
+    { "idx": 5, "version": "7", "when": 1782440000000, "tag": "0005_account_uid", "breakpoints": true },
+    { "idx": 6, "version": "7", "when": 1782500000000, "tag": "0006_is_admin", "breakpoints": true },
+    { "idx": 7, "version": "7", "when": 1782560000000, "tag": "0007_broadcasts", "breakpoints": true }
   ]
 }
