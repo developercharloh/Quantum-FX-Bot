@@ -1469,6 +1469,38 @@ paths:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
 
+  /admin/broadcasts:
+    get:
+      operationId: adminListBroadcasts
+      tags: [admin]
+      responses:
+        "200":
+          description: List of sent broadcasts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminBroadcast"
+
+  /admin/broadcasts/{id}:
+    delete:
+      operationId: adminDeleteBroadcast
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Broadcast deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -2475,3 +2507,13 @@ components:
         title: { type: string }
         message: { type: string }
       required: [title, message]
+
+    AdminBroadcast:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        message: { type: string }
+        recipientCount: { type: integer }
+        createdAt: { type: string }
+      required: [id, title, message, recipientCount, createdAt]
