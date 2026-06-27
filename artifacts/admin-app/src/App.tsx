@@ -15,6 +15,7 @@ import Bots from "@/pages/Bots";
 import Finance from "@/pages/Finance";
 import Support from "@/pages/Support";
 import Settings from "@/pages/Settings";
+import Broadcast from "@/pages/Broadcast";
 import NotFound from "@/pages/not-found";
 
 setBaseUrl(
@@ -43,6 +44,7 @@ function Router({ onLogout }: { onLogout: () => void }) {
         <Route path="/finance" component={Finance} />
         <Route path="/support" component={Support} />
         <Route path="/settings" component={Settings} />
+        <Route path="/broadcast" component={Broadcast} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
