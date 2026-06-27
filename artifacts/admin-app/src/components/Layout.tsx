@@ -1,6 +1,6 @@
 import { useState, ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Bot, CircleDollarSign, LifeBuoy, Settings, Sun, Moon, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Bot, CircleDollarSign, LifeBuoy, Settings, Megaphone, Sun, Moon, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
@@ -9,12 +9,12 @@ interface LayoutProps {
 }
 
 const navItems = [
-  { path: "/",        label: "Dashboard", icon: LayoutDashboard },
-  { path: "/users",   label: "Users",     icon: Users           },
-  { path: "/bots",    label: "Bots",      icon: Bot             },
-  { path: "/finance", label: "Wallet",    icon: CircleDollarSign},
-  { path: "/support", label: "Support",   icon: LifeBuoy        },
-  { path: "/settings",label: "Settings",  icon: Settings        },
+  { path: "/",           label: "Dashboard", icon: LayoutDashboard },
+  { path: "/users",      label: "Users",     icon: Users           },
+  { path: "/finance",    label: "Wallet",    icon: CircleDollarSign},
+  { path: "/broadcast",  label: "Broadcast", icon: Megaphone       },
+  { path: "/support",    label: "Support",   icon: LifeBuoy        },
+  { path: "/settings",   label: "Settings",  icon: Settings        },
 ];
 
 function ThemeToggle() {
