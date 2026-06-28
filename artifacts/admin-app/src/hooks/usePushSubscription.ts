@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 
-// Public VAPID key — safe to expose in client code
 const VAPID_PUBLIC_KEY =
   "BP0GfphLn7MwshBgX-xLQn7Qd0r5ZtoW0PyiBL93eyLCAJYLYC0nzuxcpcEShaSi88zlK0paSmmnK-_b59e2ZTI";
 
@@ -8,6 +7,11 @@ const API_BASE =
   typeof window !== "undefined" && window.location.hostname !== "localhost"
     ? "https://quantum-fx-bot.site"
     : "";
+
+// import.meta.env.BASE_URL is "/admin-app/" in production (set by Vite base config)
+// and "/" in local dev. Using it ensures sw.js is found at the correct path.
+const SW_PATH = `${import.meta.env.BASE_URL}sw.js`;
+const SW_SCOPE = import.meta.env.BASE_URL;
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -21,15 +25,26 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 async function registerAndSubscribe(adminToken: string): Promise<void> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
-  // Register the service worker
-  const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  // Unregister any stale service workers that don't match the correct scope.
+  // This cleans up old registrations from when admin-app had its own domain.
+  try {
+    const existing = await navigator.serviceWorker.getRegistrations();
+    for (const reg of existing) {
+      if (!reg.scope.endsWith(SW_SCOPE.replace(/^\//, ""))) {
+        await reg.unregister();
+      }
+    }
+  } catch { /* ignore cleanup errors */ }
+
+  // Register the service worker at the correct scope for this app
+  const reg = await navigator.serviceWorker.register(SW_PATH, { scope: SW_SCOPE });
   await navigator.serviceWorker.ready;
 
-  // Ask permission
+  // Ask for notification permission
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return;
 
-  // Subscribe to push
+  // Subscribe to Web Push
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),

@@ -3,10 +3,9 @@ import { useToast } from "@/hooks/use-toast";
 
 export const ALARM_KEY = "qfx_login_alarm";
 
-// Default ON — if admin never changed it, alarm should ring
 export function isAlarmEnabled(): boolean {
   const v = localStorage.getItem(ALARM_KEY);
-  return v === null || v === "1"; // null = never set → default ON
+  return v === null || v === "1";
 }
 
 const API_BASE =
@@ -80,6 +79,11 @@ function trumpet(ctx: AudioContext, dest: AudioNode, t0: number, t: number, freq
 }
 
 async function playPianoTrumpet(ctx: AudioContext) {
+  // Attempt to resume if suspended — Chrome allows this from SW postMessage events
+  // and from SSE handlers when the context was previously unlocked by a user gesture.
+  if (ctx.state === "suspended") {
+    try { await ctx.resume(); } catch { return; }
+  }
   if (ctx.state !== "running") return;
 
   const { dry, wet } = makeReverb(ctx);
@@ -136,7 +140,7 @@ async function playPianoTrumpet(ctx: AudioContext) {
   T(53.2, C5, 6.0, 0.95); T(53.2, E5, 5.5, 0.88); T(53.2, G5, 5.0, 0.85);
 }
 
-// ─── Shared AudioContext — module-level so one context survives re-renders ────
+// ─── Shared AudioContext ──────────────────────────────────────────────────────
 let sharedCtx: AudioContext | null = null;
 
 export function getAudioContext(): AudioContext | null {
@@ -146,7 +150,6 @@ export function getAudioContext(): AudioContext | null {
   return sharedCtx;
 }
 
-// Called on user gesture (click/key/touch) to unlock audio for the session
 export function unlockAudio(): void {
   const ctx = getAudioContext();
   if (ctx && ctx.state === "suspended") {
@@ -154,7 +157,6 @@ export function unlockAudio(): void {
   }
 }
 
-// Exported so Settings can trigger a test beep via a button click (user gesture)
 export function playTestAlarm(): void {
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -163,14 +165,14 @@ export function playTestAlarm(): void {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useLoginAlarm() {
-  const { toast }   = useToast();
-  const toastRef    = useRef(toast);
-  const esRef       = useRef<EventSource | null>(null);
-  const enabledRef  = useRef(isAlarmEnabled());
+  const { toast }  = useToast();
+  const toastRef   = useRef(toast);
+  const esRef      = useRef<EventSource | null>(null);
+  const enabledRef = useRef(isAlarmEnabled());
 
   useEffect(() => { toastRef.current = toast; }, [toast]);
 
-  // Unlock audio on the first interaction anywhere on the page
+  // Unlock AudioContext on the first user interaction
   useEffect(() => {
     const unlock = () => {
       unlockAudio();
@@ -195,8 +197,27 @@ export function useLoginAlarm() {
     if (!enabledRef.current) return;
     const ctx = getAudioContext();
     if (!ctx) return;
-    ctx.resume().then(() => playPianoTrumpet(ctx)).catch(() => {});
+    // playPianoTrumpet will attempt ctx.resume() internally if suspended.
+    // Chrome allows resume() when called from a Service Worker postMessage event
+    // or an SSE handler, as long as the context was previously user-unlocked.
+    playPianoTrumpet(ctx).catch(() => {});
   }
+
+  // Listen for messages from the Service Worker.
+  // The SW sends QFX_PLAY_SOUND when a background push arrives so the page
+  // can play the custom alarm even while the browser tab is in the background.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const onSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === "QFX_PLAY_SOUND") {
+        ring();
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", onSwMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onSwMessage);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function connect() {
     if (esRef.current) return;
@@ -252,10 +273,7 @@ export function useLoginAlarm() {
     const onAlarmChange = (e: Event) => {
       const on = (e as CustomEvent<boolean>).detail;
       enabledRef.current = on;
-      if (on) {
-        // This runs inside a click handler — guaranteed user gesture → unlock audio
-        unlockAudio();
-      }
+      if (on) unlockAudio();
     };
 
     window.addEventListener("qfxAlarmChange", onAlarmChange);
@@ -264,5 +282,5 @@ export function useLoginAlarm() {
       esRef.current?.close();
       esRef.current = null;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
