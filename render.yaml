@@ -1,7 +1,7 @@
 services:
   - type: static
     name: quantum-fx-bot
-    buildCommand: curl -fsSL https://github.com/pnpm/pnpm/releases/download/v10.26.1/pnpm-linux-x64 -o /tmp/pnpm && chmod +x /tmp/pnpm && /tmp/pnpm install --frozen-lockfile && /tmp/pnpm --filter @workspace/quantum-fx-bot run build
+    buildCommand: npx --yes pnpm@10.26.1 install --frozen-lockfile && npx --yes pnpm@10.26.1 --filter @workspace/quantum-fx-bot run build
     staticPublishPath: artifacts/quantum-fx-bot/dist/public
     branch: main
     envVars:
@@ -16,7 +16,7 @@ services:
 
   - type: static
     name: admin-app
-    buildCommand: curl -fsSL https://github.com/pnpm/pnpm/releases/download/v10.26.1/pnpm-linux-x64 -o /tmp/pnpm && chmod +x /tmp/pnpm && /tmp/pnpm install --frozen-lockfile && /tmp/pnpm --filter @workspace/admin-app run build
+    buildCommand: npx --yes pnpm@10.26.1 install --frozen-lockfile && npx --yes pnpm@10.26.1 --filter @workspace/admin-app run build
     staticPublishPath: artifacts/admin-app/dist/public
     branch: main
     envVars:
