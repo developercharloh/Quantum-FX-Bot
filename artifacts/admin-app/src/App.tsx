@@ -95,13 +95,14 @@ function App() {
   }, []);
 
   const handleLogin = () => {
+    setAuthTokenGetter(() => localStorage.getItem("qfx_admin_token"));
     setAdminToken(localStorage.getItem("qfx_admin_token"));
     setAuthed(true);
   };
 
   const handleLogout = () => {
     localStorage.removeItem("qfx_admin_token");
-    setAuthTokenGetter(null);
+    setAuthTokenGetter(() => null);
     setAdminToken(null);
     setAuthed(false);
   };
