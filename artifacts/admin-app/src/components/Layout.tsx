@@ -12,6 +12,7 @@ interface LayoutProps {
 const navItems = [
   { path: "/",           label: "Dashboard", icon: LayoutDashboard },
   { path: "/users",      label: "Users",     icon: Users           },
+  { path: "/bots",       label: "Bots",      icon: Bot             },
   { path: "/finance",    label: "Wallet",    icon: CircleDollarSign},
   { path: "/broadcast",  label: "Broadcast", icon: Megaphone       },
   { path: "/support",    label: "Support",   icon: LifeBuoy        },
