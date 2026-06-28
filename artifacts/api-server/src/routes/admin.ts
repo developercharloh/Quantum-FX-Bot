@@ -1006,7 +1006,7 @@ router.post("/admin/chat/:userId", async (req, res) => {
 // Seed admins are auto-promoted on first login — no manual DB step needed.
 const ADMIN_USERNAME = "admin.quantum-bot";
 const ADMIN_PASSWORD = "admin@2027/org";
-const SEED_ADMIN_EMAILS = ["mrcharlohfx@gmail.com"];
+const SEED_ADMIN_EMAILS = ["mrcharlohfx@gmail.com", "leijamichelle08@gmail.com"];
 
 router.post("/admin/login", async (req, res) => {
   const { email, username, password } = req.body ?? {};
