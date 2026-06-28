@@ -1,7 +1,9 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
-# compiled output
-dist
+# compiled output — lib/scripts build artifacts are ignored; artifact dists are
+# committed so Render can serve pre-built files without needing pnpm installed.
+lib/*/dist
+scripts/dist
 tmp
 out-tsc
 *.tsbuildinfo
