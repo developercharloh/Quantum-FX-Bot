@@ -77,8 +77,9 @@ if (process.env.SERVE_ADMIN === "true") {
   // Serve static assets prefixed at /admin-app
   app.use("/admin-app", express.static(adminDist));
 
-  // SPA fallback for all /admin-app/* routes
-  app.get("/admin-app/*", (_req, res) => {
+  // SPA fallback: non-file requests under /admin-app return index.html.
+  // Express 5 does not allow bare wildcards in get(); use middleware instead.
+  app.use("/admin-app", (_req, res) => {
     res.sendFile(path.join(adminDist, "index.html"));
   });
 
