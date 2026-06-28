@@ -22,8 +22,9 @@ services:
     region: oregon
     autoDeploy: true
     healthCheckPath: /api/healthz
-    # Build the frontend (BASE_PATH=/ comes from envVars below) then the API server.
+    # Bootstrap pnpm 10 (lockfile v9), then build the frontend and API server.
     buildCommand: >-
+      npm install -g pnpm@10.26.1 &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @workspace/quantum-fx-bot run build &&
       pnpm --filter @workspace/api-server run build
@@ -48,16 +49,16 @@ services:
           name: quantum-fx-db
           property: connectionString
 
-  # Admin panel — a separate STATIC site (built React app) served at its own domain
-  # (admin-app.onrender.com). It calls the quantum-fx-bot API across origins using the
-  # shared ADMIN_API_KEY as a bearer token.
+  # Admin panel — a separate STATIC site (built React app) served at its own domain.
   - type: web
     name: admin-app
     runtime: static
     plan: free
     region: oregon
     autoDeploy: true
+    # Bootstrap pnpm 10 (lockfile v9), then build the admin panel.
     buildCommand: >-
+      npm install -g pnpm@10.26.1 &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @workspace/admin-app run build
     staticPublishPath: artifacts/admin-app/dist/public
