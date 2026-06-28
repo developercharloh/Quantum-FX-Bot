@@ -7,6 +7,13 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Ultra-simple health check before any middleware — responds instantly even if
+// pinoHttp or static-file middleware is slow to initialize on cold start.
+app.get("/api/healthz", (_req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.end('{"status":"ok"}');
+});
+
 app.use(
   pinoHttp({
     logger,
