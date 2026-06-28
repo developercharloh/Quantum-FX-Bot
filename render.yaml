@@ -1,14 +1,4 @@
 # Render Blueprint for Quantum FX Bot
-# Deploys the app as a SINGLE web service (Express serves both the /api routes
-# and the built React frontend) plus a managed PostgreSQL database.
-#
-# How to use:
-#   1. Push this repo to GitHub.
-#   2. In Render: New > Blueprint, connect the repo, and Render reads this file.
-#   3. Render provisions the database and web service automatically.
-#
-# Docs: https://render.com/docs/blueprint-spec
-
 databases:
   - name: quantum-fx-db
     plan: free
@@ -23,8 +13,7 @@ services:
     autoDeploy: true
     healthCheckPath: /api/healthz
     buildCommand: >-
-      npm install -g pnpm@10.26.1 &&
-      pnpm install --prefer-offline &&
+      pnpm install --frozen-lockfile &&
       pnpm --filter @workspace/quantum-fx-bot run build &&
       pnpm --filter @workspace/api-server run build
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
@@ -51,8 +40,7 @@ services:
     region: oregon
     autoDeploy: true
     buildCommand: >-
-      npm install -g pnpm@10.26.1 &&
-      pnpm install --prefer-offline &&
+      pnpm install --frozen-lockfile &&
       pnpm --filter @workspace/admin-app run build
     staticPublishPath: artifacts/admin-app/dist/public
     routes:
