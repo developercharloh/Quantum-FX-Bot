@@ -1,58 +1,30 @@
-# Render Blueprint for Quantum FX Bot
-databases:
-  - name: quantum-fx-db
-    plan: free
-    region: oregon
-
 services:
-  - type: web
+  - type: static
     name: quantum-fx-bot
-    runtime: node
-    plan: free
-    region: oregon
-    autoDeploy: true
-    healthCheckPath: /api/healthz
-    buildCommand: >-
-      pnpm install --frozen-lockfile &&
-      pnpm --filter @workspace/quantum-fx-bot run build &&
-      pnpm --filter @workspace/api-server run build
-    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    buildCommand: corepack enable pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/quantum-fx-bot run build
+    staticPublishPath: artifacts/quantum-fx-bot/dist/public
+    branch: main
     envVars:
-      - key: NODE_VERSION
-        value: "24.13.0"
-      - key: NODE_ENV
-        value: production
       - key: PORT
-        value: "8080"
-      - key: SERVE_CLIENT
-        value: "true"
+        value: 3000
       - key: BASE_PATH
         value: /
-      - key: DATABASE_URL
-        fromDatabase:
-          name: quantum-fx-db
-          property: connectionString
-
-  - type: web
-    name: admin-app
-    runtime: static
-    plan: free
-    region: oregon
-    autoDeploy: true
-    buildCommand: >-
-      pnpm install --frozen-lockfile &&
-      pnpm --filter @workspace/admin-app run build
-    staticPublishPath: artifacts/admin-app/dist/public
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  - type: static
+    name: admin-app
+    buildCommand: corepack enable pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/admin-app run build
+    staticPublishPath: artifacts/admin-app/dist/public
+    branch: main
     envVars:
-      - key: NODE_VERSION
-        value: "24.13.0"
       - key: PORT
-        value: "10000"
+        value: 3001
       - key: BASE_PATH
-        value: /
-      - key: VITE_ADMIN_API_BASE
-        value: https://quantum-fx-bot.site
+        value: /admin-app/
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
