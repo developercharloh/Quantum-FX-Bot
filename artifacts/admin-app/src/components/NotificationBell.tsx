@@ -102,7 +102,10 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-1/2 translate-x-1/2 top-10 w-[26rem] bg-card border border-border rounded-2xl shadow-2xl z-[200] overflow-hidden">
+        <>
+          {/* Backdrop — tap anywhere outside to close on mobile */}
+          <div className="fixed inset-0 z-[199]" onClick={() => setOpen(false)} />
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 w-[calc(100vw-1.5rem)] max-w-[26rem] bg-card border border-border rounded-2xl shadow-2xl z-[200] overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-card">
             <div>
@@ -189,6 +192,7 @@ export function NotificationBell() {
             )}
           </div>
         </div>
+        </>
       )}
     </div>
   );

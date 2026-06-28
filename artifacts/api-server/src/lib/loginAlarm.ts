@@ -11,6 +11,17 @@ export function removeSseClient(res: Response): void {
   clients.delete(res);
 }
 
+function broadcast(payload: Record<string, unknown>): void {
+  const data = JSON.stringify(payload);
+  for (const res of clients) {
+    try {
+      res.write(`data: ${data}\n\n`);
+    } catch {
+      clients.delete(res);
+    }
+  }
+}
+
 export interface LoginPayload {
   userId: number;
   accountUid: string;
@@ -33,7 +44,8 @@ export async function notifyUserLogin(payload: LoginPayload): Promise<void> {
     })
     .returning();
 
-  const data = JSON.stringify({
+  broadcast({
+    type: "login",
     id: row.id,
     userId: payload.userId,
     accountUid: payload.accountUid,
@@ -43,12 +55,18 @@ export async function notifyUserLogin(payload: LoginPayload): Promise<void> {
     country: payload.country,
     createdAt: row.createdAt.toISOString(),
   });
+}
 
-  for (const res of clients) {
-    try {
-      res.write(`data: ${data}\n\n`);
-    } catch {
-      clients.delete(res);
-    }
-  }
+export interface DepositPayload {
+  type: "deposit" | "withdrawal";
+  name: string;
+  email: string;
+  userId: number;
+  amount: string;
+  paymentMethod: string;
+  txId?: number;
+}
+
+export function notifyAdminTransaction(payload: DepositPayload): void {
+  broadcast(payload as unknown as Record<string, unknown>);
 }

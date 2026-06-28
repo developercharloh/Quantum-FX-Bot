@@ -3,6 +3,7 @@ import { db, usersTable, sessionsTable, transactionsTable, depositSessionsTable,
 import { eq, and, desc } from "drizzle-orm";
 import { CreateWithdrawalBody } from "@workspace/api-zod";
 import { sendPushToAllAdmins } from "../lib/webPush";
+import { notifyAdminTransaction } from "../lib/loginAlarm";
 import { getAvailableBalance } from "../utils/balance.js";
 
 const router = Router();
@@ -161,7 +162,16 @@ router.post("/cashier/deposit", async (req, res) => {
     description: `Deposit via ${paymentMethod}`,
   }).returning();
 
-  // Notify admin (fire-and-forget)
+  // Notify admin via SSE (browser alarm) + Push (background/offline)
+  notifyAdminTransaction({
+    type: "deposit",
+    name: user.fullName,
+    email: user.email,
+    userId: user.id,
+    amount: parseFloat(String(amount ?? 0)).toFixed(2),
+    paymentMethod: String(paymentMethod ?? ""),
+    txId: txn.id,
+  });
   void sendPushToAllAdmins({
     title: "💰 Deposit Request",
     body: `${user.fullName} · $${parseFloat(String(amount ?? 0)).toFixed(2)} via ${paymentMethod}${walletAddress ? ` · ${walletAddress}` : ""}`,
@@ -215,7 +225,16 @@ router.post("/cashier/withdraw", async (req, res) => {
     message: `Your withdrawal of $${amount.toFixed(2)} via ${paymentMethod} has been submitted and is pending review.`,
   });
 
-  // Notify admin (fire-and-forget)
+  // Notify admin via SSE (browser alarm) + Push (background/offline)
+  notifyAdminTransaction({
+    type: "withdrawal",
+    name: user.fullName,
+    email: user.email,
+    userId: user.id,
+    amount: amount.toFixed(2),
+    paymentMethod,
+    txId: txn.id,
+  });
   void sendPushToAllAdmins({
     title: "💸 Withdrawal Request",
     body: `${user.fullName} · $${amount.toFixed(2)} via ${paymentMethod} · ${walletAddress}`,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   useAdminGetSettings,
   useAdminUpdateSettings,
@@ -6,8 +6,8 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
-import { Plus, Trash2, Save, Bell, BellOff } from "lucide-react";
-import { ALARM_KEY } from "@/hooks/useLoginAlarm";
+import { Plus, Trash2, Save, Bell, BellOff, Volume2 } from "lucide-react";
+import { ALARM_KEY, isAlarmEnabled, playTestAlarm } from "@/hooks/useLoginAlarm";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,13 +23,17 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [alarmOn, setAlarmOn] = useState(() => localStorage.getItem(ALARM_KEY) === "1");
+  const [alarmOn, setAlarmOn] = useState(() => isAlarmEnabled());
 
   const toggleAlarm = (on: boolean) => {
     setAlarmOn(on);
     localStorage.setItem(ALARM_KEY, on ? "1" : "0");
     window.dispatchEvent(new CustomEvent("qfxAlarmChange", { detail: on }));
   };
+
+  const handleTestAlarm = useCallback(() => {
+    playTestAlarm();
+  }, []);
 
   const form = useForm({
     defaultValues: {
@@ -116,20 +120,20 @@ export default function Settings() {
             {alarmOn
               ? <Bell className="w-4 h-4 text-amber-400" />
               : <BellOff className="w-4 h-4 text-muted-foreground" />}
-            Login Alarm
+            Activity Alarm
           </CardTitle>
           <CardDescription className="text-xs">
-            Play an alarm and get notified when any user logs in
+            Rings when a user logs in, deposits, or withdraws — even if admin tab is in background
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-4 pb-4">
+        <CardContent className="px-4 pb-4 space-y-2">
           <div className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
             alarmOn ? "border-amber-500/40 bg-amber-500/5" : "border-border bg-secondary/10"
           }`}>
             <div>
-              <p className="text-sm font-medium">User Login Alert</p>
+              <p className="text-sm font-medium">Alarm Sound</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                {alarmOn ? "🔔 Alarm is ON — you'll hear a beep on every login" : "Alarm is off"}
+                {alarmOn ? "🔔 ON — rings on login · deposit · withdrawal" : "Off — tap to enable"}
               </p>
             </div>
             <Switch
@@ -138,6 +142,19 @@ export default function Settings() {
               className="data-[state=checked]:bg-amber-500"
             />
           </div>
+          {alarmOn && (
+            <button
+              type="button"
+              onClick={handleTestAlarm}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/5 text-sm text-amber-400 hover:bg-amber-500/10 transition-colors"
+            >
+              <Volume2 className="w-4 h-4" />
+              Tap to test alarm sound
+            </button>
+          )}
+          <p className="text-[10px] text-muted-foreground px-1">
+            For alerts when your screen is off, allow notifications when prompted by your browser.
+          </p>
         </CardContent>
       </Card>
 
