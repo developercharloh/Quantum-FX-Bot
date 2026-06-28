@@ -22,10 +22,9 @@ services:
     region: oregon
     autoDeploy: true
     healthCheckPath: /api/healthz
-    # Bootstrap pnpm 10 (lockfile v9), then build the frontend and API server.
     buildCommand: >-
       npm install -g pnpm@10.26.1 &&
-      pnpm install --frozen-lockfile &&
+      pnpm install --prefer-offline &&
       pnpm --filter @workspace/quantum-fx-bot run build &&
       pnpm --filter @workspace/api-server run build
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
@@ -34,35 +33,28 @@ services:
         value: "24.13.0"
       - key: NODE_ENV
         value: production
-      # Required by the Vite build and the Express server. Render routes to this port.
       - key: PORT
         value: "8080"
-      # Tells the Express server to also serve the built React app (single service).
       - key: SERVE_CLIENT
         value: "true"
-      # Frontend is served at the domain root on Render (no shared proxy prefix).
       - key: BASE_PATH
         value: /
-      # Injected from the managed database above.
       - key: DATABASE_URL
         fromDatabase:
           name: quantum-fx-db
           property: connectionString
 
-  # Admin panel — a separate STATIC site (built React app) served at its own domain.
   - type: web
     name: admin-app
     runtime: static
     plan: free
     region: oregon
     autoDeploy: true
-    # Bootstrap pnpm 10 (lockfile v9), then build the admin panel.
     buildCommand: >-
       npm install -g pnpm@10.26.1 &&
-      pnpm install --frozen-lockfile &&
+      pnpm install --prefer-offline &&
       pnpm --filter @workspace/admin-app run build
     staticPublishPath: artifacts/admin-app/dist/public
-    # SPA fallback: every route serves index.html so client-side routing works.
     routes:
       - type: rewrite
         source: /*
@@ -70,12 +62,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "24.13.0"
-      # Required by the Vite build (vite.config.ts reads both at build time).
       - key: PORT
         value: "10000"
-      # Static site is served at the domain root, so the app's base path is "/".
       - key: BASE_PATH
         value: /
-      # API ORIGIN only (no /api suffix — generated client paths already include it).
       - key: VITE_ADMIN_API_BASE
         value: https://quantum-fx-bot.site
