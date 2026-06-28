@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, notificationsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -37,7 +37,9 @@ router.delete("/notifications/:id", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const id = parseInt(req.params.id);
-  await db.delete(notificationsTable).where(eq(notificationsTable.id, id));
+  await db.delete(notificationsTable).where(
+    and(eq(notificationsTable.id, id), eq(notificationsTable.userId, user.id))
+  );
 
   return res.json({ message: "Notification deleted" });
 });
@@ -48,7 +50,9 @@ router.post("/notifications/:id/read", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const id = parseInt(req.params.id);
-  await db.update(notificationsTable).set({ isRead: true }).where(eq(notificationsTable.id, id));
+  await db.update(notificationsTable).set({ isRead: true }).where(
+    and(eq(notificationsTable.id, id), eq(notificationsTable.userId, user.id))
+  );
 
   return res.json({ message: "Notification marked as read" });
 });
