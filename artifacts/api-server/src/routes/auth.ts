@@ -147,25 +147,27 @@ router.post("/auth/login", async (req, res) => {
     location: "Unknown",
   });
 
-  // Notify admin (fire-and-forget: geo-lookup then save + SSE)
+  // Notify admin (fire-and-forget — must never throw or crash the server)
   void (async () => {
-    const ip = (req.ip ?? "0.0.0.0").replace("::ffff:", "");
-    let country = "Unknown";
     try {
-      if (ip !== "0.0.0.0" && ip !== "127.0.0.1" && !ip.startsWith("::1")) {
-        const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,status`);
-        const geoJson = await geo.json() as { status?: string; country?: string };
-        if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
-      }
-    } catch { /* non-critical */ }
-    await notifyUserLogin({
-      userId: user.id,
-      accountUid: user.accountUid,
-      name: user.fullName,
-      email: user.email,
-      ip,
-      country,
-    });
+      const ip = (req.ip ?? "0.0.0.0").replace("::ffff:", "");
+      let country = "Unknown";
+      try {
+        if (ip !== "0.0.0.0" && ip !== "127.0.0.1" && !ip.startsWith("::1")) {
+          const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,status`);
+          const geoJson = await geo.json() as { status?: string; country?: string };
+          if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
+        }
+      } catch { /* geo lookup failed — continue with Unknown */ }
+      await notifyUserLogin({
+        userId: user.id,
+        accountUid: user.accountUid,
+        name: user.fullName,
+        email: user.email,
+        ip,
+        country,
+      });
+    } catch { /* notification failed — login still succeeds */ }
   })();
 
   return res.json({
