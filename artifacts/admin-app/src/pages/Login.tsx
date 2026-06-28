@@ -41,9 +41,9 @@ export default function Login({ onLogin }: LoginProps) {
         return;
       }
 
-      // Success — short delay for UX then grant access
+      // Success — store the token then grant access
+      localStorage.setItem("qfx_admin_token", data.token);
       setTimeout(() => {
-        localStorage.setItem("qfx_admin_auth", "1");
         onLogin();
       }, 900);
     } catch {
