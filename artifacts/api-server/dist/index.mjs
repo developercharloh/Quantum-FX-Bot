@@ -67520,7 +67520,7 @@ if (process.env.SERVE_CLIENT === "true") {
   );
   app.use(import_express14.default.static(clientDist));
   app.use((req, res, next) => {
-    if (req.method !== "GET" || req.path.startsWith("/api")) {
+    if (req.method !== "GET" || req.path.startsWith("/api") || req.path.startsWith("/admin-app")) {
       return next();
     }
     res.sendFile(path2.join(clientDist, "index.html"));

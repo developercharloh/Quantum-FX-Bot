@@ -54,9 +54,11 @@ if (process.env.SERVE_CLIENT === "true") {
 
   app.use(express.static(clientDist));
 
-  // SPA fallback: any non-API GET returns index.html so client-side routing works.
+  // SPA fallback: non-API, non-admin-app GET requests return index.html.
+  // Must exclude /admin-app/* so the admin panel's own static files (sw.js,
+  // assets, etc.) are not shadowed by this fallback.
   app.use((req, res, next) => {
-    if (req.method !== "GET" || req.path.startsWith("/api")) {
+    if (req.method !== "GET" || req.path.startsWith("/api") || req.path.startsWith("/admin-app")) {
       return next();
     }
     res.sendFile(path.join(clientDist, "index.html"));
