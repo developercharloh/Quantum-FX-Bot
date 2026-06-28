@@ -33,9 +33,6 @@ function makeReverb(ctx: AudioContext) {
   return { dry, wet };
 }
 
-// ─── Piano strike ────────────────────────────────────────────────────────────
-// Slightly inharmonic overtones mimic real piano string physics.
-// Higher harmonics decay faster → bright at attack, warm at sustain.
 function piano(
   ctx: AudioContext, dest: AudioNode,
   t0: number, t: number, freq: number, vol = 1.0
@@ -61,9 +58,6 @@ function piano(
   });
 }
 
-// ─── Trumpet note ────────────────────────────────────────────────────────────
-// Weak fundamental, strong 2nd–6th harmonics → characteristic brass brightness.
-// Gradual attack (0.09 s) + clean cutoff gives the blown-instrument feel.
 function trumpet(
   ctx: AudioContext, dest: AudioNode,
   t0: number, t: number, freq: number, dur: number, vol = 1.0
@@ -90,14 +84,14 @@ function trumpet(
   });
 }
 
-// ─── 60-second Piano + Trumpet composition ───────────────────────────────────
 async function playPianoTrumpet(ctx: AudioContext) {
+  // Always try to resume — works whether context was suspended or running
   if (ctx.state === "suspended") await ctx.resume();
+  if (ctx.state !== "running") return;
 
   const { dry, wet } = makeReverb(ctx);
   const t0 = ctx.currentTime;
 
-  // Global fade-out: full until t=55, silent at t=63
   dry.gain.setValueAtTime(0.88, t0 + 55);
   dry.gain.linearRampToValueAtTime(0, t0 + 63);
   wet.gain.setValueAtTime(0.22, t0 + 55);
@@ -111,88 +105,73 @@ async function playPianoTrumpet(ctx: AudioContext) {
     C5, D5, E5, F5, G5, A5, B5, C6, E6,
   } = N;
 
-  // ═══ SECTION 1 (0–13 s) ═══ Piano solo — soft C major opening ══════════════
   P( 0.0, C4, 0.55); P( 0.6, E4, 0.60); P( 1.2, G4, 0.65);
   P( 2.2, C5, 0.80); P( 2.7, B4, 0.72); P( 3.2, A4, 0.70); P( 3.7, G4, 0.68);
   P( 4.8, E4, 0.68); P( 5.3, G4, 0.75); P( 5.8, A4, 0.80);
   P( 6.8, C5, 0.88); P( 7.3, D5, 0.82); P( 7.8, E5, 0.90);
-  // Chord bloom
   P( 9.0, C4, 0.72); P( 9.0, E4, 0.70); P( 9.0, G4, 0.70);
   P(10.4, G4, 0.80); P(10.9, A4, 0.82); P(11.4, B4, 0.84); P(12.3, C5, 0.90);
-
-  // ═══ SECTION 2 (13–26 s) ═══ Trumpet enters — call & response ═══════════════
-  // Piano runs downward
   P(13.0, C5, 0.80); P(13.4, B4, 0.75); P(13.8, A4, 0.72); P(14.2, G4, 0.70);
   P(15.1, E4, 0.78); P(15.5, F4, 0.72); P(15.9, G4, 0.78);
-  // Trumpet CALL (warm, gentle entrance)
   T(16.6, G4, 1.2, 0.80);
   T(17.9, A4, 1.0, 0.85);
   T(19.0, C5, 1.6, 0.90);
-  // Piano RESPONSE
   P(20.8, E5, 0.88); P(21.3, D5, 0.82); P(21.8, C5, 0.80); P(22.3, B4, 0.75);
-  // Trumpet CALL (climbs higher)
   T(23.2, E5, 1.0, 0.88);
   T(24.3, G5, 1.5, 0.95);
-  // Piano echoes the trumpet
   P(23.2, C5, 0.78); P(23.7, D5, 0.80); P(24.2, E5, 0.85);
-
-  // ═══ SECTION 3 (26–40 s) ═══ Duet — intertwining voices ════════════════════
-  // Piano lays a gentle 3-beat pulse
   P(26.0, C4, 0.68); P(26.0, G4, 0.68);
   P(26.6, E5, 0.88); P(27.1, D5, 0.84); P(27.6, C5, 0.80); P(27.9, B4, 0.75);
   P(28.2, G4, 0.68); P(28.2, C4, 0.68);
   P(28.8, A4, 0.84); P(29.3, G4, 0.80);
-  // Trumpet soars above
   T(26.3, C5, 0.85, 0.82);
   T(27.3, E5, 0.85, 0.88);
   T(28.3, G5, 1.5, 1.00);
-  // Fast piano scale upward
   P(30.0, C5, 0.80); P(30.25, D5, 0.82); P(30.5, E5, 0.84);
   P(30.75, F5, 0.86); P(31.0, G5, 0.92);
-  // Trumpet descends playfully
   T(31.6, A5, 0.75, 0.88);
   T(32.5, G5, 0.75, 0.84);
   T(33.4, E5, 1.3, 0.84);
-  // Shared harmony chords
   P(34.8, C4, 0.80); P(34.8, E4, 0.78); P(34.8, G4, 0.78); P(34.8, C5, 0.88);
   T(34.8, E5, 1.9, 0.88);
   P(36.8, G4, 0.78); P(36.8, B4, 0.78); P(36.8, D5, 0.80);
   T(36.8, G5, 1.6, 0.84);
   P(38.4, A4, 0.72); P(38.4, C5, 0.72); P(38.4, E5, 0.80);
   T(38.4, A5, 1.1, 0.90);
-
-  // ═══ SECTION 4 (40–54 s) ═══ Climax — fast, bright, exciting ════════════════
-  // Piano blazing run up two octaves
   P(40.0, C5, 0.90); P(40.2, D5, 0.90); P(40.4, E5, 0.92);
   P(40.6, F5, 0.92); P(40.8, G5, 0.95); P(41.0, A5, 0.95);
   P(41.2, B5, 0.98); P(41.5, C6, 1.00);
-  // Trumpet fanfare — staccato triplet then long high note
   T(41.8, C5, 0.30, 1.00); T(42.2, E5, 0.30, 1.00); T(42.6, G5, 0.30, 1.00);
   T(43.0, C6, 1.6,  1.00);
-  // Rhythmic piano stabs
   P(44.7, E5, 0.92); P(44.7, G5, 0.90);
   P(45.1, C5, 0.90); P(45.1, E5, 0.90);
-  // Trumpet screams a high sustained note
   T(45.6, E6, 2.2, 0.92);
-  // Piano cascades downward
   P(47.8, C6, 1.00); P(48.1, B5, 0.94); P(48.4, A5, 0.92);
   P(48.7, G5, 0.90); P(49.0, F5, 0.86); P(49.3, E5, 0.84);
   P(49.6, D5, 0.82); P(49.9, C5, 0.80);
-  // Trumpet answers with three strong notes
   T(50.2, G5, 0.95, 0.90);
   T(51.2, E5, 0.80, 0.86);
   T(52.1, C5, 0.95, 0.90);
-
-  // ═══ SECTION 5 (53–63 s) ═══ Grand finale chord — full C major ══════════════
-  // Piano voices spread across three octaves
   P(53.2, C4, 1.00); P(53.2, E4, 0.95); P(53.2, G4, 0.95);
   P(53.2, C5, 1.00); P(53.2, E5, 0.95); P(53.2, G5, 0.95);
   P(53.3, C6, 1.00);
-  // Trumpet holds a three-part chord (C5 + E5 + G5)
   T(53.2, C5, 6.0, 0.95);
   T(53.2, E5, 5.5, 0.88);
   T(53.2, G5, 5.0, 0.85);
-  // Master fade takes over at t=55 → silence at t=63 (scheduled above)
+}
+
+// ─── Ensure AudioContext is ready ─────────────────────────────────────────────
+// Browsers suspend AudioContext created outside a user gesture.
+// We create it eagerly, then resume it on the very first interaction.
+// After that first resume, all subsequent plays work without a gesture.
+function ensureAudioContext(ctxRef: React.MutableRefObject<AudioContext | null>) {
+  if (!ctxRef.current) {
+    try { ctxRef.current = new AudioContext(); } catch { return; }
+  }
+  const ctx = ctxRef.current;
+  if (ctx.state === "suspended") {
+    ctx.resume().catch(() => {});
+  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -202,12 +181,42 @@ export function useLoginAlarm() {
   const esRef      = useRef<EventSource | null>(null);
   const ctxRef     = useRef<AudioContext | null>(null);
   const enabledRef = useRef(localStorage.getItem(ALARM_KEY) === "1");
+  const unlockedRef = useRef(false);
 
   useEffect(() => { toastRef.current = toast; }, [toast]);
 
+  // Create AudioContext eagerly. Browsers suspend it until a user gesture —
+  // the interaction listener below resumes it on the first click/key.
+  useEffect(() => {
+    try { ctxRef.current = new AudioContext(); } catch { /* ignore */ }
+
+    // Unlock audio on first any interaction — runs once
+    const unlock = () => {
+      if (unlockedRef.current) return;
+      unlockedRef.current = true;
+      ctxRef.current?.resume().catch(() => {});
+      document.removeEventListener("click",      unlock, true);
+      document.removeEventListener("pointerdown", unlock, true);
+      document.removeEventListener("keydown",    unlock, true);
+      document.removeEventListener("touchstart", unlock, true);
+    };
+    document.addEventListener("click",       unlock, true);
+    document.addEventListener("pointerdown", unlock, true);
+    document.addEventListener("keydown",     unlock, true);
+    document.addEventListener("touchstart",  unlock, true);
+
+    return () => {
+      document.removeEventListener("click",      unlock, true);
+      document.removeEventListener("pointerdown", unlock, true);
+      document.removeEventListener("keydown",    unlock, true);
+      document.removeEventListener("touchstart", unlock, true);
+    };
+  }, []);
+
   function connect() {
     if (esRef.current) return;
-    const es = new EventSource(`${API_BASE}/api/admin/login-events`);
+    const token = localStorage.getItem("qfx_admin_token") ?? "";
+    const es = new EventSource(`${API_BASE}/api/admin/login-events?token=${encodeURIComponent(token)}`);
 
     es.onmessage = (e) => {
       try {
@@ -215,8 +224,16 @@ export function useLoginAlarm() {
           name: string; email: string; accountUid: string;
           userId: number; country: string; ip: string;
         };
-        if (ctxRef.current) playPianoTrumpet(ctxRef.current).catch(() => {});
-        // Trigger notification bell refresh
+
+        // Play alarm — always attempt resume first so it works even when
+        // the browser tab has been in the background for a while.
+        if (enabledRef.current && ctxRef.current) {
+          const ctx = ctxRef.current;
+          ctx.resume()
+            .then(() => playPianoTrumpet(ctx))
+            .catch(() => {});
+        }
+
         window.dispatchEvent(new CustomEvent("qfxLoginNotification", { detail: payload }));
         toastRef.current({
           title: "🔔 User Logged In",
@@ -229,9 +246,7 @@ export function useLoginAlarm() {
     es.onerror = () => {
       es.close();
       esRef.current = null;
-      if (enabledRef.current) {
-        setTimeout(() => { if (enabledRef.current) connect(); }, 6000);
-      }
+      setTimeout(() => { if (enabledRef.current) connect(); }, 6000);
     };
 
     esRef.current = es;
@@ -240,24 +255,24 @@ export function useLoginAlarm() {
   function disconnect() {
     esRef.current?.close();
     esRef.current = null;
-    ctxRef.current?.close();
-    ctxRef.current = null;
   }
 
   useEffect(() => {
-    if (enabledRef.current) connect();
+    // Always connect SSE so we get login notifications regardless of alarm state.
+    // Sound only plays if alarm is enabled — SSE keeps notification bell working.
+    connect();
 
     const onAlarmChange = (e: Event) => {
       const on = (e as CustomEvent<boolean>).detail;
       enabledRef.current = on;
       if (on) {
-        // Runs synchronously inside the toggle click → valid user gesture
-        // so AudioContext creation is allowed by the browser here.
-        try { ctxRef.current?.close(); ctxRef.current = new AudioContext(); }
-        catch { /* ignore */ }
+        // This runs inside a click handler — guaranteed user gesture.
+        // Resume the existing context (no need to recreate).
+        if (ctxRef.current) {
+          ctxRef.current.resume().catch(() => {});
+          unlockedRef.current = true;
+        }
         connect();
-      } else {
-        disconnect();
       }
     };
 
@@ -265,6 +280,8 @@ export function useLoginAlarm() {
     return () => {
       window.removeEventListener("qfxAlarmChange", onAlarmChange);
       disconnect();
+      ctxRef.current?.close().catch(() => {});
+      ctxRef.current = null;
     };
   }, []);
 }
