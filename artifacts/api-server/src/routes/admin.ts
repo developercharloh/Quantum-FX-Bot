@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { addSseClient, removeSseClient } from "../lib/loginAlarm";
+import { VAPID_PUBLIC_KEY, sendPushToAllAdmins } from "../lib/webPush";
 import {
   db,
   usersTable,
@@ -39,8 +40,41 @@ function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "quantum_salt_2024").digest("hex");
 }
 
-function requireAdmin(_req: Request, _res: Response, next: NextFunction) {
-  next();
+// In-memory admin sessions: token → { userId, expiresAt }
+const adminSessions = new Map<string, { userId: number; expiresAt: number }>();
+const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function createAdminToken(userId: number): string {
+  const token = crypto.randomBytes(32).toString("hex");
+  adminSessions.set(token, { userId, expiresAt: Date.now() + ADMIN_SESSION_TTL_MS });
+  return token;
+}
+
+function validateAdminToken(token: string | undefined): boolean {
+  if (!token) return false;
+  const session = adminSessions.get(token);
+  if (!session) return false;
+  if (Date.now() > session.expiresAt) {
+    adminSessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  // Allow the login endpoint through without a token
+  if (req.path === "/admin/login" && req.method === "POST") return next();
+
+  // Accept token from Authorization header or ?token= query param (EventSource)
+  const authHeader = req.headers.authorization ?? "";
+  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+  const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
+  const token = bearerToken ?? queryToken;
+
+  if (!validateAdminToken(token)) {
+    return res.status(401).json({ error: "Admin authentication required." });
+  }
+  return next();
 }
 
 router.use("/admin", requireAdmin);
@@ -1000,7 +1034,8 @@ router.post("/admin/login", async (req, res) => {
   if (!user.isAdmin)
     return res.status(403).json({ error: "You have not been granted admin access. Contact the platform owner." });
 
-  return res.json({ ok: true, name: user.fullName });
+  const token = createAdminToken(user.id);
+  return res.json({ ok: true, token, name: user.fullName });
 });
 
 // ---------------- Promote / Demote Admin ----------------
@@ -1104,6 +1139,43 @@ router.delete("/admin/broadcasts/:id", async (req, res) => {
   } catch (_e) { /* table may not exist yet — ignore */ }
 
   return res.json({ message: "Broadcast deleted" });
+});
+
+// ─── Web Push Subscriptions ───────────────────────────────────────────────────
+
+router.get("/admin/push/vapid-public-key", (_req, res) => {
+  return res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+router.post("/admin/push/subscribe", async (req, res) => {
+  const { endpoint, keys } = req.body ?? {};
+  if (!endpoint || !keys?.p256dh || !keys?.auth) {
+    return res.status(400).json({ error: "Invalid subscription" });
+  }
+
+  try {
+    await db.execute(sql`
+      INSERT INTO admin_push_subscriptions (endpoint, p256dh, auth)
+      VALUES (${endpoint}, ${keys.p256dh}, ${keys.auth})
+      ON CONFLICT (endpoint) DO UPDATE SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth
+    `);
+    return res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to save push subscription");
+    return res.status(500).json({ error: "Failed to save subscription" });
+  }
+});
+
+router.delete("/admin/push/subscribe", async (req, res) => {
+  const { endpoint } = req.body ?? {};
+  if (!endpoint) return res.status(400).json({ error: "Endpoint required" });
+
+  try {
+    await db.execute(sql`DELETE FROM admin_push_subscriptions WHERE endpoint = ${endpoint}`);
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "Failed to remove subscription" });
+  }
 });
 
 export default router;

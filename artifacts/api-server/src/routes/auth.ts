@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import { verifySync } from "otplib";
 import { notifyUserLogin } from "../lib/loginAlarm";
+import { sendPushToAllAdmins } from "../lib/webPush";
 import {
   RegisterBody,
   LoginBody,
@@ -166,6 +167,12 @@ router.post("/auth/login", async (req, res) => {
         email: user.email,
         ip,
         country,
+      });
+      await sendPushToAllAdmins({
+        title: "🔐 User Login",
+        body: `${user.fullName} (${user.email}) logged in · ${country}`,
+        tag: "qfx-login",
+        data: { type: "login", userId: user.id },
       });
     } catch { /* notification failed — login still succeeds */ }
   })();

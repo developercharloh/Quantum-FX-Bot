@@ -32,6 +32,22 @@ async function start() {
 
   // Guarantee new tables exist even when Drizzle migrations are blocked
   // by a prior "relation already exists" error (e.g. 0007 broadcasts).
+  // Push subscriptions table for Web Push API
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS admin_push_subscriptions (
+        id SERIAL PRIMARY KEY,
+        endpoint TEXT NOT NULL UNIQUE,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    logger.info("admin_push_subscriptions table ensured");
+  } catch (err) {
+    logger.warn({ err }, "Could not ensure admin_push_subscriptions table");
+  }
+
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS admin_login_notifications (

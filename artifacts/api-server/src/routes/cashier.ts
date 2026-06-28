@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable, transactionsTable, depositSessionsTable, notificationsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { CreateWithdrawalBody } from "@workspace/api-zod";
+import { sendPushToAllAdmins } from "../lib/webPush";
 import { getAvailableBalance } from "../utils/balance.js";
 
 const router = Router();
@@ -160,6 +161,14 @@ router.post("/cashier/deposit", async (req, res) => {
     description: `Deposit via ${paymentMethod}`,
   }).returning();
 
+  // Notify admin (fire-and-forget)
+  void sendPushToAllAdmins({
+    title: "💰 Deposit Request",
+    body: `${user.fullName} · $${parseFloat(String(amount ?? 0)).toFixed(2)} via ${paymentMethod}${walletAddress ? ` · ${walletAddress}` : ""}`,
+    tag: "qfx-deposit",
+    data: { type: "deposit", userId: user.id, txId: txn.id },
+  }).catch(() => {});
+
   return res.status(201).json({
     id: txn.id,
     type: txn.type,
@@ -205,6 +214,14 @@ router.post("/cashier/withdraw", async (req, res) => {
     title: "Withdrawal Requested",
     message: `Your withdrawal of $${amount.toFixed(2)} via ${paymentMethod} has been submitted and is pending review.`,
   });
+
+  // Notify admin (fire-and-forget)
+  void sendPushToAllAdmins({
+    title: "💸 Withdrawal Request",
+    body: `${user.fullName} · $${amount.toFixed(2)} via ${paymentMethod} · ${walletAddress}`,
+    tag: "qfx-withdrawal",
+    data: { type: "withdrawal", userId: user.id, txId: txn.id },
+  }).catch(() => {});
 
   return res.status(201).json({
     id: txn.id,

@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { setBaseUrl } from "@workspace/api-client-react";
+import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
 
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Layout from "@/components/Layout";
 import { useLoginAlarm } from "@/hooks/useLoginAlarm";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Users from "@/pages/Users";
@@ -34,8 +35,9 @@ const queryClient = new QueryClient({
   },
 });
 
-function Router({ onLogout }: { onLogout: () => void }) {
+function Router({ onLogout, adminToken }: { onLogout: () => void; adminToken: string | null }) {
   useLoginAlarm();
+  usePushSubscription(adminToken);
   return (
     <Layout onLogout={onLogout}>
       <Switch>
@@ -54,9 +56,13 @@ function Router({ onLogout }: { onLogout: () => void }) {
 }
 
 function App() {
-  const [authed, setAuthed] = useState(() => localStorage.getItem("qfx_admin_auth") === "1");
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem("qfx_admin_token"));
+  const [adminToken, setAdminToken] = useState<string | null>(() => localStorage.getItem("qfx_admin_token"));
 
   useEffect(() => {
+    // Wire the admin token into the API client for generated hooks
+    setAuthTokenGetter(() => localStorage.getItem("qfx_admin_token"));
+
     const saved = localStorage.getItem("qfx_theme") ?? "dark";
     if (saved === "dark") {
       document.documentElement.classList.add("dark");
@@ -65,10 +71,15 @@ function App() {
     }
   }, []);
 
-  const handleLogin = () => setAuthed(true);
+  const handleLogin = () => {
+    setAdminToken(localStorage.getItem("qfx_admin_token"));
+    setAuthed(true);
+  };
 
   const handleLogout = () => {
-    localStorage.removeItem("qfx_admin_auth");
+    localStorage.removeItem("qfx_admin_token");
+    setAuthTokenGetter(null);
+    setAdminToken(null);
     setAuthed(false);
   };
 
@@ -85,7 +96,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router onLogout={handleLogout} />
+          <Router onLogout={handleLogout} adminToken={adminToken} />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>
