@@ -31,6 +31,17 @@ router.get("/notifications", async (req, res) => {
   })));
 });
 
+router.delete("/notifications/:id", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const id = parseInt(req.params.id);
+  await db.delete(notificationsTable).where(eq(notificationsTable.id, id));
+
+  return res.json({ message: "Notification deleted" });
+});
+
 router.post("/notifications/:id/read", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   const user = await getUserFromToken(token);

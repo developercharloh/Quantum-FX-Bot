@@ -861,6 +861,24 @@ paths:
                 items:
                   $ref: "#/components/schemas/Notification"
 
+  /notifications/{id}:
+    delete:
+      operationId: deleteNotification
+      tags: [notifications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
   /notifications/{id}/read:
     post:
       operationId: markNotificationRead

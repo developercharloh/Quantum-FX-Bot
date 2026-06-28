@@ -4,6 +4,7 @@ import {
   useListNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  useDeleteNotification,
   useGetNotificationSettings,
   useUpdateNotificationSettings,
   getListNotificationsQueryKey,
@@ -29,6 +30,8 @@ import {
   ShieldCheck,
   Settings2,
   Inbox,
+  Trash2,
+  Megaphone,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -52,6 +55,8 @@ function getNotifMeta(type: string) {
       return { Icon: MessageSquare, color: "text-blue-400", bg: "bg-blue-500/10" };
     case "kyc":
       return { Icon: ShieldCheck, color: "text-yellow-400", bg: "bg-yellow-500/10" };
+    case "announcement":
+      return { Icon: Megaphone, color: "text-indigo-400", bg: "bg-indigo-500/10" };
     default:
       return { Icon: Bell, color: "text-muted-foreground", bg: "bg-muted/30" };
   }
@@ -68,6 +73,7 @@ function InboxTab() {
 
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
+  const deleteNotif = useDeleteNotification();
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -85,6 +91,18 @@ function InboxTab() {
     markRead.mutate({ id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      },
+    });
+  };
+
+  const handleDelete = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    deleteNotif.mutate({ id }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      },
+      onError: () => {
+        toast({ title: "Failed to delete", variant: "destructive" });
       },
     });
   };
@@ -135,6 +153,7 @@ function InboxTab() {
         <div className="space-y-2">
           {notifications.map((n) => {
             const { Icon, color, bg } = getNotifMeta(n.type);
+            const isAnnouncement = n.type === "announcement";
             return (
               <div
                 key={n.id}
@@ -159,6 +178,16 @@ function InboxTab() {
                     <div className="flex items-center gap-1.5 shrink-0">
                       {!n.isRead && (
                         <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))]" />
+                      )}
+                      {isAnnouncement && (
+                        <button
+                          onClick={(e) => handleDelete(e, n.id)}
+                          disabled={deleteNotif.isPending}
+                          className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                          title="Dismiss"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       )}
                     </div>
                   </div>

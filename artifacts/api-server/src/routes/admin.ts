@@ -971,12 +971,16 @@ router.post("/admin/broadcast", async (req, res) => {
     );
   }
 
-  // Log the broadcast so admins can view/delete it later
-  await db.insert(broadcastsTable).values({
-    title: parsed.data.title,
-    message: parsed.data.message,
-    recipientCount: users.length,
-  });
+  // Log the broadcast (non-fatal — table may not exist yet on first deploy)
+  try {
+    await db.insert(broadcastsTable).values({
+      title: parsed.data.title,
+      message: parsed.data.message,
+      recipientCount: users.length,
+    });
+  } catch (_e) {
+    // broadcastsTable migration pending — log only, notification already sent
+  }
 
   return res.json({ message: `Broadcast sent to ${users.length} users` });
 });
