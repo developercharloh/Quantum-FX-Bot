@@ -1,4 +1,3 @@
-import webpush from "web-push";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
@@ -6,14 +5,6 @@ import { logger } from "./logger";
 const VAPID_PUBLIC_KEY  = process.env["VAPID_PUBLIC_KEY"]  ?? "";
 const VAPID_PRIVATE_KEY = process.env["VAPID_PRIVATE_KEY"] ?? "";
 const VAPID_SUBJECT     = process.env["VAPID_SUBJECT"]     ?? "mailto:admin@quantum-fx-bot.site";
-
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  try {
-    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-  } catch (err) {
-    console.error("VAPID setup failed (web-push disabled):", err);
-  }
-}
 
 export { VAPID_PUBLIC_KEY };
 
@@ -43,6 +34,17 @@ async function getAllSubscriptions(): Promise<StoredSub[]> {
 export async function sendPushToAllAdmins(payload: PushPayload): Promise<void> {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
 
+  let webpush: typeof import("web-push");
+  try {
+    // Dynamic import defers web-push loading until first use — prevents
+    // esbuild ESM/CJS interop issues from crashing the server at startup.
+    webpush = (await import("web-push")).default as typeof import("web-push");
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  } catch (err) {
+    logger.warn({ err }, "web-push unavailable — push skipped");
+    return;
+  }
+
   const subs = await getAllSubscriptions();
   if (subs.length === 0) return;
 
@@ -57,7 +59,6 @@ export async function sendPushToAllAdmins(payload: PushPayload): Promise<void> {
         );
       } catch (err: any) {
         if (err?.statusCode === 410 || err?.statusCode === 404) {
-          // Subscription expired — remove it
           try {
             await db.execute(sql`DELETE FROM admin_push_subscriptions WHERE endpoint = ${sub.endpoint}`);
           } catch { /* ignore */ }
