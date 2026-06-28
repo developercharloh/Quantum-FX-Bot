@@ -8,7 +8,11 @@ const VAPID_PRIVATE_KEY = process.env["VAPID_PRIVATE_KEY"] ?? "";
 const VAPID_SUBJECT     = process.env["VAPID_SUBJECT"]     ?? "mailto:admin@quantum-fx-bot.site";
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  try {
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  } catch (err) {
+    console.error("VAPID setup failed (web-push disabled):", err);
+  }
 }
 
 export { VAPID_PUBLIC_KEY };
