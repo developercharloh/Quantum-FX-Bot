@@ -26,10 +26,14 @@ setBaseUrl(
     : null
 );
 
+// Set token getter at module load so React Query has auth on the very first request.
+setAuthTokenGetter(() => localStorage.getItem("qfx_admin_token"));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: false,
+      retry: 3,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
       refetchOnWindowFocus: false,
     },
   },
@@ -60,9 +64,6 @@ function App() {
   const [adminToken, setAdminToken] = useState<string | null>(() => localStorage.getItem("qfx_admin_token"));
 
   useEffect(() => {
-    // Wire the admin token into the API client for generated hooks
-    setAuthTokenGetter(() => localStorage.getItem("qfx_admin_token"));
-
     const saved = localStorage.getItem("qfx_theme") ?? "dark";
     if (saved === "dark") {
       document.documentElement.classList.add("dark");
