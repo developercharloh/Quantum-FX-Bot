@@ -1,4 +1,36 @@
 services:
+  - type: web
+    name: quantum-fx-bot
+    env: node
+    plan: free
+    region: oregon
+    numInstances: 1
+    buildCommand: npm install web-push
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
+    branch: main
+    envVars:
+      - key: BASE_PATH
+        value: /
+      - key: SERVE_CLIENT
+        value: "true"
+      - key: SERVE_ADMIN
+        value: "true"
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "24.13.0"
+      - key: VAPID_PUBLIC_KEY
+        value: BP0GfphLn7MwshBgX-xLQn7Qd0r5ZtoW0PyiBL93eyLCAJYLYC0nzuxcpcEShaSi88zlK0paSmmnK-_b59e2ZTI
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:admin@quantum-fx-bot.site
+      - key: SESSION_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
   - type: static
     name: admin-app
     buildCommand: echo "serving pre-built dist"
