@@ -62,8 +62,10 @@ function validateAdminToken(token: string | undefined): boolean {
 }
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  // Allow the login endpoint through without a token
-  if (req.path === "/admin/login" && req.method === "POST") return next();
+  // Allow the login endpoint through without a token.
+  // Note: router.use("/admin", requireAdmin) strips the "/admin" prefix,
+  // so req.path here is "/login", not "/admin/login".
+  if (req.path === "/login" && req.method === "POST") return next();
 
   // Accept token from Authorization header or ?token= query param (EventSource)
   const authHeader = req.headers.authorization ?? "";
