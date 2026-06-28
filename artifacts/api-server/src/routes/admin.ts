@@ -49,12 +49,18 @@ router.get("/admin/login-events", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+  // Disable nginx/Render proxy buffering so events are flushed immediately
+  res.setHeader("X-Accel-Buffering", "no");
+  res.setHeader("Transfer-Encoding", "chunked");
   res.flushHeaders();
 
-  // Keep connection alive with a heartbeat every 25s
+  // Send an immediate ping so the client knows the connection is live
+  res.write(": connected\n\n");
+
+  // Keep connection alive with a heartbeat every 20s
   const heartbeat = setInterval(() => {
     try { res.write(": heartbeat\n\n"); } catch { /* ignore */ }
-  }, 25_000);
+  }, 20_000);
 
   addSseClient(res);
 
