@@ -3,6 +3,7 @@ import { db, usersTable, sessionsTable, notificationSettingsTable, kycTable } fr
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import { verifySync } from "otplib";
+import { notifyUserLogin } from "../lib/loginAlarm";
 import {
   RegisterBody,
   LoginBody,
@@ -145,6 +146,9 @@ router.post("/auth/login", async (req, res) => {
     ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
     location: "Unknown",
   });
+
+  // Notify admin SSE clients (login alarm)
+  notifyUserLogin({ name: user.fullName, email: user.email });
 
   return res.json({
     token,

@@ -1,4 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
+import { addSseClient, removeSseClient } from "../lib/loginAlarm";
 import {
   db,
   usersTable,
@@ -42,6 +43,26 @@ function requireAdmin(_req: Request, _res: Response, next: NextFunction) {
 }
 
 router.use("/admin", requireAdmin);
+
+// ─── SSE: Login Alarm ────────────────────────────────────────────────────────
+router.get("/admin/login-events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  // Keep connection alive with a heartbeat every 25s
+  const heartbeat = setInterval(() => {
+    try { res.write(": heartbeat\n\n"); } catch { /* ignore */ }
+  }, 25_000);
+
+  addSseClient(res);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    removeSseClient(res);
+  });
+});
 
 const KYC_PENDING = ["pending", "submitted", "under_review"];
 

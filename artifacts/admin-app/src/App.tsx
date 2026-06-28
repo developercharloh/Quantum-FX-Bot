@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Layout from "@/components/Layout";
+import { useLoginAlarm } from "@/hooks/useLoginAlarm";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Users from "@/pages/Users";
@@ -34,6 +35,7 @@ const queryClient = new QueryClient({
 });
 
 function Router({ onLogout }: { onLogout: () => void }) {
+  useLoginAlarm();
   return (
     <Layout onLogout={onLogout}>
       <Switch>

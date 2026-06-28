@@ -6,7 +6,8 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, Bell, BellOff } from "lucide-react";
+import { ALARM_KEY } from "@/hooks/useLoginAlarm";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,14 @@ export default function Settings() {
   const updateMutation = useAdminUpdateSettings();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const [alarmOn, setAlarmOn] = useState(() => localStorage.getItem(ALARM_KEY) === "1");
+
+  const toggleAlarm = (on: boolean) => {
+    setAlarmOn(on);
+    localStorage.setItem(ALARM_KEY, on ? "1" : "0");
+    window.dispatchEvent(new CustomEvent("qfxAlarmChange", { detail: on }));
+  };
 
   const form = useForm({
     defaultValues: {
@@ -99,6 +108,38 @@ export default function Settings() {
         <h1 className="text-xl font-bold tracking-tight">Settings</h1>
         <p className="text-xs text-muted-foreground">Platform configuration</p>
       </div>
+
+      {/* Login Alarm */}
+      <Card className="rounded-2xl border-amber-500/30 mb-4">
+        <CardHeader className="px-4 pt-4 pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            {alarmOn
+              ? <Bell className="w-4 h-4 text-amber-400" />
+              : <BellOff className="w-4 h-4 text-muted-foreground" />}
+            Login Alarm
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Play an alarm and get notified when any user logs in
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          <div className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+            alarmOn ? "border-amber-500/40 bg-amber-500/5" : "border-border bg-secondary/10"
+          }`}>
+            <div>
+              <p className="text-sm font-medium">User Login Alert</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {alarmOn ? "🔔 Alarm is ON — you'll hear a beep on every login" : "Alarm is off"}
+              </p>
+            </div>
+            <Switch
+              checked={alarmOn}
+              onCheckedChange={toggleAlarm}
+              className="data-[state=checked]:bg-amber-500"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
