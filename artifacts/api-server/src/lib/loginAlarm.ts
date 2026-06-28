@@ -1,4 +1,5 @@
 import type { Response } from "express";
+import { db, adminLoginNotificationsTable } from "@workspace/db";
 
 const clients = new Set<Response>();
 
@@ -10,8 +11,39 @@ export function removeSseClient(res: Response): void {
   clients.delete(res);
 }
 
-export function notifyUserLogin(payload: { name: string; email: string }): void {
-  const data = JSON.stringify(payload);
+export interface LoginPayload {
+  userId: number;
+  accountUid: string;
+  name: string;
+  email: string;
+  ip: string;
+  country: string;
+}
+
+export async function notifyUserLogin(payload: LoginPayload): Promise<void> {
+  const [row] = await db
+    .insert(adminLoginNotificationsTable)
+    .values({
+      userId: payload.userId,
+      accountUid: payload.accountUid,
+      fullName: payload.name,
+      email: payload.email,
+      ip: payload.ip,
+      country: payload.country,
+    })
+    .returning();
+
+  const data = JSON.stringify({
+    id: row.id,
+    userId: payload.userId,
+    accountUid: payload.accountUid,
+    name: payload.name,
+    email: payload.email,
+    ip: payload.ip,
+    country: payload.country,
+    createdAt: row.createdAt.toISOString(),
+  });
+
   for (const res of clients) {
     try {
       res.write(`data: ${data}\n\n`);

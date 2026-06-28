@@ -2,6 +2,7 @@ import { useState, ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { LayoutDashboard, Users, Bot, CircleDollarSign, LifeBuoy, Settings, Megaphone, Sun, Moon, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "./NotificationBell";
 
 interface LayoutProps {
   children: ReactNode;
@@ -63,6 +64,7 @@ export default function Layout({ children, onLogout }: LayoutProps) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <NotificationBell />
           <ThemeToggle />
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">

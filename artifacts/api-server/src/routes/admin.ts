@@ -15,6 +15,7 @@ import {
   chatMessagesTable,
   depositSessionsTable,
   broadcastsTable,
+  adminLoginNotificationsTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -68,6 +69,40 @@ router.get("/admin/login-events", (req, res) => {
     clearInterval(heartbeat);
     removeSseClient(res);
   });
+});
+
+// ─── Admin Login Notifications ───────────────────────────────────────────────
+router.get("/admin/login-notifications", async (_req, res) => {
+  const rows = await db
+    .select()
+    .from(adminLoginNotificationsTable)
+    .orderBy(desc(adminLoginNotificationsTable.createdAt))
+    .limit(200);
+  return res.json(rows);
+});
+
+router.patch("/admin/login-notifications/:id/read", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  await db
+    .update(adminLoginNotificationsTable)
+    .set({ isRead: true })
+    .where(eq(adminLoginNotificationsTable.id, id));
+  return res.json({ ok: true });
+});
+
+router.post("/admin/login-notifications/read-all", async (_req, res) => {
+  await db.update(adminLoginNotificationsTable).set({ isRead: true });
+  return res.json({ ok: true });
+});
+
+router.delete("/admin/login-notifications/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  await db
+    .delete(adminLoginNotificationsTable)
+    .where(eq(adminLoginNotificationsTable.id, id));
+  return res.json({ ok: true });
 });
 
 const KYC_PENDING = ["pending", "submitted", "under_review"];

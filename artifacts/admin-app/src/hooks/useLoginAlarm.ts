@@ -211,11 +211,16 @@ export function useLoginAlarm() {
 
     es.onmessage = (e) => {
       try {
-        const { name, email } = JSON.parse(e.data) as { name: string; email: string };
+        const payload = JSON.parse(e.data) as {
+          name: string; email: string; accountUid: string;
+          userId: number; country: string; ip: string;
+        };
         if (ctxRef.current) playPianoTrumpet(ctxRef.current).catch(() => {});
+        // Trigger notification bell refresh
+        window.dispatchEvent(new CustomEvent("qfxLoginNotification", { detail: payload }));
         toastRef.current({
           title: "🔔 User Logged In",
-          description: `${name} (${email})`,
+          description: `${payload.name} (${payload.email}) · ${payload.country}`,
           duration: 10000,
         });
       } catch { /* malformed event */ }

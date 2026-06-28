@@ -261,6 +261,21 @@ export const broadcastsTable = pgTable("broadcasts", {
 
 export type Broadcast = typeof broadcastsTable.$inferSelect;
 
+// Admin-only login notifications (never visible to users)
+export const adminLoginNotificationsTable = pgTable("admin_login_notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  accountUid: varchar("account_uid", { length: 15 }).notNull(),
+  fullName: text("full_name").notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  ip: varchar("ip", { length: 100 }).notNull().default("Unknown"),
+  country: varchar("country", { length: 100 }).notNull().default("Unknown"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type AdminLoginNotification = typeof adminLoginNotificationsTable.$inferSelect;
+
 export const settingsTable = pgTable("settings", {
   id: serial("id").primaryKey(),
   appName: text("app_name").notNull().default("Quantum FX Bot"),

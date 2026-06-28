@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS admin_login_notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  account_uid VARCHAR(15) NOT NULL,
+  full_name TEXT NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  ip VARCHAR(100) NOT NULL DEFAULT 'Unknown',
+  country VARCHAR(100) NOT NULL DEFAULT 'Unknown',
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
