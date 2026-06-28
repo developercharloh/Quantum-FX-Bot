@@ -4,7 +4,6 @@ import {
   useListNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
-  useDeleteNotification,
   useGetNotificationSettings,
   useUpdateNotificationSettings,
   getListNotificationsQueryKey,
@@ -30,7 +29,6 @@ import {
   ShieldCheck,
   Settings2,
   Inbox,
-  Trash2,
   Megaphone,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -73,8 +71,6 @@ function InboxTab() {
 
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
-  const deleteNotif = useDeleteNotification();
-
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const handleMarkAll = () => {
@@ -91,18 +87,6 @@ function InboxTab() {
     markRead.mutate({ id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
-      },
-    });
-  };
-
-  const handleDelete = (e: React.MouseEvent, id: number) => {
-    e.stopPropagation();
-    deleteNotif.mutate({ id }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
-      },
-      onError: () => {
-        toast({ title: "Failed to delete", variant: "destructive" });
       },
     });
   };
@@ -153,7 +137,6 @@ function InboxTab() {
         <div className="space-y-2">
           {notifications.map((n) => {
             const { Icon, color, bg } = getNotifMeta(n.type);
-            const isAnnouncement = n.type === "announcement";
             return (
               <div
                 key={n.id}
@@ -175,21 +158,9 @@ function InboxTab() {
                     <p className={`text-sm font-semibold leading-snug ${n.isRead ? "text-muted-foreground" : "text-foreground"}`}>
                       {n.title}
                     </p>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {!n.isRead && (
-                        <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))]" />
-                      )}
-                      {isAnnouncement && (
-                        <button
-                          onClick={(e) => handleDelete(e, n.id)}
-                          disabled={deleteNotif.isPending}
-                          className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                          title="Dismiss"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
+                    {!n.isRead && (
+                      <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))] shrink-0 mt-1" />
+                    )}
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">
                     {n.message}
