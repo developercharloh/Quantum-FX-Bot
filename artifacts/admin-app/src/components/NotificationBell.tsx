@@ -5,6 +5,11 @@ import { cn } from "@/lib/utils";
 const API_BASE =
   window.location.hostname !== "localhost" ? "https://quantum-fx-bot.site" : "";
 
+function adminAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem("qfx_admin_token") ?? "";
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 interface LoginNotif {
   id: number;
   userId: number;
@@ -34,7 +39,7 @@ export function NotificationBell() {
 
   const fetchNotifs = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/login-notifications`);
+      const res = await fetch(`${API_BASE}/api/admin/login-notifications`, { headers: adminAuthHeaders() });
       if (res.ok) setNotifs(await res.json());
     } catch { /* ignore */ }
   }, []);
@@ -61,14 +66,14 @@ export function NotificationBell() {
 
   const markAllRead = async () => {
     try {
-      await fetch(`${API_BASE}/api/admin/login-notifications/read-all`, { method: "POST" });
+      await fetch(`${API_BASE}/api/admin/login-notifications/read-all`, { method: "POST", headers: adminAuthHeaders() });
       setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch { /* ignore */ }
   };
 
   const markRead = async (id: number) => {
     try {
-      await fetch(`${API_BASE}/api/admin/login-notifications/${id}/read`, { method: "PATCH" });
+      await fetch(`${API_BASE}/api/admin/login-notifications/${id}/read`, { method: "PATCH", headers: adminAuthHeaders() });
       setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
     } catch { /* ignore */ }
   };
@@ -76,7 +81,7 @@ export function NotificationBell() {
   const deleteNotif = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await fetch(`${API_BASE}/api/admin/login-notifications/${id}`, { method: "DELETE" });
+      await fetch(`${API_BASE}/api/admin/login-notifications/${id}`, { method: "DELETE", headers: adminAuthHeaders() });
       setNotifs((prev) => prev.filter((n) => n.id !== id));
     } catch { /* ignore */ }
   };
@@ -97,9 +102,9 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 w-[22rem] bg-card border border-border rounded-2xl shadow-2xl z-[200] overflow-hidden">
+        <div className="absolute right-1/2 translate-x-1/2 top-10 w-[26rem] bg-card border border-border rounded-2xl shadow-2xl z-[200] overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-card">
             <div>
               <p className="text-sm font-semibold tracking-tight">Login Activity</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -118,7 +123,7 @@ export function NotificationBell() {
           </div>
 
           {/* List */}
-          <div className="max-h-[26rem] overflow-y-auto divide-y divide-border/40">
+          <div className="max-h-[28rem] overflow-y-auto divide-y divide-border/40">
             {notifs.length === 0 ? (
               <div className="py-10 text-center">
                 <Bell className="w-6 h-6 text-muted-foreground mx-auto mb-2 opacity-40" />
@@ -130,55 +135,53 @@ export function NotificationBell() {
                   key={n.id}
                   onClick={() => { if (!n.isRead) markRead(n.id); }}
                   className={cn(
-                    "px-4 py-3 cursor-pointer transition-colors hover:bg-muted/40 relative group",
+                    "px-5 py-3.5 cursor-pointer transition-colors hover:bg-muted/40 relative group",
                     !n.isRead && "bg-primary/5 border-l-[3px] border-primary"
                   )}
                 >
                   {/* Delete button (hover) */}
                   <button
                     onClick={(e) => deleteNotif(n.id, e)}
-                    className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
                     aria-label="Delete"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
 
-                  <div className="flex items-start gap-2.5">
-                    {/* Avatar */}
-                    <div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                      <User className="w-3.5 h-3.5 text-primary" />
+                  {/* Top row: avatar + name + time */}
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-9 h-9 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
+                      <User className="w-4 h-4 text-primary" />
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-tight">{n.fullName}</p>
+                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                        <Clock className="w-2.5 h-2.5 shrink-0" />
+                        {timeAgo(n.createdAt)}
+                      </span>
+                    </div>
+                  </div>
 
-                    {/* Details */}
-                    <div className="flex-1 min-w-0 pr-5">
-                      <p className="text-xs font-semibold truncate">{n.fullName}</p>
-
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Mail className="w-2.5 h-2.5 text-muted-foreground shrink-0" />
-                        <p className="text-[10px] text-muted-foreground truncate">{n.email}</p>
-                      </div>
-
-                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                          <Hash className="w-2.5 h-2.5 shrink-0" />
-                          {n.accountUid}
-                        </span>
-                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                          <span className="font-mono text-[9px]">ID:{n.userId}</span>
-                        </span>
-                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                          <Globe className="w-2.5 h-2.5 shrink-0" />
-                          {n.country}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-[10px] font-mono text-muted-foreground/70">{n.ip}</span>
-                        <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                          <Clock className="w-2.5 h-2.5" />
-                          {timeAgo(n.createdAt)}
-                        </span>
-                      </div>
+                  {/* Detail grid */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pl-12">
+                    <div className="flex items-center gap-1.5 col-span-2">
+                      <Mail className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground break-all">{n.email}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Hash className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground font-mono">{n.accountUid}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <User className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground font-mono">ID: {n.userId}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground">{n.country}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-mono text-muted-foreground/70">{n.ip}</span>
                     </div>
                   </div>
                 </div>
