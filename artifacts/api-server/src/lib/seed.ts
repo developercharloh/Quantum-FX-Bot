@@ -17,20 +17,53 @@ const FAQ_ENTRIES = [
 // Primary admin accounts — always promoted on startup regardless of env vars.
 const SEED_ADMINS = ["mrcharlohfx@gmail.com"];
 
+function hashPassword(password: string): string {
+  return crypto.createHash("sha256").update(password + "quantum_salt_2024").digest("hex");
+}
+
+function generateUid(): string {
+  return Math.random().toString(36).substring(2, 10).toUpperCase();
+}
+
+function generateReferralCode(): string {
+  return Math.random().toString(36).substring(2, 9).toUpperCase();
+}
+
 export async function ensureAdminEmail(): Promise<void> {
   const fromEnv = process.env["ADMIN_EMAIL"];
   const emails = [...SEED_ADMINS, ...(fromEnv ? [fromEnv.toLowerCase().trim()] : [])];
 
   for (const email of [...new Set(emails)]) {
+    // Try to promote existing user first
     const result = await db
       .update(usersTable)
       .set({ isAdmin: true })
       .where(eq(usersTable.email, email))
       .returning({ id: usersTable.id, email: usersTable.email });
+
     if (result.length > 0) {
       logger.info({ email }, "Admin email auto-promoted");
-    } else {
-      logger.warn({ email }, "Admin seed email not found in users table — skipped");
+      continue;
+    }
+
+    // User doesn't exist — create the admin account automatically
+    try {
+      const adminPassword = process.env["ADMIN_ACCOUNT_PASSWORD"] ?? "Admin@Quantum2027!";
+      await db.insert(usersTable).values({
+        accountUid: generateUid(),
+        fullName: "Platform Admin",
+        email,
+        passwordHash: hashPassword(adminPassword),
+        isAdmin: true,
+        referralCode: generateReferralCode(),
+        kycStatus: "verified",
+        status: "active",
+      });
+      logger.info({ email }, "Admin user created and promoted automatically");
+    } catch (err) {
+      logger.warn({ email, err }, "Admin user creation failed (may already exist)");
+      // Attempt promotion once more in case of race condition
+      await db.update(usersTable).set({ isAdmin: true }).where(eq(usersTable.email, email));
     }
   }
 }
