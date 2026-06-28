@@ -13,14 +13,16 @@ const API_BASE =
     ? "https://quantum-fx-bot.site"
     : "";
 
-// ─── Notes ────────────────────────────────────────────────────────────────────
+// ─── Frequencies (Hz) ────────────────────────────────────────────────────────
+// All four voice ranges covered
 const N: Record<string, number> = {
-  C3: 130.81, G3: 196.00,
-  C4: 261.63, E4: 329.63, G4: 392.00, A4: 440.00, B4: 493.88,
+  C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.00,
+  A3: 220.00, B3: 246.94,
+  C4: 261.63, D4: 293.66, E4: 329.63, Fs4: 369.99, G4: 392.00, A4: 440.00, B4: 493.88,
   C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99,
 };
 
-// ─── Reverb (proven feedback-loop approach from original) ─────────────────────
+// ─── Reverb (same proven feedback-loop from working original) ─────────────────
 function makeReverb(ctx: AudioContext) {
   const dly = ctx.createDelay(0.6);
   const fb  = ctx.createGain();
@@ -33,90 +35,101 @@ function makeReverb(ctx: AudioContext) {
   dry.gain.value = 0.88;
   dry.connect(ctx.destination);
   dry.connect(dly);
-  return { dry, wet };
+  return { dry };
 }
 
-// ─── Trumpet — identical to original working version (8 partials) ─────────────
-function trumpet(ctx: AudioContext, dest: AudioNode, t0: number, t: number,
-                 freq: number, dur: number, vol = 1.0) {
-  const partials = [
-    { r: 1, g: 0.22 }, { r: 2, g: 0.88 }, { r: 3, g: 0.78 },
-    { r: 4, g: 0.62 }, { r: 5, g: 0.46 }, { r: 6, g: 0.32 },
-    { r: 7, g: 0.18 }, { r: 8, g: 0.09 },
-  ];
-  const att  = Math.min(0.09, dur * 0.18);
-  const rel  = Math.min(0.18, dur * 0.22);
-  const hold = Math.max(att + 0.01, dur - rel);
-  partials.forEach(({ r, g }) => {
-    const osc = ctx.createOscillator();
-    const gn  = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = freq * r;
-    gn.gain.setValueAtTime(0, t0 + t);
-    gn.gain.linearRampToValueAtTime(g * vol * 0.42, t0 + t + att);
-    gn.gain.setValueAtTime(g * vol * 0.42, t0 + t + hold);
-    gn.gain.linearRampToValueAtTime(0, t0 + t + dur);
-    osc.connect(gn); gn.connect(dest);
-    osc.start(t0 + t); osc.stop(t0 + t + dur + 0.05);
-  });
+// ─── VOICE INSTRUMENTS ───────────────────────────────────────────────────────
+// Each voice has a distinct timbre so they stand apart in the mix.
+
+// Soprano — trumpet (bright, 6 harmonic partials, highest voice)
+function sopranoV(ctx: AudioContext, dest: AudioNode, t0: number, t: number,
+                  freq: number, dur: number, vol = 1.0) {
+  [{ r: 1, g: 0.22 }, { r: 2, g: 0.88 }, { r: 3, g: 0.78 },
+   { r: 4, g: 0.60 }, { r: 5, g: 0.38 }, { r: 6, g: 0.18 }]
+    .forEach(({ r, g }) => {
+      const osc = ctx.createOscillator();
+      const gn  = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq * r;
+      const att  = Math.min(0.08, dur * 0.16);
+      const hold = Math.max(att + 0.01, dur - Math.min(0.18, dur * 0.22));
+      const peak = g * vol * 0.38;
+      gn.gain.setValueAtTime(0, t0 + t);
+      gn.gain.linearRampToValueAtTime(peak, t0 + t + att);
+      gn.gain.setValueAtTime(peak, t0 + t + hold);
+      gn.gain.linearRampToValueAtTime(0, t0 + t + dur);
+      osc.connect(gn); gn.connect(dest);
+      osc.start(t0 + t); osc.stop(t0 + t + dur + 0.05);
+    });
 }
 
-// ─── Piano — bright attack, 2 harmonics (mobile-safe: few oscillators) ────────
-function piano(ctx: AudioContext, dest: AudioNode, t0: number, t: number,
+// Alto — warm flute/choir (triangle waves, 3 partials, mellow)
+function altoV(ctx: AudioContext, dest: AudioNode, t0: number, t: number,
                freq: number, dur: number, vol = 1.0) {
-  [{ r: 1, g: 0.65 }, { r: 2, g: 0.20 }].forEach(({ r, g }) => {
-    const osc = ctx.createOscillator();
-    const gn  = ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.value = freq * r;
-    const peak = g * vol * 0.26;
-    gn.gain.setValueAtTime(0, t0 + t);
-    gn.gain.linearRampToValueAtTime(peak, t0 + t + 0.012);
-    gn.gain.exponentialRampToValueAtTime(peak * 0.28, t0 + t + Math.min(dur * 0.5, 1.2));
-    gn.gain.linearRampToValueAtTime(0, t0 + t + dur);
-    osc.connect(gn); gn.connect(dest);
-    osc.start(t0 + t); osc.stop(t0 + t + dur + 0.05);
-  });
+  [{ r: 1, g: 0.80 }, { r: 2, g: 0.22 }, { r: 3, g: 0.07 }]
+    .forEach(({ r, g }) => {
+      const osc = ctx.createOscillator();
+      const gn  = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = freq * r;
+      const att  = Math.min(0.14, dur * 0.22);
+      const hold = Math.max(att + 0.01, dur - 0.18);
+      const peak = g * vol * 0.30;
+      gn.gain.setValueAtTime(0, t0 + t);
+      gn.gain.linearRampToValueAtTime(peak, t0 + t + att);
+      gn.gain.setValueAtTime(peak, t0 + t + hold);
+      gn.gain.linearRampToValueAtTime(0, t0 + t + dur);
+      osc.connect(gn); gn.connect(dest);
+      osc.start(t0 + t); osc.stop(t0 + t + dur + 0.05);
+    });
 }
 
-// ─── Violin — 1 sawtooth oscillator, slow bow attack ─────────────────────────
-function violin(ctx: AudioContext, dest: AudioNode, t0: number, t: number,
+// Tenor — oboe-like (sine harmonics, reedy warmth, 3 partials)
+function tenorV(ctx: AudioContext, dest: AudioNode, t0: number, t: number,
                 freq: number, dur: number, vol = 1.0) {
-  const osc  = ctx.createOscillator();
-  const gn   = ctx.createGain();
-  osc.type = "sawtooth";
-  osc.frequency.value = freq;
-  const att  = Math.min(0.25, dur * 0.30);
-  const peak = vol * 0.12;
-  gn.gain.setValueAtTime(0, t0 + t);
-  gn.gain.linearRampToValueAtTime(peak, t0 + t + att);
-  gn.gain.setValueAtTime(peak, t0 + t + Math.max(att, dur - 0.14));
-  gn.gain.linearRampToValueAtTime(0, t0 + t + dur);
-  osc.connect(gn); gn.connect(dest);
-  osc.start(t0 + t); osc.stop(t0 + t + dur + 0.05);
+  [{ r: 1, g: 0.70 }, { r: 2, g: 0.42 }, { r: 3, g: 0.14 }]
+    .forEach(({ r, g }) => {
+      const osc = ctx.createOscillator();
+      const gn  = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq * r;
+      const att  = Math.min(0.16, dur * 0.24);
+      const hold = Math.max(att + 0.01, dur - 0.20);
+      const peak = g * vol * 0.26;
+      gn.gain.setValueAtTime(0, t0 + t);
+      gn.gain.linearRampToValueAtTime(peak, t0 + t + att);
+      gn.gain.setValueAtTime(peak, t0 + t + hold);
+      gn.gain.linearRampToValueAtTime(0, t0 + t + dur);
+      osc.connect(gn); gn.connect(dest);
+      osc.start(t0 + t); osc.stop(t0 + t + dur + 0.05);
+    });
 }
 
-// ─── Tuba — 1 sine oscillator, deep bass ──────────────────────────────────────
-function tuba(ctx: AudioContext, dest: AudioNode, t0: number, t: number,
-              freq: number, dur: number, vol = 1.0) {
-  const osc = ctx.createOscillator();
-  const gn  = ctx.createGain();
-  osc.type = "sine";
-  osc.frequency.value = freq;
-  const att  = Math.min(0.20, dur * 0.25);
-  const hold = Math.max(att + 0.01, dur - 0.20);
-  const peak = vol * 0.30;
-  gn.gain.setValueAtTime(0, t0 + t);
-  gn.gain.linearRampToValueAtTime(peak, t0 + t + att);
-  gn.gain.setValueAtTime(peak, t0 + t + hold);
-  gn.gain.linearRampToValueAtTime(0, t0 + t + dur);
-  osc.connect(gn); gn.connect(dest);
-  osc.start(t0 + t); osc.stop(t0 + t + dur + 0.05);
+// Bass — tuba (deep sine, 2 partials, foundation)
+function bassV(ctx: AudioContext, dest: AudioNode, t0: number, t: number,
+               freq: number, dur: number, vol = 1.0) {
+  [{ r: 1, g: 0.88 }, { r: 2, g: 0.30 }]
+    .forEach(({ r, g }) => {
+      const osc = ctx.createOscillator();
+      const gn  = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq * r;
+      const att  = Math.min(0.22, dur * 0.26);
+      const hold = Math.max(att + 0.01, dur - 0.24);
+      const peak = g * vol * 0.32;
+      gn.gain.setValueAtTime(0, t0 + t);
+      gn.gain.linearRampToValueAtTime(peak, t0 + t + att);
+      gn.gain.setValueAtTime(peak, t0 + t + hold);
+      gn.gain.linearRampToValueAtTime(0, t0 + t + dur);
+      osc.connect(gn); gn.connect(dest);
+      osc.start(t0 + t); osc.stop(t0 + t + dur + 0.05);
+    });
 }
 
-// ─── Silent Night — orchestra, ~65 s, BPM 72 ─────────────────────────────────
-// Oscillator budget: ~35 melody notes × (8 trumpet + 2 piano) = 350
-// + ~8 violin + ~14 tuba = 372 total — well within mobile limits
+// ─── Silent Night — full SATB chorus, BPM 72 ─────────────────────────────────
+// Soprano carries melody. Alto = 3rd below in G major. Tenor = 6th below soprano.
+// Bass = chord roots (G, C, D, Em alternating). All four sound simultaneously.
+// Oscillator budget: ~710 total — well within mobile limits.
 async function playSilentNight(ctx: AudioContext) {
   if (ctx.state === "suspended") {
     try { await ctx.resume(); } catch { return; }
@@ -124,82 +137,103 @@ async function playSilentNight(ctx: AudioContext) {
   if (ctx.state !== "running") return;
 
   const { dry } = makeReverb(ctx);
-  const t0 = ctx.currentTime + 0.05; // tiny buffer so first notes don't miss
-  const b  = 60 / 72; // 0.833 s per beat — enjoyable waltz tempo
+  const t0 = ctx.currentTime + 0.05;
+  const b  = 60 / 72; // BPM 72
 
-  // Fade out over last 8 beats
+  // Fade out last 8 beats
   dry.gain.setValueAtTime(0.88, t0 + 72 * b);
   dry.gain.linearRampToValueAtTime(0,  t0 + 80 * b);
 
-  // Shorthand helpers
-  const Tr = (bt: number, f: number, bd: number, v = 0.88) =>
-    trumpet(ctx, dry, t0, bt * b, f, bd * b, v);
-  const Pn = (bt: number, f: number, bd: number, v = 0.72) =>
-    piano  (ctx, dry, t0, bt * b, f, bd * b, v);
-  const Vi = (bt: number, f: number, bd: number, v = 0.55) =>
-    violin (ctx, dry, t0, bt * b, f, bd * b, v);
-  const Tu = (bt: number, f: number, bd: number, v = 0.70) =>
-    tuba   (ctx, dry, t0, bt * b, f, bd * b, v);
+  // Voice shorthand helpers (beat-time, frequency, beat-duration, volume)
+  const S = (bt: number, f: number, bd: number, v = 0.90) =>
+    sopranoV(ctx, dry, t0, bt * b, f, bd * b, v);
+  const A = (bt: number, f: number, bd: number, v = 0.80) =>
+    altoV   (ctx, dry, t0, bt * b, f, bd * b, v);
+  const T = (bt: number, f: number, bd: number, v = 0.72) =>
+    tenorV  (ctx, dry, t0, bt * b, f, bd * b, v);
+  const B = (bt: number, f: number, bd: number, v = 0.78) =>
+    bassV   (ctx, dry, t0, bt * b, f, bd * b, v);
 
-  const { C3, G3, E4, G4, A4, B4, C5, D5, E5, G5 } = N;
-  const C4 = N.C4;
+  const { C3, D3, E3, G3, A3, B3,
+          C4, D4, E4, Fs4, G4, A4, B4,
+          C5, D5, E5, G5 } = N;
 
-  // ── VERSE 1 ───────────────────────────────────────────────────────────────
-  // "Silent night, holy night"
-  Tr(0,G4,1.5);  Tr(1.5,A4,0.5); Tr(2,G4,1); Tr(3,E4,3);
-  Pn(0,G4,1.5);  Pn(1.5,A4,0.5); Pn(2,G4,1); Pn(3,E4,3);
-  Vi(0,E4,6,0.44); Tu(0,G3,3); Tu(3,G3,3);
+  // ── VERSE 1 ──────────────────────────────────────────────────────────────
+  // ● "Silent night"   beats 0-5   — G major
+  S(0,G4,1.5); S(1.5,A4,0.5); S(2,G4,1); S(3,E4,3);
+  A(0,E4,1.5); A(1.5,Fs4,0.5);A(2,E4,1); A(3,C4,3);
+  T(0,B3,1.5); T(1.5,C4,0.5); T(2,B3,1); T(3,G3,3);
+  B(0,G3,6);
 
-  // "All is calm, all is bright"
-  Tr(6,G4,1.5);  Tr(7.5,A4,0.5); Tr(8,G4,1); Tr(9,E4,3);
-  Pn(6,G4,1.5);  Pn(7.5,A4,0.5); Pn(8,G4,1); Pn(9,E4,3);
-  Vi(6,E4,6,0.44); Tu(6,G3,3); Tu(9,G3,3);
+  // ● "Holy night"   beats 6-11   — G major
+  S(6,G4,1.5);  S(7.5,A4,0.5);  S(8,G4,1);  S(9,E4,3);
+  A(6,E4,1.5);  A(7.5,Fs4,0.5); A(8,E4,1);  A(9,C4,3);
+  T(6,B3,1.5);  T(7.5,C4,0.5);  T(8,B3,1);  T(9,G3,3);
+  B(6,G3,6);
 
-  // "Round yon Virgin, Mother and Child"
-  Tr(12,D5,3); Tr(15,D5,1.5); Tr(16.5,B4,0.5); Tr(17,G4,1); Tr(18,G4,3);
-  Pn(12,D5,3); Pn(15,D5,1.5); Pn(16.5,B4,0.5); Pn(17,G4,1); Pn(18,G4,3);
-  Vi(12,B4,9,0.50); Tu(12,G3,3); Tu(15,G3,3); Tu(18,G3,3);
+  // ● "Round yon Virgin, Mother and Child"   beats 12-20   — G → Em
+  S(12,D5,3);    S(15,D5,1.5);   S(16.5,B4,0.5); S(17,G4,1);  S(18,G4,3);
+  A(12,B4,3);    A(15,B4,1.5);   A(16.5,G4,0.5); A(17,E4,1);  A(18,E4,3);
+  T(12,Fs4,3);   T(15,Fs4,1.5);  T(16.5,D4,0.5); T(17,B3,1);  T(18,B3,3);
+  B(12,G3,3);    B(15,G3,3);     B(18,E3,3);
 
-  // "Holy Infant so tender and mild"
-  Tr(21,C5,3); Tr(24,C5,1.5); Tr(25.5,G4,0.5); Tr(26,E4,1); Tr(27,E4,3);
-  Pn(21,C5,3); Pn(24,C5,1.5); Pn(25.5,G4,0.5); Pn(26,E4,1); Pn(27,E4,3);
-  Vi(21,C4,9,0.50); Tu(21,C3,3); Tu(24,C3,3); Tu(27,C3,3);
+  // ● "Holy Infant so tender and mild"   beats 21-29   — C major
+  S(21,C5,3);    S(24,C5,1.5);   S(25.5,G4,0.5); S(26,E4,1);  S(27,E4,3);
+  A(21,A4,3);    A(24,A4,1.5);   A(25.5,E4,0.5); A(26,C4,1);  A(27,C4,3);
+  T(21,E4,3);    T(24,E4,1.5);   T(25.5,C4,0.5); T(26,G3,1);  T(27,G3,3);
+  B(21,C3,3);    B(24,C3,3);     B(27,G3,3);
 
-  // "Sleep in heavenly peace"
-  Tr(30,D5,2); Tr(32,D5,1); Tr(33,C5,1.5); Tr(34.5,A4,0.5); Tr(35,G4,1); Tr(36,G4,3,0.92);
-  Pn(30,D5,2); Pn(32,D5,1); Pn(33,C5,1.5); Pn(34.5,A4,0.5); Pn(35,G4,1); Pn(36,G4,3);
-  Vi(30,B4,9,0.56); Tu(30,G3,3); Tu(33,G3,3); Tu(36,G3,3);
+  // ● "Sleep in heavenly peace"   beats 30-38   — D → G
+  S(30,D5,2);    S(32,D5,1);     S(33,C5,1.5);   S(34.5,A4,0.5); S(35,G4,1); S(36,G4,3);
+  A(30,B4,2);    A(32,B4,1);     A(33,A4,1.5);   A(34.5,Fs4,0.5);A(35,E4,1); A(36,E4,3);
+  T(30,Fs4,2);   T(32,Fs4,1);    T(33,E4,1.5);   T(34.5,C4,0.5); T(35,B3,1); T(36,B3,3);
+  B(30,D3,3);    B(33,D3,3);     B(36,G3,3);
 
-  // "Sleep in heavenly peace" — climactic repeat
-  Tr(39,G4,1.5,0.95); Tr(40.5,A4,0.5,0.95); Tr(41,G4,1,0.95);
-  Tr(42,D5,2,1.00);   Tr(44,E5,1,1.00);
-  Tr(45,D5,1.5,0.96); Tr(46.5,B4,0.5,0.92); Tr(47,G4,1,0.90);
-  Tr(48,E5,5,1.00);
-  Pn(39,G4,1.5,0.90); Pn(40.5,A4,0.5,0.90); Pn(41,G4,1,0.90);
-  Pn(42,D5,2,0.95);   Pn(44,E5,1,0.95);
-  Pn(45,D5,1.5,0.90); Pn(46.5,B4,0.5,0.88); Pn(47,G4,1,0.85);
-  Pn(48,E5,5,0.95);
-  Vi(39,B4,9,0.65); Vi(48,E5,5,0.70);
-  Tu(39,G3,3); Tu(42,G3,3); Tu(45,G3,3); Tu(48,C3,5);
+  // ● "Sleep in heavenly peace" — climactic repeat   beats 39-53   — G → C
+  S(39,G4,1.5);  S(40.5,A4,0.5); S(41,G4,1);
+  S(42,D5,2);    S(44,E5,1);
+  S(45,D5,1.5);  S(46.5,B4,0.5); S(47,G4,1);
+  S(48,E5,5,1.00);
 
-  // ── VERSE 2 — triumphant ──────────────────────────────────────────────────
+  A(39,E4,1.5);  A(40.5,Fs4,0.5);A(41,E4,1);
+  A(42,B4,2);    A(44,C5,1);
+  A(45,B4,1.5);  A(46.5,G4,0.5); A(47,E4,1);
+  A(48,C5,5,0.90);
+
+  T(39,B3,1.5);  T(40.5,C4,0.5); T(41,B3,1);
+  T(42,Fs4,2);   T(44,G4,1);
+  T(45,Fs4,1.5); T(46.5,D4,0.5); T(47,B3,1);
+  T(48,G4,5,0.82);
+
+  B(39,G3,3);    B(42,G3,3);     B(45,G3,3);     B(48,C3,5);
+
+  // ── VERSE 2 — fuller, triumphant ─────────────────────────────────────────
   const v = 54;
-  Tr(v+0,G4,1.5,0.95); Tr(v+1.5,A4,0.5,0.95); Tr(v+2,G4,1,0.95); Tr(v+3,E4,3,0.95);
-  Pn(v+0,G4,1.5,0.90); Pn(v+1.5,A4,0.5,0.90); Pn(v+2,G4,1,0.90); Pn(v+3,E4,3,0.90);
-  Vi(v+0,E4,6,0.60); Tu(v+0,G3,3); Tu(v+3,G3,3);
 
-  Tr(v+6,G4,1.5,0.95); Tr(v+7.5,A4,0.5,0.95); Tr(v+8,G4,1,0.95); Tr(v+9,E4,3,0.95);
-  Pn(v+6,G4,1.5,0.90); Pn(v+7.5,A4,0.5,0.90); Pn(v+8,G4,1,0.90); Pn(v+9,E4,3,0.90);
-  Vi(v+6,E4,6,0.60); Tu(v+6,G3,3); Tu(v+9,G3,3);
+  // ● Verse 2 phrase 1 (same harmony as v1 p1)
+  S(v+0,G4,1.5,0.95); S(v+1.5,A4,0.5,0.95); S(v+2,G4,1,0.95); S(v+3,E4,3,0.95);
+  A(v+0,E4,1.5,0.88); A(v+1.5,Fs4,0.5,0.88);A(v+2,E4,1,0.88); A(v+3,C4,3,0.88);
+  T(v+0,B3,1.5,0.82); T(v+1.5,C4,0.5,0.82); T(v+2,B3,1,0.82); T(v+3,G3,3,0.82);
+  B(v+0,G3,6,0.85);
 
-  // Triumphant closing — soaring to G5
-  Tr(v+12,D5,3,1.00); Tr(v+15,E5,3,1.00); Tr(v+18,G5,4,1.00);
-  Tr(v+22,E5,2.5,0.92); Tr(v+24.5,C5,5,0.82);
-  Pn(v+12,D5,3,0.95); Pn(v+15,E5,3,0.95); Pn(v+18,G5,4,1.00);
-  Pn(v+22,E5,2.5,0.90); Pn(v+24.5,C5,5,0.85);
-  Vi(v+12,B4,9,0.78); Vi(v+21,C5,8.5,0.82);
-  Tu(v+12,G3,3); Tu(v+15,C3,3); Tu(v+18,C3,4);
-  Tu(v+22,C3,2.5); Tu(v+24.5,C3,5);
+  // ● Verse 2 phrase 2
+  S(v+6,G4,1.5,0.95); S(v+7.5,A4,0.5,0.95); S(v+8,G4,1,0.95); S(v+9,E4,3,0.95);
+  A(v+6,E4,1.5,0.88); A(v+7.5,Fs4,0.5,0.88);A(v+8,E4,1,0.88); A(v+9,C4,3,0.88);
+  T(v+6,B3,1.5,0.82); T(v+7.5,C4,0.5,0.82); T(v+8,B3,1,0.82); T(v+9,G3,3,0.82);
+  B(v+6,G3,6,0.85);
+
+  // ● Triumphant close — soaring to G5
+  S(v+12,D5,3,1.00); S(v+15,E5,3,1.00); S(v+18,G5,4,1.00);
+  S(v+22,E5,2.5,0.94); S(v+24.5,C5,5,0.84);
+
+  A(v+12,B4,3,0.92); A(v+15,C5,3,0.92); A(v+18,E5,4,0.92);
+  A(v+22,C5,2.5,0.88); A(v+24.5,A4,5,0.80);
+
+  T(v+12,Fs4,3,0.84); T(v+15,G4,3,0.84); T(v+18,B4,4,0.84);
+  T(v+22,G4,2.5,0.80); T(v+24.5,E4,5,0.74);
+
+  B(v+12,G3,3,0.88); B(v+15,C3,3,0.88); B(v+18,G3,4,0.88);
+  B(v+22,C3,2.5,0.84); B(v+24.5,C3,5,0.80);
 }
 
 // ─── Shared AudioContext ──────────────────────────────────────────────────────
@@ -257,7 +291,6 @@ export function useLoginAlarm() {
     if (!enabledRef.current) return;
     const ctx = getAudioContext();
     if (!ctx) return;
-    // Always try to resume before playing (SSE events have no gesture)
     ctx.resume().then(() => playSilentNight(ctx)).catch(() => {});
   }
 
