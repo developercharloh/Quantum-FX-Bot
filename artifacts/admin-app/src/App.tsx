@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
+import { QueryClient, QueryClientProvider, QueryCache } from "@tanstack/react-query";
+import { setBaseUrl, setAuthTokenGetter, ApiError } from "@workspace/api-client-react";
 
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,11 +29,28 @@ setBaseUrl(
 // Set token getter at module load so React Query has auth on the very first request.
 setAuthTokenGetter(() => localStorage.getItem("qfx_admin_token"));
 
+// Global logout callback — set by App once it mounts.
+let _forceLogout: (() => void) | null = null;
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        localStorage.removeItem("qfx_admin_token");
+        setAuthTokenGetter(null);
+        queryClient.clear();
+        _forceLogout?.();
+      }
+    },
+  }),
   defaultOptions: {
     queries: {
-      retry: 3,
-      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+      retry: (failureCount, error) => {
+        // Never retry auth errors — they won't resolve without a new token.
+        if (error instanceof ApiError && error.status === 401) return false;
+        return failureCount < 2;
+      },
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
       refetchOnWindowFocus: false,
     },
   },
@@ -62,6 +79,11 @@ function Router({ onLogout, adminToken }: { onLogout: () => void; adminToken: st
 function App() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem("qfx_admin_token"));
   const [adminToken, setAdminToken] = useState<string | null>(() => localStorage.getItem("qfx_admin_token"));
+
+  useEffect(() => {
+    _forceLogout = () => { setAuthed(false); setAdminToken(null); };
+    return () => { _forceLogout = null; };
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem("qfx_theme") ?? "dark";

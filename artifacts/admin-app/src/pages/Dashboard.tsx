@@ -35,7 +35,7 @@ const kpis = [
 ];
 
 export default function Dashboard() {
-  const { data: overview, isLoading } = useAdminGetOverview();
+  const { data: overview, isLoading, isError, refetch } = useAdminGetOverview();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -83,8 +83,18 @@ export default function Dashboard() {
     );
   }
 
-  if (!overview) {
-    return <div className="p-4 text-destructive text-sm">Failed to load dashboard</div>;
+  if (isError || !overview) {
+    return (
+      <div className="p-4 flex flex-col items-center justify-center gap-3 text-center">
+        <p className="text-destructive text-sm font-medium">Failed to load dashboard</p>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   const pendingWork = overview.pendingDeposits + overview.pendingWithdrawals + overview.pendingKyc + overview.openTickets;
