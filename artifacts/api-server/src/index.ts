@@ -1,4 +1,6 @@
 import { runMigrations } from "@workspace/db/migrate";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedBots, seedDemoAndFaq, ensureAdminEmail, purgeTestUsers } from "./lib/seed";
@@ -26,6 +28,27 @@ async function start() {
     // Crashing here on a transient DB connection failure (e.g. free-tier DB sleeping)
     // would take the entire service down unnecessarily.
     logger.warn({ err }, "Database migration skipped (non-fatal) — schema may already be current");
+  }
+
+  // Guarantee new tables exist even when Drizzle migrations are blocked
+  // by a prior "relation already exists" error (e.g. 0007 broadcasts).
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS admin_login_notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        account_uid VARCHAR(15) NOT NULL,
+        full_name TEXT NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        ip VARCHAR(100) NOT NULL DEFAULT 'Unknown',
+        country VARCHAR(100) NOT NULL DEFAULT 'Unknown',
+        is_read BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    logger.info("admin_login_notifications table ensured");
+  } catch (err) {
+    logger.warn({ err }, "Could not ensure admin_login_notifications table");
   }
 
   try {
