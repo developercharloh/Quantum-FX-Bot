@@ -19,20 +19,14 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-async function start() {
+async function runStartupTasks() {
   try {
     const migrationsFolder = await runMigrations();
     logger.info({ migrationsFolder }, "Database migrations applied");
   } catch (err) {
-    // Log and continue — schema is already applied by preDeployCommand (drizzle push).
-    // Crashing here on a transient DB connection failure (e.g. free-tier DB sleeping)
-    // would take the entire service down unnecessarily.
     logger.warn({ err }, "Database migration skipped (non-fatal) — schema may already be current");
   }
 
-  // Guarantee new tables exist even when Drizzle migrations are blocked
-  // by a prior "relation already exists" error (e.g. 0007 broadcasts).
-  // Push subscriptions table for Web Push API
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS admin_push_subscriptions (
@@ -90,15 +84,19 @@ async function start() {
   } catch (err) {
     logger.error({ err }, "Admin email promotion failed");
   }
-
-  app.listen(port, (err) => {
-    if (err) {
-      logger.error({ err }, "Error listening on port");
-      process.exit(1);
-    }
-
-    logger.info({ port }, "Server listening");
-  });
 }
 
-start();
+// Bind the port immediately so Render's health check passes right away,
+// then run potentially slow DB operations (migrations, seeding) in the background.
+// This prevents free-tier DB wake-up latency from blocking the health check.
+app.listen(port, (err?: Error) => {
+  if (err) {
+    logger.error({ err }, "Error listening on port");
+    process.exit(1);
+  }
+  logger.info({ port }, "Server listening");
+
+  runStartupTasks().catch((err) => {
+    logger.error({ err }, "Startup tasks failed");
+  });
+});
