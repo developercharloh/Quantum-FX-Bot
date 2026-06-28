@@ -65,4 +65,24 @@ if (process.env.SERVE_CLIENT === "true") {
   logger.info({ clientDist }, "Serving frontend static assets");
 }
 
+// Serve the admin panel from /admin-app/ on the same server.
+// Bypasses the unreliable Render static site builder entirely.
+// The dist is committed to the repo so no separate build step is needed.
+if (process.env.SERVE_ADMIN === "true") {
+  const adminDist = path.resolve(
+    process.cwd(),
+    process.env.ADMIN_DIST ?? "artifacts/admin-app/dist/public",
+  );
+
+  // Serve static assets prefixed at /admin-app
+  app.use("/admin-app", express.static(adminDist));
+
+  // SPA fallback for all /admin-app/* routes
+  app.get("/admin-app/*", (_req, res) => {
+    res.sendFile(path.join(adminDist, "index.html"));
+  });
+
+  logger.info({ adminDist }, "Serving admin panel static assets");
+}
+
 export default app;

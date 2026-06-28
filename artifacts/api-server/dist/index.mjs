@@ -67527,6 +67527,17 @@ if (process.env.SERVE_CLIENT === "true") {
   });
   logger.info({ clientDist }, "Serving frontend static assets");
 }
+if (process.env.SERVE_ADMIN === "true") {
+  const adminDist = path2.resolve(
+    process.cwd(),
+    process.env.ADMIN_DIST ?? "artifacts/admin-app/dist/public"
+  );
+  app.use("/admin-app", import_express14.default.static(adminDist));
+  app.get("/admin-app/*", (_req, res) => {
+    res.sendFile(path2.join(adminDist, "index.html"));
+  });
+  logger.info({ adminDist }, "Serving admin panel static assets");
+}
 var app_default = app;
 
 // src/lib/seed.ts
