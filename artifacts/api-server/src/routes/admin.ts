@@ -986,13 +986,27 @@ router.post("/admin/broadcast", async (req, res) => {
 });
 
 router.get("/admin/broadcasts", async (_req, res) => {
-  const rows = await db.select().from(broadcastsTable).orderBy(desc(broadcastsTable.createdAt));
+  // Derive broadcast history by grouping announcement notifications.
+  // Each broadcast creates one notification per user; we collapse them here.
+  const rows = await db
+    .select({
+      id:             sql<number>`min(${notificationsTable.id})`,
+      title:          notificationsTable.title,
+      message:        notificationsTable.message,
+      recipientCount: sql<number>`count(*)`,
+      createdAt:      sql<string>`min(${notificationsTable.createdAt})`,
+    })
+    .from(notificationsTable)
+    .where(eq(notificationsTable.type, "announcement"))
+    .groupBy(notificationsTable.title, notificationsTable.message)
+    .orderBy(sql`min(${notificationsTable.createdAt}) desc`);
+
   return res.json(rows.map(r => ({
-    id: r.id,
-    title: r.title,
-    message: r.message,
-    recipientCount: r.recipientCount,
-    createdAt: r.createdAt.toISOString(),
+    id:             r.id,
+    title:          r.title,
+    message:        r.message,
+    recipientCount: Number(r.recipientCount),
+    createdAt:      String(r.createdAt),
   })));
 });
 
@@ -1000,15 +1014,18 @@ router.delete("/admin/broadcasts/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-  const rows = await db.select().from(broadcastsTable).where(eq(broadcastsTable.id, id));
-  if (!rows.length) return res.status(404).json({ error: "Not found" });
+  // Look up title+message from the representative notification row
+  const anchor = await db
+    .select({ title: notificationsTable.title, message: notificationsTable.message })
+    .from(notificationsTable)
+    .where(eq(notificationsTable.id, id))
+    .limit(1);
 
-  const { title, message } = rows[0];
+  if (!anchor.length) return res.status(404).json({ error: "Not found" });
 
-  // Remove the broadcast log
-  await db.delete(broadcastsTable).where(eq(broadcastsTable.id, id));
+  const { title, message } = anchor[0];
 
-  // Also delete the user-facing notifications that were created for this broadcast
+  // Delete all user-facing notifications for this broadcast
   await db.delete(notificationsTable).where(
     and(
       eq(notificationsTable.type, "announcement"),
@@ -1016,6 +1033,13 @@ router.delete("/admin/broadcasts/:id", async (req, res) => {
       eq(notificationsTable.message, message),
     ),
   );
+
+  // Also clean up broadcastsTable log if it exists (best-effort)
+  try {
+    await db.delete(broadcastsTable).where(
+      and(eq(broadcastsTable.title, title), eq(broadcastsTable.message, message)),
+    );
+  } catch (_e) { /* table may not exist yet — ignore */ }
 
   return res.json({ message: "Broadcast deleted" });
 });
