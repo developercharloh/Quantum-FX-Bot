@@ -66127,6 +66127,7 @@ router6.post("/trade/execute", async (req, res) => {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1e3);
   const recent = await db.select({ openedAt: positionsTable.openedAt }).from(positionsTable).where(and(
     eq(positionsTable.userId, user.id),
+    eq(positionsTable.botId, bot.id),
     gte(positionsTable.openedAt, since)
   )).orderBy(desc(positionsTable.openedAt)).limit(1);
   if (recent.length > 0) {
@@ -66135,7 +66136,7 @@ router6.post("/trade/execute", async (req, res) => {
     const hoursLeft = Math.floor(diffMs / (1e3 * 60 * 60));
     const minutesLeft = Math.floor(diffMs % (1e3 * 60 * 60) / (1e3 * 60));
     return res.status(429).json({
-      error: `Your bot generates one guaranteed signal every 24 hours to filter market manipulation and protect your profits. Next signal available in ${hoursLeft}h ${minutesLeft}m.`
+      error: `This bot generates one guaranteed signal per 24 hours to filter market manipulation and protect your profits. Next signal available in ${hoursLeft}h ${minutesLeft}m.`
     });
   }
   const available = await computeAvailableBalance(user.id);
