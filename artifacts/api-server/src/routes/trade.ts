@@ -275,15 +275,14 @@ router.post("/trade/execute", async (req, res) => {
 
   const { ub, bot } = rows[0];
 
-  // ── 24-hour signal cooldown per bot ──────────────────────────────────────
-  // Each bot generates one signal per 24 hours. If the user already ran this
-  // bot within the last 24 hours, block the trade with a countdown message.
+  // ── Global 24-hour signal cooldown per user ──────────────────────────────
+  // The platform issues ONE guaranteed signal per user per 24 hours across ALL
+  // bots. Buying a new bot does not reset this window.
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const recent = await db.select({ openedAt: positionsTable.openedAt })
     .from(positionsTable)
     .where(and(
       eq(positionsTable.userId, user.id),
-      eq(positionsTable.botId, bot.id),
       gte(positionsTable.openedAt, since),
     ))
     .orderBy(desc(positionsTable.openedAt))
@@ -292,10 +291,10 @@ router.post("/trade/execute", async (req, res) => {
   if (recent.length > 0) {
     const nextAvailableMs = recent[0].openedAt.getTime() + 24 * 60 * 60 * 1000;
     const diffMs = nextAvailableMs - Date.now();
-    const hoursLeft  = Math.floor(diffMs / (1000 * 60 * 60));
+    const hoursLeft   = Math.floor(diffMs / (1000 * 60 * 60));
     const minutesLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     return res.status(429).json({
-      error: `This bot issues one signal every 24 hours to filter market manipulation and guarantee daily profits. Next signal available in ${hoursLeft}h ${minutesLeft}m.`,
+      error: `Your bot generates one guaranteed signal every 24 hours to filter market manipulation and protect your profits. Next signal available in ${hoursLeft}h ${minutesLeft}m.`,
     });
   }
   // ─────────────────────────────────────────────────────────────────────────
