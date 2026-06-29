@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, usersTable, sessionsTable, userBotsTable, botsTable, positionsTable, transactionsTable } from "@workspace/db";
+import { eq, and, gte, desc, inArray } from "drizzle-orm";
 import { getAvailableBalance } from "../utils/balance.js";
 
 const router = Router();
@@ -26,16 +26,41 @@ router.get("/bots", async (req, res) => {
     .innerJoin(botsTable, eq(userBotsTable.botId, botsTable.id))
     .where(eq(userBotsTable.userId, user.id));
 
-  return res.json(userBots.map(({ ub, bot }) => ({
-    id: ub.id,
-    name: bot.name,
-    status: ub.status,
-    profitToday: parseFloat(ub.profitToday),
-    winRate: parseFloat(bot.winRate),
-    totalTrades: ub.totalTrades,
-    iconUrl: bot.iconUrl,
-    category: bot.category,
-  })));
+  // Build cooldown map: botsTable.id → most recent openedAt within 24h
+  const botTemplateIds = [...new Set(userBots.map(({ bot }) => bot.id))];
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const recentPositions = botTemplateIds.length > 0
+    ? await db.select({ botId: positionsTable.botId, openedAt: positionsTable.openedAt })
+        .from(positionsTable)
+        .where(and(
+          eq(positionsTable.userId, user.id),
+          gte(positionsTable.openedAt, since),
+          inArray(positionsTable.botId, botTemplateIds),
+        ))
+        .orderBy(desc(positionsTable.openedAt))
+    : [];
+  const lastTradeMap = new Map<number, Date>();
+  for (const p of recentPositions) {
+    if (!lastTradeMap.has(p.botId)) lastTradeMap.set(p.botId, p.openedAt);
+  }
+
+  return res.json(userBots.map(({ ub, bot }) => {
+    const lastTraded = lastTradeMap.get(bot.id);
+    const cooldownUntil = lastTraded
+      ? new Date(lastTraded.getTime() + 24 * 60 * 60 * 1000).toISOString()
+      : null;
+    return {
+      id: ub.id,
+      name: bot.name,
+      status: ub.status,
+      profitToday: parseFloat(ub.profitToday),
+      winRate: parseFloat(bot.winRate),
+      totalTrades: ub.totalTrades,
+      iconUrl: bot.iconUrl,
+      category: bot.category,
+      cooldownUntil,
+    };
+  }));
 });
 
 // Get bot detail

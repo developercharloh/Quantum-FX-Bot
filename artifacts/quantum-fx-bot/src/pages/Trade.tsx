@@ -10,6 +10,7 @@ import {
 } from "@workspace/api-client-react";
 
 import { Layout } from "@/components/Layout";
+import { CooldownBanner } from "@/components/CooldownBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -145,7 +146,7 @@ export default function Trade() {
 
   const stakeNum = parseFloat(stake) || 0;
 
-  // Auto-select first bot (or bot from ?botId param)
+  // Auto-select first bot (or bot from ?botId param) — prefer non-cooldown bots
   useEffect(() => {
     if (bots.length === 0) return;
     const params = new URLSearchParams(window.location.search);
@@ -153,7 +154,9 @@ export default function Trade() {
     if (paramId && bots.some(b => b.id === paramId)) {
       setSelectedBotId(paramId);
     } else if (!selectedBotId) {
-      setSelectedBotId(bots[0].id);
+      const now = Date.now();
+      const available = bots.find(b => !b.cooldownUntil || new Date(b.cooldownUntil).getTime() <= now);
+      setSelectedBotId((available ?? bots[0]).id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bots]);
@@ -624,28 +627,40 @@ export default function Trade() {
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {bots.map((bot, i) => (
-                    <button key={bot.id} onClick={() => setSelectedBotId(bot.id)}
-                      className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
-                        selectedBotId === bot.id ? "border-primary bg-primary/5 shadow-md shadow-primary/10" : "border-transparent bg-card"
-                      }`}>
-                      <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 bg-gradient-to-br ${BOT_COLORS[i % BOT_COLORS.length]}`}>
-                        {bot.name.charAt(0)}
+                  {bots.map((bot, i) => {
+                    const onCooldown = !!(bot.cooldownUntil && new Date(bot.cooldownUntil).getTime() > Date.now());
+                    return (
+                      <div key={bot.id}>
+                        <button
+                          onClick={() => !onCooldown && setSelectedBotId(bot.id)}
+                          disabled={onCooldown}
+                          className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
+                            onCooldown
+                              ? "border-transparent bg-card opacity-40 cursor-not-allowed"
+                              : selectedBotId === bot.id
+                                ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
+                                : "border-transparent bg-card"
+                          }`}>
+                          <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 bg-gradient-to-br ${BOT_COLORS[i % BOT_COLORS.length]}`}>
+                            {bot.name.charAt(0)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{bot.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-green-400 font-medium">Win {bot.winRate}%</span>
+                              <span className="text-[10px] text-muted-foreground">· Today +${bot.profitToday}</span>
+                            </div>
+                          </div>
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            selectedBotId === bot.id && !onCooldown ? "border-primary bg-primary" : "border-muted"
+                          }`}>
+                            {selectedBotId === bot.id && !onCooldown && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                          </div>
+                        </button>
+                        <CooldownBanner cooldownUntil={bot.cooldownUntil} />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">{bot.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-green-400 font-medium">Win {bot.winRate}%</span>
-                          <span className="text-[10px] text-muted-foreground">· Today +${bot.profitToday}</span>
-                        </div>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        selectedBotId === bot.id ? "border-primary bg-primary" : "border-muted"
-                      }`}>
-                        {selectedBotId === bot.id && <Check className="w-3 h-3 text-white stroke-[3]" />}
-                      </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -910,7 +925,7 @@ export default function Trade() {
           <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-5 pb-24 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
             <Button
               onClick={handleExecute}
-              disabled={!selectedBotId || stakeNum < 1 || stakeNum > availableBalance || executeMutation.isPending || !bots.length}
+              disabled={!selectedBotId || stakeNum < 1 || stakeNum > availableBalance || executeMutation.isPending || !bots.length || !!(bots.find(b => b.id === selectedBotId)?.cooldownUntil && new Date(bots.find(b => b.id === selectedBotId)!.cooldownUntil!).getTime() > Date.now())}
               className="w-full h-14 rounded-2xl text-base font-bold bg-gradient-to-r from-[#7C3AED] to-[#9333ea] hover:opacity-90 disabled:opacity-30 transition-opacity shadow-lg shadow-primary/30"
             >
               {executeMutation.isPending ? (

@@ -62399,6 +62399,17 @@ var RegisterBody = objectType({
   "password": stringType(),
   "referralCode": stringType().nullish()
 });
+var RegisterResponse = objectType({
+  "token": stringType(),
+  "user": objectType({
+    "id": numberType(),
+    "fullName": stringType(),
+    "email": stringType(),
+    "avatarUrl": stringType().nullish(),
+    "kycStatus": stringType(),
+    "createdAt": stringType()
+  })
+});
 var LoginBody = objectType({
   "email": stringType(),
   "password": stringType()
@@ -62487,7 +62498,8 @@ var ListBotsResponseItem = objectType({
   "winRate": numberType(),
   "totalTrades": numberType(),
   "iconUrl": stringType().nullish(),
-  "category": stringType()
+  "category": stringType(),
+  "cooldownUntil": stringType().nullish().describe("ISO timestamp when the 24h cooldown expires; null if bot is ready to trade")
 });
 var ListBotsResponse = arrayType(ListBotsResponseItem);
 var GetBotParams = objectType({
@@ -62517,7 +62529,8 @@ var ToggleBotResponse = objectType({
   "winRate": numberType(),
   "totalTrades": numberType(),
   "iconUrl": stringType().nullish(),
-  "category": stringType()
+  "category": stringType(),
+  "cooldownUntil": stringType().nullish().describe("ISO timestamp when the 24h cooldown expires; null if bot is ready to trade")
 });
 var GetBotAnalyticsParams = objectType({
   "id": coerce.number(),
@@ -62556,9 +62569,33 @@ var CreateDepositBody = objectType({
   "paymentMethod": stringType(),
   "walletAddress": stringType().nullish()
 });
+var CreateDepositResponse = objectType({
+  "id": numberType(),
+  "type": stringType(),
+  "amount": numberType(),
+  "status": stringType(),
+  "paymentMethod": stringType(),
+  "createdAt": stringType(),
+  "walletAddress": stringType().nullish()
+});
 var CreateDepositSessionBody = objectType({
   "amount": numberType(),
   "paymentMethodId": stringType()
+});
+var CreateDepositSessionResponse = objectType({
+  "id": numberType(),
+  "status": stringType(),
+  "amount": numberType(),
+  "paymentMethodId": stringType(),
+  "paymentMethodName": stringType(),
+  "network": stringType(),
+  "depositAddress": stringType(),
+  "txid": stringType().nullish(),
+  "confirmations": numberType(),
+  "requiredConfirmations": numberType(),
+  "expiresAt": stringType(),
+  "createdAt": stringType(),
+  "updatedAt": stringType()
 });
 var GetDepositSessionParams = objectType({
   "id": coerce.number()
@@ -62650,6 +62687,15 @@ var CreateWithdrawalBody = objectType({
   "amount": numberType(),
   "paymentMethod": stringType(),
   "walletAddress": stringType()
+});
+var CreateWithdrawalResponse = objectType({
+  "id": numberType(),
+  "type": stringType(),
+  "amount": numberType(),
+  "status": stringType(),
+  "paymentMethod": stringType(),
+  "createdAt": stringType(),
+  "walletAddress": stringType().nullish()
 });
 var ListTransactionsQueryParams = objectType({
   "type": enumType(["all", "deposit", "withdrawal"]).optional()
@@ -62892,6 +62938,12 @@ var ListNotificationsResponseItem = objectType({
   "createdAt": stringType()
 });
 var ListNotificationsResponse = arrayType(ListNotificationsResponseItem);
+var DeleteNotificationParams = objectType({
+  "id": coerce.number()
+});
+var DeleteNotificationResponse = objectType({
+  "message": stringType()
+});
 var MarkNotificationReadParams = objectType({
   "id": coerce.number()
 });
@@ -62914,6 +62966,14 @@ var CreateSupportTicketBody = objectType({
   "subject": stringType(),
   "message": stringType(),
   "category": stringType()
+});
+var CreateSupportTicketResponse = objectType({
+  "id": numberType(),
+  "subject": stringType(),
+  "message": stringType(),
+  "status": stringType(),
+  "createdAt": stringType(),
+  "updatedAt": stringType()
 });
 var ListFAQResponseItem = objectType({
   "id": numberType(),
@@ -63141,6 +63201,22 @@ var AdminCreateBotBody = objectType({
   "iconUrl": stringType().optional(),
   "isActive": booleanType().optional()
 });
+var AdminCreateBotResponse = objectType({
+  "id": numberType(),
+  "name": stringType(),
+  "description": stringType(),
+  "category": stringType(),
+  "riskLevel": stringType(),
+  "price": numberType(),
+  "monthlyReturn": numberType().optional(),
+  "winRate": numberType(),
+  "minInvestment": numberType().optional(),
+  "iconUrl": stringType().nullish(),
+  "isActive": booleanType(),
+  "activeUsers": numberType(),
+  "totalProfit": numberType(),
+  "createdAt": stringType()
+});
 var AdminUpdateBotParams = objectType({
   "id": coerce.number()
 });
@@ -63307,6 +63383,12 @@ var GetChatMessagesResponse = arrayType(GetChatMessagesResponseItem);
 var SendChatMessageBody = objectType({
   "message": stringType()
 });
+var SendChatMessageResponse = objectType({
+  "id": numberType(),
+  "sender": stringType(),
+  "message": stringType(),
+  "createdAt": stringType()
+});
 var AdminListChatsResponseItem = objectType({
   "userId": numberType(),
   "userName": stringType(),
@@ -63331,6 +63413,12 @@ var AdminSendChatMessageParams = objectType({
 });
 var AdminSendChatMessageBody = objectType({
   "message": stringType()
+});
+var AdminSendChatMessageResponse = objectType({
+  "id": numberType(),
+  "sender": stringType(),
+  "message": stringType(),
+  "createdAt": stringType()
 });
 var AdminGetSettingsResponse = objectType({
   "appName": stringType(),
@@ -63391,6 +63479,20 @@ var AdminBroadcastBody = objectType({
   "message": stringType()
 });
 var AdminBroadcastResponse = objectType({
+  "message": stringType()
+});
+var AdminListBroadcastsResponseItem = objectType({
+  "id": numberType(),
+  "title": stringType(),
+  "message": stringType(),
+  "recipientCount": numberType(),
+  "createdAt": stringType()
+});
+var AdminListBroadcastsResponse = arrayType(AdminListBroadcastsResponseItem);
+var AdminDeleteBroadcastParams = objectType({
+  "id": coerce.number()
+});
+var AdminDeleteBroadcastResponse = objectType({
   "message": stringType()
 });
 
@@ -65542,16 +65644,32 @@ router4.get("/bots", async (req, res) => {
     ub: userBotsTable,
     bot: botsTable
   }).from(userBotsTable).innerJoin(botsTable, eq(userBotsTable.botId, botsTable.id)).where(eq(userBotsTable.userId, user.id));
-  return res.json(userBots.map(({ ub, bot }) => ({
-    id: ub.id,
-    name: bot.name,
-    status: ub.status,
-    profitToday: parseFloat(ub.profitToday),
-    winRate: parseFloat(bot.winRate),
-    totalTrades: ub.totalTrades,
-    iconUrl: bot.iconUrl,
-    category: bot.category
-  })));
+  const botTemplateIds = [...new Set(userBots.map(({ bot }) => bot.id))];
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1e3);
+  const recentPositions = botTemplateIds.length > 0 ? await db.select({ botId: positionsTable.botId, openedAt: positionsTable.openedAt }).from(positionsTable).where(and(
+    eq(positionsTable.userId, user.id),
+    gte(positionsTable.openedAt, since),
+    inArray(positionsTable.botId, botTemplateIds)
+  )).orderBy(desc(positionsTable.openedAt)) : [];
+  const lastTradeMap = /* @__PURE__ */ new Map();
+  for (const p of recentPositions) {
+    if (!lastTradeMap.has(p.botId)) lastTradeMap.set(p.botId, p.openedAt);
+  }
+  return res.json(userBots.map(({ ub, bot }) => {
+    const lastTraded = lastTradeMap.get(bot.id);
+    const cooldownUntil = lastTraded ? new Date(lastTraded.getTime() + 24 * 60 * 60 * 1e3).toISOString() : null;
+    return {
+      id: ub.id,
+      name: bot.name,
+      status: ub.status,
+      profitToday: parseFloat(ub.profitToday),
+      winRate: parseFloat(bot.winRate),
+      totalTrades: ub.totalTrades,
+      iconUrl: bot.iconUrl,
+      category: bot.category,
+      cooldownUntil
+    };
+  }));
 });
 router4.get("/bots/:id", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");

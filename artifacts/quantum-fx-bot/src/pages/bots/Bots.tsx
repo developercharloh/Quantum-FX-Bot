@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useListBots, useListMarketplaceBots, usePurchaseBot, Bot, MarketplaceBot } from "@workspace/api-client-react";
+import { CooldownBanner } from "@/components/CooldownBanner";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -115,6 +116,7 @@ export default function Bots() {
                       </div>
                     </div>
 
+                    <CooldownBanner cooldownUntil={bot.cooldownUntil} />
                   </CardContent>
                 </Card>
               ))
