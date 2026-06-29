@@ -66973,6 +66973,21 @@ router11.get("/admin/users/:id", async (req, res) => {
     }))
   });
 });
+router11.get("/admin/users/:id/positions", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const positions = await db.select().from(positionsTable).where(eq(positionsTable.userId, id)).orderBy(desc(positionsTable.openedAt)).limit(50);
+  return res.json(positions.map((p) => ({
+    id: p.id,
+    botId: p.botId,
+    botName: p.botName,
+    status: p.status,
+    stake: p.stake,
+    openedAt: p.openedAt,
+    closedAt: p.closedAt,
+    realizedPnl: p.realizedPnl
+  })));
+});
 async function getAdminUser(id) {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   if (!user) return null;
