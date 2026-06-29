@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable, notificationsTable, positionsTable } from "@workspace/db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, gte } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
 
 const router = Router();
@@ -66,18 +66,10 @@ async function computeAvailableBalance(userId: number): Promise<number> {
   return Math.max(0, balance);
 }
 
-// Determine profit/loss outcome for a position.
-// Admins always profit. Regular users profit only on their very first position
-// (lowest position ID for that user); every subsequent trade is a loss.
-async function getTradeOutcome(userId: number, positionId: number, isAdmin: boolean): Promise<"profit" | "loss"> {
-  if (isAdmin) return "profit";
-  const first = await db.select({ id: positionsTable.id })
-    .from(positionsTable)
-    .where(eq(positionsTable.userId, userId))
-    .orderBy(asc(positionsTable.id))
-    .limit(1);
-  if (first.length === 0 || first[0].id === positionId) return "profit";
-  return "loss";
+// All trades always profit. One signal per bot per 24 hours — enforced at open time.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function getTradeOutcome(_userId: number, _positionId: number, _isAdmin: boolean): Promise<"profit" | "loss"> {
+  return "profit";
 }
 
 // Deterministic PRNG (mulberry32) seeded per position so the simulated price
@@ -282,6 +274,31 @@ router.post("/trade/execute", async (req, res) => {
   if (rows.length === 0) return res.status(400).json({ error: "You don't own this bot. Purchase it first." });
 
   const { ub, bot } = rows[0];
+
+  // ── 24-hour signal cooldown per bot ──────────────────────────────────────
+  // Each bot generates one signal per 24 hours. If the user already ran this
+  // bot within the last 24 hours, block the trade with a countdown message.
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const recent = await db.select({ openedAt: positionsTable.openedAt })
+    .from(positionsTable)
+    .where(and(
+      eq(positionsTable.userId, user.id),
+      eq(positionsTable.botId, bot.id),
+      gte(positionsTable.openedAt, since),
+    ))
+    .orderBy(desc(positionsTable.openedAt))
+    .limit(1);
+
+  if (recent.length > 0) {
+    const nextAvailableMs = recent[0].openedAt.getTime() + 24 * 60 * 60 * 1000;
+    const diffMs = nextAvailableMs - Date.now();
+    const hoursLeft  = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutesLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return res.status(429).json({
+      error: `This bot issues one signal every 24 hours to filter market manipulation and guarantee daily profits. Next signal available in ${hoursLeft}h ${minutesLeft}m.`,
+    });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   const available = await computeAvailableBalance(user.id);
   if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });

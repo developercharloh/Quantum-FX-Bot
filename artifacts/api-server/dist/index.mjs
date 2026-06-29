@@ -65986,11 +65986,8 @@ async function computeAvailableBalance(userId) {
   }
   return Math.max(0, balance);
 }
-async function getTradeOutcome(userId, positionId, isAdmin) {
-  if (isAdmin) return "profit";
-  const first = await db.select({ id: positionsTable.id }).from(positionsTable).where(eq(positionsTable.userId, userId)).orderBy(asc(positionsTable.id)).limit(1);
-  if (first.length === 0 || first[0].id === positionId) return "profit";
-  return "loss";
+async function getTradeOutcome(_userId, _positionId, _isAdmin) {
+  return "profit";
 }
 function mulberry32(seed) {
   let a2 = seed >>> 0;
@@ -66127,6 +66124,21 @@ router6.post("/trade/execute", async (req, res) => {
   const rows = await db.select({ ub: userBotsTable, bot: botsTable }).from(userBotsTable).innerJoin(botsTable, eq(userBotsTable.botId, botsTable.id)).where(and(eq(userBotsTable.userId, user.id), eq(userBotsTable.id, botId))).limit(1);
   if (rows.length === 0) return res.status(400).json({ error: "You don't own this bot. Purchase it first." });
   const { ub, bot } = rows[0];
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1e3);
+  const recent = await db.select({ openedAt: positionsTable.openedAt }).from(positionsTable).where(and(
+    eq(positionsTable.userId, user.id),
+    eq(positionsTable.botId, bot.id),
+    gte(positionsTable.openedAt, since)
+  )).orderBy(desc(positionsTable.openedAt)).limit(1);
+  if (recent.length > 0) {
+    const nextAvailableMs = recent[0].openedAt.getTime() + 24 * 60 * 60 * 1e3;
+    const diffMs = nextAvailableMs - Date.now();
+    const hoursLeft = Math.floor(diffMs / (1e3 * 60 * 60));
+    const minutesLeft = Math.floor(diffMs % (1e3 * 60 * 60) / (1e3 * 60));
+    return res.status(429).json({
+      error: `This bot issues one signal every 24 hours to filter market manipulation and guarantee daily profits. Next signal available in ${hoursLeft}h ${minutesLeft}m.`
+    });
+  }
   const available = await computeAvailableBalance(user.id);
   if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });
   const guaranteedTp = Math.round(stake * 0.045 * 100) / 100;
