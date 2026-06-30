@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
 import { Clock } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface Props {
   cooldownUntil: string | null | undefined;
@@ -18,6 +25,7 @@ export function CooldownBanner({ cooldownUntil }: Props) {
   const [remaining, setRemaining] = useState<number>(() =>
     cooldownUntil ? Math.max(0, new Date(cooldownUntil).getTime() - Date.now()) : 0
   );
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!cooldownUntil) return;
@@ -33,11 +41,36 @@ export function CooldownBanner({ cooldownUntil }: Props) {
   if (!cooldownUntil || remaining <= 0) return null;
 
   return (
-    <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 mt-2">
-      <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-      <span className="text-amber-400 font-mono text-sm font-semibold tracking-wider">
-        {formatCountdown(remaining)}
-      </span>
-    </div>
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 mt-2 cursor-pointer active:scale-[0.98] transition-transform"
+      >
+        <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+        <span className="text-amber-400 font-mono text-sm font-semibold tracking-wider">
+          {formatCountdown(remaining)}
+        </span>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-[320px] rounded-2xl text-center">
+          <DialogHeader className="items-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
+              <Clock className="w-7 h-7 text-amber-400" />
+            </div>
+            <DialogTitle className="text-base">Bot is Cooling Down</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+              Your bot completed a trade and is currently resting. Each bot runs
+              one trade per 24 hours to maximise accuracy and protect your
+              returns. Check back when the timer ends — your next trade is on
+              its way.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-amber-400 font-mono text-xl font-bold mt-1">
+            {formatCountdown(remaining)}
+          </p>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
