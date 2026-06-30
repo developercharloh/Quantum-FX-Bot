@@ -18,6 +18,7 @@ import {
   depositSessionsTable,
   broadcastsTable,
   adminLoginNotificationsTable,
+  sessionsTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -41,25 +42,27 @@ function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "quantum_salt_2024").digest("hex");
 }
 
-// In-memory admin sessions: token → { userId, expiresAt }
-const adminSessions = new Map<string, { userId: number; expiresAt: number }>();
-const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-function createAdminToken(userId: number): string {
+async function createAdminToken(userId: number, ip: string): Promise<string> {
   const token = crypto.randomBytes(32).toString("hex");
-  adminSessions.set(token, { userId, expiresAt: Date.now() + ADMIN_SESSION_TTL_MS });
+  await db.insert(sessionsTable).values({
+    userId,
+    token,
+    device: "Admin Panel",
+    ip,
+    location: null,
+  });
   return token;
 }
 
-function validateAdminToken(token: string | undefined): boolean {
+async function validateAdminToken(token: string | undefined): Promise<boolean> {
   if (!token) return false;
-  const session = adminSessions.get(token);
-  if (!session) return false;
-  if (Date.now() > session.expiresAt) {
-    adminSessions.delete(token);
-    return false;
-  }
-  return true;
+  const [row] = await db
+    .select({ isAdmin: usersTable.isAdmin, status: usersTable.status })
+    .from(sessionsTable)
+    .innerJoin(usersTable, eq(sessionsTable.userId, usersTable.id))
+    .where(eq(sessionsTable.token, token))
+    .limit(1);
+  return !!(row?.isAdmin && row?.status === "active");
 }
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -74,10 +77,10 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
   const token = bearerToken ?? queryToken;
 
-  if (!validateAdminToken(token)) {
-    return res.status(401).json({ error: "Admin authentication required." });
-  }
-  return next();
+  validateAdminToken(token).then((valid) => {
+    if (!valid) { res.status(401).json({ error: "Admin authentication required." }); return; }
+    next();
+  }).catch(() => { res.status(401).json({ error: "Admin authentication required." }); });
 }
 
 router.use("/admin", requireAdmin);
@@ -1057,7 +1060,8 @@ router.post("/admin/login", async (req, res) => {
   if (!user.isAdmin)
     return res.status(403).json({ error: "You have not been granted admin access. Contact the platform owner." });
 
-  const token = createAdminToken(user.id);
+  const ip = String(req.ip ?? req.headers["x-forwarded-for"] ?? "0.0.0.0").split(",")[0].trim();
+  const token = await createAdminToken(user.id, ip);
   return res.json({ ok: true, token, name: user.fullName });
 });
 
