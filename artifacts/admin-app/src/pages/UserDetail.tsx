@@ -107,7 +107,11 @@ export default function UserDetail() {
     setPromoteLoading(true);
     try {
       const base = window.location.hostname !== "localhost" ? "https://quantum-fx-bot.site" : "";
-      const res = await fetch(`${base}/api/admin/users/${userId}/promote`, { method: "POST" });
+      const token = localStorage.getItem("qfx_admin_token") ?? "";
+      const res = await fetch(`${base}/api/admin/users/${userId}/promote`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (!res.ok) throw new Error((await res.json()).error ?? "Request failed");
       toast({ title: isAdmin ? "Admin access revoked" : "User promoted to admin" });
       queryClient.invalidateQueries({ queryKey: getAdminGetUserQueryKey(userId) });
