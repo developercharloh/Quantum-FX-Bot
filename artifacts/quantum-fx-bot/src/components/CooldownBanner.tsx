@@ -60,10 +60,12 @@ export function CooldownBanner({ cooldownUntil }: Props) {
             </div>
             <DialogTitle className="text-base">Bot is Cooling Down</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-              Your bot completed a trade and is currently resting. Each bot runs
-              one trade per 24 hours to maximise accuracy and protect your
-              returns. Check back when the timer ends — your next trade is on
-              its way.
+              Your bot is currently scanning the market to filter out false
+              signals and lock in only the highest-accuracy trades. This
+              cooldown phase is where the real work happens — ensuring every
+              trade entry is perfectly timed to maximise your profits and keep
+              losses at an absolute minimum. Sit tight, your next trade is
+              loading.
             </DialogDescription>
           </DialogHeader>
           <p className="text-amber-400 font-mono text-xl font-bold mt-1">
