@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable } from "@workspace/db";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { format, subDays, subMonths, subYears, startOfDay, startOfWeek, startOfMonth, startOfYear, eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval } from "date-fns";
+import { getAvailableBalance } from "../utils/balance.js";
 
 const router = Router();
 
@@ -29,19 +30,15 @@ router.get("/dashboard/summary", async (req, res) => {
 
   const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, user.id));
 
-  let balance = 0;
   let pendingOut = 0;
   for (const t of txns) {
     const amt = parseFloat(t.amount);
-    if (t.status === "completed") {
-      if (t.type === "deposit" || t.type === "trade_profit") balance += amt;
-      if (t.type === "withdrawal" || t.type === "trade_loss" || t.type === "bot_purchase") balance -= amt;
-    }
     if (t.status === "pending" && (t.type === "withdrawal" || t.type === "bot_purchase")) {
       pendingOut += amt;
     }
   }
 
+  const balance = await getAvailableBalance(user.id);
   const availableBalance = Math.max(0, balance - pendingOut);
   const todayProfit = activeBots.reduce((sum, b) => sum + parseFloat(b.profitToday), 0);
   const totalEarnings = userBots.reduce((sum, b) => sum + parseFloat(b.profitTotal), 0);

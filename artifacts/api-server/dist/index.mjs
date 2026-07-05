@@ -65224,6 +65224,31 @@ function subYears(date6, amount) {
   return addYears(date6, -amount);
 }
 
+// src/utils/balance.ts
+async function getAvailableBalance(userId) {
+  const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
+  let balance = 0;
+  for (const t2 of txns) {
+    const amt = parseFloat(t2.amount);
+    if (t2.status === "completed") {
+      if (t2.type === "deposit" || t2.type === "trade_profit" || t2.type === "vault_transfer") balance += amt;
+      if (t2.type === "withdrawal" || t2.type === "trade_loss" || t2.type === "bot_purchase" || t2.type === "vault_fund") balance -= amt;
+    }
+    if (t2.status === "pending" && t2.type === "withdrawal") balance -= amt;
+  }
+  return balance;
+}
+async function getVaultWalletBalance(userId) {
+  const txns = await db.select().from(transactionsTable).where(and(eq(transactionsTable.userId, userId), eq(transactionsTable.status, "completed")));
+  let balance = 0;
+  for (const t2 of txns) {
+    const amt = parseFloat(t2.amount);
+    if (t2.type === "vault_fund" || t2.type === "vault_unlock" || t2.type === "vault_reward") balance += amt;
+    if (t2.type === "vault_lock" || t2.type === "vault_transfer") balance -= amt;
+  }
+  return balance;
+}
+
 // src/routes/dashboard.ts
 var router3 = (0, import_express3.Router)();
 async function getUserFromToken(token) {
@@ -65244,18 +65269,14 @@ router3.get("/dashboard/summary", async (req, res) => {
   const userBots = await db.select().from(userBotsTable).where(eq(userBotsTable.userId, user.id));
   const activeBots = userBots.filter((b3) => b3.status === "running");
   const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, user.id));
-  let balance = 0;
   let pendingOut = 0;
   for (const t2 of txns) {
     const amt = parseFloat(t2.amount);
-    if (t2.status === "completed") {
-      if (t2.type === "deposit" || t2.type === "trade_profit") balance += amt;
-      if (t2.type === "withdrawal" || t2.type === "trade_loss" || t2.type === "bot_purchase") balance -= amt;
-    }
     if (t2.status === "pending" && (t2.type === "withdrawal" || t2.type === "bot_purchase")) {
       pendingOut += amt;
     }
   }
+  const balance = await getAvailableBalance(user.id);
   const availableBalance = Math.max(0, balance - pendingOut);
   const todayProfit = activeBots.reduce((sum, b3) => sum + parseFloat(b3.profitToday), 0);
   const totalEarnings = userBots.reduce((sum, b3) => sum + parseFloat(b3.profitTotal), 0);
@@ -65424,33 +65445,6 @@ var dashboard_default = router3;
 
 // src/routes/bots.ts
 var import_express4 = __toESM(require_express2(), 1);
-
-// src/utils/balance.ts
-async function getAvailableBalance(userId) {
-  const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
-  let balance = 0;
-  for (const t2 of txns) {
-    const amt = parseFloat(t2.amount);
-    if (t2.status === "completed") {
-      if (t2.type === "deposit" || t2.type === "trade_profit" || t2.type === "vault_transfer") balance += amt;
-      if (t2.type === "withdrawal" || t2.type === "trade_loss" || t2.type === "bot_purchase" || t2.type === "vault_fund") balance -= amt;
-    }
-    if (t2.status === "pending" && t2.type === "withdrawal") balance -= amt;
-  }
-  return balance;
-}
-async function getVaultWalletBalance(userId) {
-  const txns = await db.select().from(transactionsTable).where(and(eq(transactionsTable.userId, userId), eq(transactionsTable.status, "completed")));
-  let balance = 0;
-  for (const t2 of txns) {
-    const amt = parseFloat(t2.amount);
-    if (t2.type === "vault_fund" || t2.type === "vault_unlock" || t2.type === "vault_reward") balance += amt;
-    if (t2.type === "vault_lock" || t2.type === "vault_transfer") balance -= amt;
-  }
-  return balance;
-}
-
-// src/routes/bots.ts
 var router4 = (0, import_express4.Router)();
 async function getUserFromToken2(token) {
   if (!token) return null;
@@ -65913,20 +65907,6 @@ function shuffleSignals(seed) {
   }
   return arr;
 }
-async function computeAvailableBalance(userId) {
-  const txns = await db.select().from(transactionsTable).where(
-    and(eq(transactionsTable.userId, userId), eq(transactionsTable.status, "completed"))
-  );
-  let balance = 0;
-  for (const t2 of txns) {
-    const amt = parseFloat(t2.amount);
-    if (t2.type === "deposit") balance += amt;
-    if (t2.type === "withdrawal") balance -= amt;
-    if (t2.type === "trade_profit") balance += amt;
-    if (t2.type === "trade_loss") balance -= amt;
-  }
-  return Math.max(0, balance);
-}
 async function getTradeOutcome(_userId, _positionId, _isAdmin) {
   return "profit";
 }
@@ -66080,7 +66060,7 @@ router6.post("/trade/execute", async (req, res) => {
       error: `This bot generates one guaranteed signal per 24 hours to filter market manipulation and protect your profits. Next signal available in ${hoursLeft}h ${minutesLeft}m.`
     });
   }
-  const available = await computeAvailableBalance(user.id);
+  const available = await getAvailableBalance(user.id);
   if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });
   const guaranteedTp = Math.round(stake * 0.045 * 100) / 100;
   const guaranteedSl = Math.round(stake * 0.04 * 100) / 100;
@@ -66740,8 +66720,8 @@ router11.delete("/admin/login-notifications/:id", async (req, res) => {
 });
 var KYC_PENDING = ["pending", "submitted", "under_review"];
 function txnDelta(type, amount) {
-  if (type === "deposit" || type === "trade_profit") return amount;
-  if (type === "withdrawal" || type === "trade_loss") return -amount;
+  if (type === "deposit" || type === "trade_profit" || type === "vault_transfer") return amount;
+  if (type === "withdrawal" || type === "trade_loss" || type === "bot_purchase" || type === "vault_fund") return -amount;
   return 0;
 }
 router11.get("/admin/overview", async (_req, res) => {
@@ -66864,17 +66844,16 @@ router11.get("/admin/users/:id", async (req, res) => {
   const userBots = await db.select({ ub: userBotsTable, bot: botsTable }).from(userBotsTable).leftJoin(botsTable, eq(userBotsTable.botId, botsTable.id)).where(eq(userBotsTable.userId, id));
   const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, id)).orderBy(desc(transactionsTable.createdAt));
   const referrals = await db.select().from(referralsTable).where(eq(referralsTable.referrerId, id));
-  let balance = 0;
   let totalDeposits = 0;
   let totalWithdrawals = 0;
   for (const t2 of txns) {
     if (t2.status !== "completed") continue;
     const amt = parseFloat(t2.amount);
-    balance += txnDelta(t2.type, amt);
     if (t2.type === "deposit") totalDeposits += amt;
     if (t2.type === "withdrawal") totalWithdrawals += amt;
   }
   const profitTotal = userBots.reduce((s, b3) => s + parseFloat(b3.ub.profitTotal), 0);
+  let balance = await getAvailableBalance(id);
   balance += profitTotal;
   return res.json({
     id: user.id,
@@ -66938,11 +66917,7 @@ async function getAdminUser(id) {
   if (!user) return null;
   const [profile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, id)).limit(1);
   const userBots = await db.select().from(userBotsTable).where(eq(userBotsTable.userId, id));
-  const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, id));
-  let balance = 0;
-  for (const t2 of txns) {
-    if (t2.status === "completed") balance += txnDelta(t2.type, parseFloat(t2.amount));
-  }
+  let balance = await getAvailableBalance(id);
   balance += userBots.reduce((s, b3) => s + parseFloat(b3.profitTotal), 0);
   return {
     id: user.id,

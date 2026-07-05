@@ -23,6 +23,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import crypto from "crypto";
+import { getAvailableBalance } from "../utils/balance.js";
 import {
   AdminSetUserStatusBody,
   AdminAdjustBalanceBody,
@@ -148,8 +149,8 @@ router.delete("/admin/login-notifications/:id", async (req, res) => {
 const KYC_PENDING = ["pending", "submitted", "under_review"];
 
 function txnDelta(type: string, amount: number): number {
-  if (type === "deposit" || type === "trade_profit") return amount;
-  if (type === "withdrawal" || type === "trade_loss") return -amount;
+  if (type === "deposit" || type === "trade_profit" || type === "vault_transfer") return amount;
+  if (type === "withdrawal" || type === "trade_loss" || type === "bot_purchase" || type === "vault_fund") return -amount;
   return 0;
 }
 
@@ -305,17 +306,16 @@ router.get("/admin/users/:id", async (req, res) => {
     .orderBy(desc(transactionsTable.createdAt));
   const referrals = await db.select().from(referralsTable).where(eq(referralsTable.referrerId, id));
 
-  let balance = 0;
   let totalDeposits = 0;
   let totalWithdrawals = 0;
   for (const t of txns) {
     if (t.status !== "completed") continue;
     const amt = parseFloat(t.amount);
-    balance += txnDelta(t.type, amt);
     if (t.type === "deposit") totalDeposits += amt;
     if (t.type === "withdrawal") totalWithdrawals += amt;
   }
   const profitTotal = userBots.reduce((s, b) => s + parseFloat(b.ub.profitTotal), 0);
+  let balance = await getAvailableBalance(id);
   balance += profitTotal;
 
   return res.json({
@@ -386,11 +386,7 @@ async function getAdminUser(id: number) {
   if (!user) return null;
   const [profile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, id)).limit(1);
   const userBots = await db.select().from(userBotsTable).where(eq(userBotsTable.userId, id));
-  const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, id));
-  let balance = 0;
-  for (const t of txns) {
-    if (t.status === "completed") balance += txnDelta(t.type, parseFloat(t.amount));
-  }
+  let balance = await getAvailableBalance(id);
   balance += userBots.reduce((s, b) => s + parseFloat(b.profitTotal), 0);
   return {
     id: user.id,

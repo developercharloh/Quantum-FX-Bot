@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable, userBotsTable, botsTable, transactionsTable, earningsTable, notificationsTable, positionsTable } from "@workspace/db";
 import { eq, and, desc, asc, gte } from "drizzle-orm";
 import { ExecuteTradeBody } from "@workspace/api-zod";
+import { getAvailableBalance } from "../utils/balance.js";
 
 const router = Router();
 
@@ -49,21 +50,6 @@ function shuffleSignals(seed: number) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
-}
-
-async function computeAvailableBalance(userId: number): Promise<number> {
-  const txns = await db.select().from(transactionsTable).where(
-    and(eq(transactionsTable.userId, userId), eq(transactionsTable.status, "completed"))
-  );
-  let balance = 0;
-  for (const t of txns) {
-    const amt = parseFloat(t.amount);
-    if (t.type === "deposit") balance += amt;
-    if (t.type === "withdrawal") balance -= amt;
-    if (t.type === "trade_profit") balance += amt;
-    if (t.type === "trade_loss") balance -= amt;
-  }
-  return Math.max(0, balance);
 }
 
 // All trades always profit. One signal per bot per 24 hours — enforced at open time.
@@ -300,7 +286,7 @@ router.post("/trade/execute", async (req, res) => {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  const available = await computeAvailableBalance(user.id);
+  const available = await getAvailableBalance(user.id);
   if (stake > available) return res.status(400).json({ error: "Insufficient balance for this stake" });
 
   const guaranteedTp = Math.round(stake * 0.045 * 100) / 100;
