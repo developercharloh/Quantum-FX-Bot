@@ -112,8 +112,9 @@ export default function Vault() {
           <div className="flex flex-col gap-1">
             <h2 className="text-base font-semibold">A Fixed-Term Growth Plan</h2>
             <p className="text-sm text-muted-foreground max-w-xs">
-              Commit funds for a set term and earn guaranteed daily rewards
-              — paid out in full the moment your term completes.
+              Invest with confidence through our fixed-term investment plans.
+              Enjoy guaranteed daily rewards, paid in full at the end of your
+              selected term.
             </p>
           </div>
 
