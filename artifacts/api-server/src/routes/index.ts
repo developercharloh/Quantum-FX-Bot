@@ -11,6 +11,7 @@ import notificationsRouter from "./notifications";
 import supportRouter from "./support";
 import adminRouter from "./admin";
 import webhooksRouter from "./webhooks";
+import vaultRouter from "./vault";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(notificationsRouter);
 router.use(supportRouter);
 router.use(adminRouter);
 router.use(webhooksRouter);
+router.use(vaultRouter);
 
 export default router;

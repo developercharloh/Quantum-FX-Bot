@@ -152,6 +152,11 @@ export interface Bot {
   /** @nullable */
   iconUrl?: string | null;
   category: string;
+  /**
+     * ISO timestamp when the 24h cooldown expires; null if bot is ready to trade
+     * @nullable
+     */
+  cooldownUntil?: string | null;
 }
 
 export interface BotDetail {
@@ -180,6 +185,45 @@ export interface MarketplaceBot {
   /** @nullable */
   iconUrl?: string | null;
   isPurchased: boolean;
+}
+
+export interface VaultTier {
+  min: number;
+  /** @nullable */
+  max: number | null;
+  annualRate: number;
+}
+
+export interface VaultInvestment {
+  id: number;
+  amount: number;
+  termDays: number;
+  annualRate: number;
+  rewardAmount: number;
+  status: string;
+  startedAt: string;
+  maturesAt: string;
+  /** @nullable */
+  redeemedAt?: string | null;
+  isMatured: boolean;
+  daysElapsed: number;
+  daysRemaining: number;
+  progressPercent: number;
+  accruedSoFar: number;
+}
+
+export interface VaultStatus {
+  availableBalance: number;
+  tiers: VaultTier[];
+  terms: number[];
+  minAmount: number;
+  active: VaultInvestment | null;
+  history: VaultInvestment[];
+}
+
+export interface VaultInvestInput {
+  amount: number;
+  termDays: number;
 }
 
 export interface DepositInput {

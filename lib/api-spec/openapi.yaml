@@ -18,6 +18,7 @@ tags:
   - name: notifications
   - name: support
   - name: admin
+  - name: vault
 
 paths:
   /healthz:
@@ -322,6 +323,61 @@ paths:
       responses:
         "200":
           description: Bot purchased
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Quantum Vault
+  /vault/status:
+    get:
+      operationId: getVaultStatus
+      tags: [vault]
+      responses:
+        "200":
+          description: Vault status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultStatus"
+
+  /vault/invest:
+    post:
+      operationId: createVaultInvestment
+      tags: [vault]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultInvestInput"
+      responses:
+        "200":
+          description: Investment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /vault/redeem:
+    post:
+      operationId: redeemVaultInvestment
+      tags: [vault]
+      responses:
+        "200":
+          description: Rewards redeemed
           content:
             application/json:
               schema:
@@ -1849,6 +1905,85 @@ components:
         isPurchased:
           type: boolean
       required: [id, name, price, winRate, category, riskLevel, description, isPurchased]
+
+    # Quantum Vault
+    VaultTier:
+      type: object
+      properties:
+        min:
+          type: number
+        max:
+          type: ["number", "null"]
+        annualRate:
+          type: number
+      required: [min, max, annualRate]
+
+    VaultInvestment:
+      type: object
+      properties:
+        id:
+          type: integer
+        amount:
+          type: number
+        termDays:
+          type: integer
+        annualRate:
+          type: number
+        rewardAmount:
+          type: number
+        status:
+          type: string
+        startedAt:
+          type: string
+        maturesAt:
+          type: string
+        redeemedAt:
+          type: ["string", "null"]
+        isMatured:
+          type: boolean
+        daysElapsed:
+          type: integer
+        daysRemaining:
+          type: integer
+        progressPercent:
+          type: number
+        accruedSoFar:
+          type: number
+      required: [id, amount, termDays, annualRate, rewardAmount, status, startedAt, maturesAt, isMatured, daysElapsed, daysRemaining, progressPercent, accruedSoFar]
+
+    VaultStatus:
+      type: object
+      properties:
+        availableBalance:
+          type: number
+        tiers:
+          type: array
+          items:
+            $ref: "#/components/schemas/VaultTier"
+        terms:
+          type: array
+          items:
+            type: integer
+        minAmount:
+          type: number
+        active:
+          oneOf:
+            - $ref: "#/components/schemas/VaultInvestment"
+            - type: "null"
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/VaultInvestment"
+      required: [availableBalance, tiers, terms, minAmount, active, history]
+
+    VaultInvestInput:
+      type: object
+      properties:
+        amount:
+          type: number
+        termDays:
+          type: integer
+      required: [amount, termDays]
 
     # Cashier
     DepositInput:

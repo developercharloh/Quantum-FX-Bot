@@ -134,7 +134,8 @@ export const ListBotsResponseItem = zod.object({
   "winRate": zod.number(),
   "totalTrades": zod.number(),
   "iconUrl": zod.string().nullish(),
-  "category": zod.string()
+  "category": zod.string(),
+  "cooldownUntil": zod.string().nullish().describe('ISO timestamp when the 24h cooldown expires; null if bot is ready to trade')
 })
 export const ListBotsResponse = zod.array(ListBotsResponseItem)
 
@@ -170,7 +171,8 @@ export const ToggleBotResponse = zod.object({
   "winRate": zod.number(),
   "totalTrades": zod.number(),
   "iconUrl": zod.string().nullish(),
-  "category": zod.string()
+  "category": zod.string(),
+  "cooldownUntil": zod.string().nullish().describe('ISO timestamp when the 24h cooldown expires; null if bot is ready to trade')
 })
 
 
@@ -211,6 +213,65 @@ export const PurchaseBotParams = zod.object({
 })
 
 export const PurchaseBotResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const GetVaultStatusResponse = zod.object({
+  "availableBalance": zod.number(),
+  "tiers": zod.array(zod.object({
+  "min": zod.number(),
+  "max": zod.number().nullable(),
+  "annualRate": zod.number()
+})),
+  "terms": zod.array(zod.number()),
+  "minAmount": zod.number(),
+  "active": zod.union([zod.object({
+  "id": zod.number(),
+  "amount": zod.number(),
+  "termDays": zod.number(),
+  "annualRate": zod.number(),
+  "rewardAmount": zod.number(),
+  "status": zod.string(),
+  "startedAt": zod.string(),
+  "maturesAt": zod.string(),
+  "redeemedAt": zod.string().nullish(),
+  "isMatured": zod.boolean(),
+  "daysElapsed": zod.number(),
+  "daysRemaining": zod.number(),
+  "progressPercent": zod.number(),
+  "accruedSoFar": zod.number()
+}),zod.null()]),
+  "history": zod.array(zod.object({
+  "id": zod.number(),
+  "amount": zod.number(),
+  "termDays": zod.number(),
+  "annualRate": zod.number(),
+  "rewardAmount": zod.number(),
+  "status": zod.string(),
+  "startedAt": zod.string(),
+  "maturesAt": zod.string(),
+  "redeemedAt": zod.string().nullish(),
+  "isMatured": zod.boolean(),
+  "daysElapsed": zod.number(),
+  "daysRemaining": zod.number(),
+  "progressPercent": zod.number(),
+  "accruedSoFar": zod.number()
+}))
+})
+
+
+export const CreateVaultInvestmentBody = zod.object({
+  "amount": zod.number(),
+  "termDays": zod.number()
+})
+
+export const CreateVaultInvestmentResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const RedeemVaultInvestmentResponse = zod.object({
   "message": zod.string()
 })
 
@@ -629,6 +690,15 @@ export const ListNotificationsResponseItem = zod.object({
   "createdAt": zod.string()
 })
 export const ListNotificationsResponse = zod.array(ListNotificationsResponseItem)
+
+
+export const DeleteNotificationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteNotificationResponse = zod.object({
+  "message": zod.string()
+})
 
 
 export const MarkNotificationReadParams = zod.object({
@@ -1223,6 +1293,25 @@ export const AdminBroadcastBody = zod.object({
 })
 
 export const AdminBroadcastResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const AdminListBroadcastsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "recipientCount": zod.number(),
+  "createdAt": zod.string()
+})
+export const AdminListBroadcastsResponse = zod.array(AdminListBroadcastsResponseItem)
+
+
+export const AdminDeleteBroadcastParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminDeleteBroadcastResponse = zod.object({
   "message": zod.string()
 })
 

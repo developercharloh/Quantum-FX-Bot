@@ -25602,27 +25602,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module.exports = Router14;
+    module.exports = Router15;
     module.exports.Route = Route;
-    function Router14(options) {
-      if (!(this instanceof Router14)) {
-        return new Router14(options);
+    function Router15(options) {
+      if (!(this instanceof Router15)) {
+        return new Router15(options);
       }
       const opts = options || {};
-      function router14(req, res, next) {
-        router14.handle(req, res, next);
+      function router15(req, res, next) {
+        router15.handle(req, res, next);
       }
-      Object.setPrototypeOf(router14, this);
-      router14.caseSensitive = opts.caseSensitive;
-      router14.mergeParams = opts.mergeParams;
-      router14.params = {};
-      router14.strict = opts.strict;
-      router14.stack = [];
-      return router14;
+      Object.setPrototypeOf(router15, this);
+      router15.caseSensitive = opts.caseSensitive;
+      router15.mergeParams = opts.mergeParams;
+      router15.params = {};
+      router15.strict = opts.strict;
+      router15.stack = [];
+      return router15;
     }
-    Router14.prototype = function() {
+    Router15.prototype = function() {
     };
-    Router14.prototype.param = function param(name, fn) {
+    Router15.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -25642,7 +25642,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router14.prototype.handle = function handle(req, res, callback) {
+    Router15.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -25769,7 +25769,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router14.prototype.use = function use(handler) {
+    Router15.prototype.use = function use(handler) {
       let offset = 0;
       let path3 = "/";
       if (typeof handler !== "function") {
@@ -25802,7 +25802,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router14.prototype.route = function route(path3) {
+    Router15.prototype.route = function route(path3) {
       const route2 = new Route(path3);
       const layer = new Layer(path3, {
         sensitive: this.caseSensitive,
@@ -25817,7 +25817,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router14.prototype[method] = function(path3) {
+      Router15.prototype[method] = function(path3) {
         const route = this.route(path3);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -26000,13 +26000,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils5().compileTrust;
     var resolve = __require("node:path").resolve;
     var once = require_once();
-    var Router14 = require_router();
+    var Router15 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router14 = null;
+      var router15 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -26015,13 +26015,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router14 === null) {
-            router14 = new Router14({
+          if (router15 === null) {
+            router15 = new Router15({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router14;
+          return router15;
         }
       });
     };
@@ -26092,15 +26092,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router14 = this.router;
+      var router15 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router14.use(path3, fn2);
+          return router15.use(path3, fn2);
         }
         debug(".use app under %s", path3);
         fn2.mountpath = path3;
         fn2.parent = this;
-        router14.use(path3, function mounted_app(req, res, next) {
+        router15.use(path3, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -28673,7 +28673,7 @@ var require_express = __commonJS({
     var EventEmitter = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router14 = require_router();
+    var Router15 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module.exports = createApplication;
@@ -28695,8 +28695,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router14.Route;
-    exports.Router = Router14;
+    exports.Route = Router15.Route;
+    exports.Router = Router15;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -45119,7 +45119,8 @@ __export(schema_exports, {
   transactionsTable: () => transactionsTable,
   userBotsTable: () => userBotsTable,
   userProfilesTable: () => userProfilesTable,
-  usersTable: () => usersTable
+  usersTable: () => usersTable,
+  vaultInvestmentsTable: () => vaultInvestmentsTable
 });
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/classic/external.js
@@ -56716,6 +56717,19 @@ var settingsTable = pgTable("settings", {
   paymentMethods: jsonb("payment_methods").$type().notNull().default([]),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
+var vaultInvestmentsTable = pgTable("vault_investments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  termDays: integer("term_days").notNull(),
+  annualRate: numeric("annual_rate", { precision: 5, scale: 2 }).notNull(),
+  rewardAmount: numeric("reward_amount", { precision: 12, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  maturesAt: timestamp("matures_at").notNull(),
+  redeemedAt: timestamp("redeemed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow()
+});
 
 // ../../lib/db/src/index.ts
 var { Pool: Pool3 } = esm_default;
@@ -56754,13 +56768,13 @@ async function runMigrations() {
 }
 
 // src/app.ts
-var import_express14 = __toESM(require_express2(), 1);
+var import_express15 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib5(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 import path2 from "node:path";
 
 // src/routes/index.ts
-var import_express13 = __toESM(require_express2(), 1);
+var import_express14 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -62288,7 +62302,8 @@ var ListBotsResponseItem = objectType({
   "winRate": numberType(),
   "totalTrades": numberType(),
   "iconUrl": stringType().nullish(),
-  "category": stringType()
+  "category": stringType(),
+  "cooldownUntil": stringType().nullish().describe("ISO timestamp when the 24h cooldown expires; null if bot is ready to trade")
 });
 var ListBotsResponse = arrayType(ListBotsResponseItem);
 var GetBotParams = objectType({
@@ -62318,7 +62333,8 @@ var ToggleBotResponse = objectType({
   "winRate": numberType(),
   "totalTrades": numberType(),
   "iconUrl": stringType().nullish(),
-  "category": stringType()
+  "category": stringType(),
+  "cooldownUntil": stringType().nullish().describe("ISO timestamp when the 24h cooldown expires; null if bot is ready to trade")
 });
 var GetBotAnalyticsParams = objectType({
   "id": coerce.number(),
@@ -62350,6 +62366,58 @@ var PurchaseBotParams = objectType({
   "id": coerce.number()
 });
 var PurchaseBotResponse = objectType({
+  "message": stringType()
+});
+var GetVaultStatusResponse = objectType({
+  "availableBalance": numberType(),
+  "tiers": arrayType(objectType({
+    "min": numberType(),
+    "max": numberType().nullable(),
+    "annualRate": numberType()
+  })),
+  "terms": arrayType(numberType()),
+  "minAmount": numberType(),
+  "active": unionType([objectType({
+    "id": numberType(),
+    "amount": numberType(),
+    "termDays": numberType(),
+    "annualRate": numberType(),
+    "rewardAmount": numberType(),
+    "status": stringType(),
+    "startedAt": stringType(),
+    "maturesAt": stringType(),
+    "redeemedAt": stringType().nullish(),
+    "isMatured": booleanType(),
+    "daysElapsed": numberType(),
+    "daysRemaining": numberType(),
+    "progressPercent": numberType(),
+    "accruedSoFar": numberType()
+  }), nullType()]),
+  "history": arrayType(objectType({
+    "id": numberType(),
+    "amount": numberType(),
+    "termDays": numberType(),
+    "annualRate": numberType(),
+    "rewardAmount": numberType(),
+    "status": stringType(),
+    "startedAt": stringType(),
+    "maturesAt": stringType(),
+    "redeemedAt": stringType().nullish(),
+    "isMatured": booleanType(),
+    "daysElapsed": numberType(),
+    "daysRemaining": numberType(),
+    "progressPercent": numberType(),
+    "accruedSoFar": numberType()
+  }))
+});
+var CreateVaultInvestmentBody = objectType({
+  "amount": numberType(),
+  "termDays": numberType()
+});
+var CreateVaultInvestmentResponse = objectType({
+  "message": stringType()
+});
+var RedeemVaultInvestmentResponse = objectType({
   "message": stringType()
 });
 var CreateDepositBody = objectType({
@@ -62693,6 +62761,12 @@ var ListNotificationsResponseItem = objectType({
   "createdAt": stringType()
 });
 var ListNotificationsResponse = arrayType(ListNotificationsResponseItem);
+var DeleteNotificationParams = objectType({
+  "id": coerce.number()
+});
+var DeleteNotificationResponse = objectType({
+  "message": stringType()
+});
 var MarkNotificationReadParams = objectType({
   "id": coerce.number()
 });
@@ -63192,6 +63266,20 @@ var AdminBroadcastBody = objectType({
   "message": stringType()
 });
 var AdminBroadcastResponse = objectType({
+  "message": stringType()
+});
+var AdminListBroadcastsResponseItem = objectType({
+  "id": numberType(),
+  "title": stringType(),
+  "message": stringType(),
+  "recipientCount": numberType(),
+  "createdAt": stringType()
+});
+var AdminListBroadcastsResponse = arrayType(AdminListBroadcastsResponseItem);
+var AdminDeleteBroadcastParams = objectType({
+  "id": coerce.number()
+});
+var AdminDeleteBroadcastResponse = objectType({
   "message": stringType()
 });
 
@@ -65318,8 +65406,8 @@ async function getAvailableBalance(userId) {
   for (const t2 of txns) {
     const amt = parseFloat(t2.amount);
     if (t2.status === "completed") {
-      if (t2.type === "deposit" || t2.type === "trade_profit") balance += amt;
-      if (t2.type === "withdrawal" || t2.type === "trade_loss" || t2.type === "bot_purchase") balance -= amt;
+      if (t2.type === "deposit" || t2.type === "trade_profit" || t2.type === "vault_reward") balance += amt;
+      if (t2.type === "withdrawal" || t2.type === "trade_loss" || t2.type === "bot_purchase" || t2.type === "vault_lock") balance -= amt;
     }
     if (t2.status === "pending" && t2.type === "withdrawal") balance -= amt;
   }
@@ -67492,24 +67580,168 @@ router12.post("/webhooks/didit", async (req, res) => {
 });
 var webhooks_default = router12;
 
-// src/routes/index.ts
+// src/routes/vault.ts
+var import_express13 = __toESM(require_express2(), 1);
 var router13 = (0, import_express13.Router)();
-router13.use(health_default);
-router13.use(auth_default);
-router13.use(dashboard_default);
-router13.use(bots_default);
-router13.use(cashier_default);
-router13.use(trade_default);
-router13.use(team_default);
-router13.use(profile_default);
-router13.use(notifications_default);
-router13.use(support_default);
-router13.use(admin_default);
-router13.use(webhooks_default);
-var routes_default = router13;
+var TIERS = [
+  { min: 100, max: 9999, annualRate: 4.5 },
+  { min: 1e4, max: 49999, annualRate: 6 },
+  { min: 5e4, max: 99999, annualRate: 8 },
+  { min: 1e5, max: null, annualRate: 12 }
+];
+var TERMS = [7, 30, 90, 180, 365];
+var MIN_AMOUNT = 100;
+function rateForAmount(amount) {
+  const tier = TIERS.find((t2) => amount >= t2.min && (t2.max === null || amount <= t2.max));
+  return tier ? tier.annualRate : null;
+}
+async function getUserFromToken9(token) {
+  if (!token) return null;
+  const sessions = await db.select().from(sessionsTable).where(eq(sessionsTable.token, token)).limit(1);
+  if (sessions.length === 0) return null;
+  const users = await db.select().from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
+  return users[0] ?? null;
+}
+function serializeInvestment(inv) {
+  const now = Date.now();
+  const started = inv.startedAt.getTime();
+  const matures = inv.maturesAt.getTime();
+  const totalMs = Math.max(matures - started, 1);
+  const elapsedMs = Math.min(Math.max(now - started, 0), totalMs);
+  const progressPercent = Math.round(elapsedMs / totalMs * 1e4) / 100;
+  const daysElapsed = Math.min(inv.termDays, Math.floor(elapsedMs / (24 * 60 * 60 * 1e3)));
+  const daysRemaining = Math.max(inv.termDays - daysElapsed, 0);
+  const rewardAmount = parseFloat(inv.rewardAmount);
+  const isMatured = now >= matures;
+  const accruedSoFar = inv.status === "redeemed" ? rewardAmount : parseFloat((rewardAmount * (elapsedMs / totalMs)).toFixed(2));
+  return {
+    id: inv.id,
+    amount: parseFloat(inv.amount),
+    termDays: inv.termDays,
+    annualRate: parseFloat(inv.annualRate),
+    rewardAmount,
+    status: inv.status,
+    startedAt: inv.startedAt.toISOString(),
+    maturesAt: inv.maturesAt.toISOString(),
+    redeemedAt: inv.redeemedAt ? inv.redeemedAt.toISOString() : null,
+    isMatured,
+    daysElapsed,
+    daysRemaining,
+    progressPercent,
+    accruedSoFar
+  };
+}
+router13.get("/vault/status", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken9(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const investments = await db.select().from(vaultInvestmentsTable).where(eq(vaultInvestmentsTable.userId, user.id)).orderBy(desc(vaultInvestmentsTable.createdAt));
+  const active = investments.find((i2) => i2.status === "active");
+  const history = investments.filter((i2) => i2.status !== "active");
+  const availableBalance = await getAvailableBalance(user.id);
+  return res.json({
+    availableBalance,
+    tiers: TIERS,
+    terms: TERMS,
+    minAmount: MIN_AMOUNT,
+    active: active ? serializeInvestment(active) : null,
+    history: history.map(serializeInvestment)
+  });
+});
+router13.post("/vault/invest", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken9(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const amount = parseFloat(req.body?.amount);
+  const termDays = parseInt(req.body?.termDays);
+  if (!Number.isFinite(amount) || amount < MIN_AMOUNT) {
+    return res.status(400).json({ error: `Minimum investment is $${MIN_AMOUNT}.` });
+  }
+  if (!TERMS.includes(termDays)) {
+    return res.status(400).json({ error: "Invalid term selected." });
+  }
+  const existing = await db.select().from(vaultInvestmentsTable).where(and(eq(vaultInvestmentsTable.userId, user.id), eq(vaultInvestmentsTable.status, "active"))).limit(1);
+  if (existing.length > 0) {
+    return res.status(400).json({ error: "You already have an active Quantum Vault investment. Redeem it before starting a new one." });
+  }
+  const annualRate = rateForAmount(amount);
+  if (annualRate === null) {
+    return res.status(400).json({ error: "Amount does not match any Quantum Vault tier." });
+  }
+  const available = await getAvailableBalance(user.id);
+  if (available < amount) {
+    return res.status(400).json({ error: `Insufficient balance. You need $${amount.toFixed(2)} but have $${available.toFixed(2)}.` });
+  }
+  const rewardAmount = parseFloat((amount * (annualRate / 100) * (termDays / 365)).toFixed(2));
+  const startedAt = /* @__PURE__ */ new Date();
+  const maturesAt = new Date(startedAt.getTime() + termDays * 24 * 60 * 60 * 1e3);
+  await db.insert(vaultInvestmentsTable).values({
+    userId: user.id,
+    amount: amount.toFixed(2),
+    termDays,
+    annualRate: annualRate.toFixed(2),
+    rewardAmount: rewardAmount.toFixed(2),
+    status: "active",
+    startedAt,
+    maturesAt
+  });
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "vault_lock",
+    amount: amount.toFixed(2),
+    status: "completed",
+    paymentMethod: "balance",
+    description: `Quantum Vault: ${termDays}-day investment locked`
+  });
+  return res.json({ message: "Quantum Vault investment started." });
+});
+router13.post("/vault/redeem", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken9(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const rows = await db.select().from(vaultInvestmentsTable).where(and(eq(vaultInvestmentsTable.userId, user.id), eq(vaultInvestmentsTable.status, "active"))).limit(1);
+  if (rows.length === 0) {
+    return res.status(400).json({ error: "No active Quantum Vault investment found." });
+  }
+  const inv = rows[0];
+  if (Date.now() < inv.maturesAt.getTime()) {
+    return res.status(400).json({ error: "This investment has not matured yet." });
+  }
+  await db.update(vaultInvestmentsTable).set({
+    status: "redeemed",
+    redeemedAt: /* @__PURE__ */ new Date()
+  }).where(eq(vaultInvestmentsTable.id, inv.id));
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "vault_reward",
+    amount: inv.rewardAmount,
+    status: "completed",
+    paymentMethod: "balance",
+    description: `Quantum Vault: ${inv.termDays}-day reward redeemed`
+  });
+  return res.json({ message: "Rewards redeemed to your main balance." });
+});
+var vault_default = router13;
+
+// src/routes/index.ts
+var router14 = (0, import_express14.Router)();
+router14.use(health_default);
+router14.use(auth_default);
+router14.use(dashboard_default);
+router14.use(bots_default);
+router14.use(cashier_default);
+router14.use(trade_default);
+router14.use(team_default);
+router14.use(profile_default);
+router14.use(notifications_default);
+router14.use(support_default);
+router14.use(admin_default);
+router14.use(webhooks_default);
+router14.use(vault_default);
+var routes_default = router14;
 
 // src/app.ts
-var app = (0, import_express14.default)();
+var app = (0, import_express15.default)();
 app.get("/api/healthz", (_req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.end('{"status":"ok"}');
@@ -67534,19 +67766,19 @@ app.use(
   })
 );
 app.use((0, import_cors.default)());
-app.use(import_express14.default.json({
+app.use(import_express15.default.json({
   verify: (_req, _res, buf) => {
     _req.rawBody = buf;
   }
 }));
-app.use(import_express14.default.urlencoded({ extended: true }));
+app.use(import_express15.default.urlencoded({ extended: true }));
 app.use("/api", routes_default);
 if (process.env.SERVE_CLIENT === "true") {
   const clientDist = path2.resolve(
     process.cwd(),
     process.env.CLIENT_DIST ?? "artifacts/quantum-fx-bot/dist/public"
   );
-  app.use(import_express14.default.static(clientDist));
+  app.use(import_express15.default.static(clientDist));
   app.use((req, res, next) => {
     if (req.method !== "GET" || req.path.startsWith("/api") || req.path.startsWith("/admin-app")) {
       return next();
@@ -67560,7 +67792,7 @@ if (process.env.SERVE_ADMIN === "true") {
     process.cwd(),
     process.env.ADMIN_DIST ?? "artifacts/admin-app/dist/public"
   );
-  app.use("/admin-app", import_express14.default.static(adminDist));
+  app.use("/admin-app", import_express15.default.static(adminDist));
   app.use("/admin-app", (_req, res) => {
     res.sendFile(path2.join(adminDist, "index.html"));
   });

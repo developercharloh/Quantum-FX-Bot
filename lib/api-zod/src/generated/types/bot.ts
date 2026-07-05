@@ -16,4 +16,9 @@ export interface Bot {
   /** @nullable */
   iconUrl?: string | null;
   category: string;
+  /**
+     * ISO timestamp when the 24h cooldown expires; null if bot is ready to trade
+     * @nullable
+     */
+  cooldownUntil?: string | null;
 }
