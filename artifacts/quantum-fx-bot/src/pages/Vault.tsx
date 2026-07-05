@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { ChevronLeft, Gift, Lock, CheckCircle2, ShieldCheck, TrendingUp, BadgeCheck } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -16,6 +16,16 @@ function formatMoney(n: number) {
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function formatCountdown(maturesAt: string, now: number): string {
+  const remainingMs = new Date(maturesAt).getTime() - now;
+  if (remainingMs <= 0) return "Matured";
+  const totalHours = Math.floor(remainingMs / (60 * 60 * 1000));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  if (days === 0) return `${hours}h left`;
+  return `${days}d ${hours}h left`;
+}
+
 export default function Vault() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -23,6 +33,12 @@ export default function Vault() {
   const { data, isLoading } = useGetVaultStatus();
   const [amount, setAmount] = useState("");
   const [termDays, setTermDays] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getGetVaultStatusQueryKey() });
 
@@ -145,7 +161,9 @@ export default function Vault() {
             </div>
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Day {data.active.daysElapsed} of {data.active.termDays}</span>
-              <span>{data.active.isMatured ? "Matured" : `${data.active.daysRemaining} days left`}</span>
+              <span className={data.active.isMatured ? "text-emerald-500 font-medium" : ""}>
+                {data.active.isMatured ? "Matured — ready to redeem" : formatCountdown(data.active.maturesAt, now)}
+              </span>
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-border/40">
