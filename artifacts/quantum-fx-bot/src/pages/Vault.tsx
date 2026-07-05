@@ -277,7 +277,7 @@ export default function Vault() {
             </Button>
 
             <div className="pt-2 border-t border-border/40 flex flex-col gap-1.5">
-              <p className="text-xs text-muted-foreground mb-1">Reward tiers</p>
+              <p className="text-xs text-muted-foreground mb-1">Daily Return Rates</p>
               {data.tiers.map((t, i) => (
                 <div key={i} className="flex justify-between text-xs">
                   <span>{formatMoney(t.min)}{t.max ? ` – ${formatMoney(t.max)}` : "+"}</span>
