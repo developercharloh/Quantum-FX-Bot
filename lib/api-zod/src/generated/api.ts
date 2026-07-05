@@ -285,6 +285,22 @@ export const RedeemVaultInvestmentResponse = zod.object({
 })
 
 
+export const FundVaultWalletBody = zod.object({
+  "amount": zod.number()
+})
+
+export const FundVaultWalletResponse = zod.object({
+  "message": zod.string(),
+  "fundedAmount": zod.number(),
+  "availableBalance": zod.number(),
+  "vaultWalletBalance": zod.number()
+})
+
+
+export const TransferVaultWalletBody = zod.object({
+  "amount": zod.number().optional()
+})
+
 export const TransferVaultWalletResponse = zod.object({
   "message": zod.string(),
   "transferredAmount": zod.number(),

@@ -239,6 +239,21 @@ export interface VaultRedeemResponse {
   totalCredited: number;
 }
 
+export interface VaultFundInput {
+  amount: number;
+}
+
+export interface VaultFundResponse {
+  message: string;
+  fundedAmount: number;
+  availableBalance: number;
+  vaultWalletBalance: number;
+}
+
+export interface VaultTransferInput {
+  amount?: number;
+}
+
 export interface VaultTransferResponse {
   message: string;
   transferredAmount: number;

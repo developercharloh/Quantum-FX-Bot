@@ -8,6 +8,7 @@ import {
   useGetVaultStatus,
   useCreateVaultInvestment,
   useRedeemVaultInvestment,
+  useFundVaultWallet,
   useTransferVaultWallet,
   getGetVaultStatusQueryKey,
 } from "@workspace/api-client-react";
@@ -38,6 +39,8 @@ export default function Vault() {
   const [now, setNow] = useState(() => Date.now());
   const [congrats, setCongrats] = useState<{ principal: number; reward: number; total: number } | null>(null);
   const [transferred, setTransferred] = useState<{ amount: number } | null>(null);
+  const [showFund, setShowFund] = useState(false);
+  const [fundAmount, setFundAmount] = useState("");
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 60_000);
@@ -88,6 +91,23 @@ export default function Vault() {
     },
   });
 
+  const fundMutation = useFundVaultWallet({
+    mutation: {
+      onSuccess: (res: any) => {
+        toast({
+          title: "Vault Wallet funded",
+          description: `${formatMoney(res?.fundedAmount ?? 0)} transferred from your Main Wallet.`,
+        });
+        setShowFund(false);
+        setFundAmount("");
+        invalidate();
+      },
+      onError: (err: any) => {
+        toast({ title: "Could not transfer", description: err?.message ?? "Something went wrong.", variant: "destructive" });
+      },
+    },
+  });
+
   const numericAmount = parseFloat(amount);
   const matchedTier = data?.tiers.find(
     (t) => Number.isFinite(numericAmount) && numericAmount >= t.min && (t.max == null || numericAmount <= t.max)
@@ -104,6 +124,12 @@ export default function Vault() {
           .sort((a, b) => a - b)
           .map((day) => ({ day, cumulative: dailyReward * day }))
       : [];
+
+  const vaultWalletBalance = data?.vaultWalletBalance ?? 0;
+  const insufficientVaultFunds =
+    Number.isFinite(numericAmount) && numericAmount > 0 && numericAmount > vaultWalletBalance;
+  const shortfall = insufficientVaultFunds ? numericAmount - vaultWalletBalance : 0;
+  const numericFundAmount = parseFloat(fundAmount);
 
   return (
     <Layout>
@@ -155,24 +181,76 @@ export default function Vault() {
           <div className="text-center text-sm text-muted-foreground py-6">Loading Quantum Vault...</div>
         )}
 
-        {data && data.vaultWalletBalance > 0 && (
+        {data && (
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold flex items-center gap-1.5">
                 <Gift className="w-4 h-4 text-emerald-500" /> Vault Wallet
               </span>
+              <span className="text-xs text-muted-foreground">Main Wallet: {formatMoney(data.availableBalance)}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Redeemed funds sit here until you transfer them to your Spot Wallet for trading.
+              A separate wallet used only to hold and invest in the Quantum Vault. Funds here
+              can't be used for trading until you transfer them to your Main Wallet.
             </p>
-            <p className="text-xl font-bold text-emerald-500">{formatMoney(data.vaultWalletBalance)}</p>
-            <Button
-              onClick={() => transferMutation.mutate()}
-              disabled={transferMutation.isPending}
-              className="w-full"
+            <p className="text-xl font-bold text-emerald-500">{formatMoney(vaultWalletBalance)}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowFund(true)}
+                className="w-full"
+              >
+                Fund from Main Wallet
+              </Button>
+              <Button
+                onClick={() => transferMutation.mutate({ data: {} })}
+                disabled={vaultWalletBalance <= 0 || transferMutation.isPending}
+                className="w-full"
+              >
+                Transfer to Main Wallet
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {showFund && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6" onClick={() => setShowFund(false)}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl bg-card border border-emerald-500/30 p-6 flex flex-col gap-3"
             >
-              Transfer to Spot Wallet
-            </Button>
+              <h2 className="text-lg font-bold">Fund Vault Wallet</h2>
+              <p className="text-sm text-muted-foreground">
+                Move funds from your Main Wallet ({formatMoney(data?.availableBalance ?? 0)} available) into your
+                Vault Wallet so you can hold/invest in the Quantum Vault.
+              </p>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
+                placeholder="Amount"
+                className="h-11 rounded-xl bg-muted/50 border border-border/40 px-3 text-sm outline-none focus:border-emerald-500/60"
+              />
+              <Button
+                className="w-full"
+                disabled={
+                  !Number.isFinite(numericFundAmount) ||
+                  numericFundAmount <= 0 ||
+                  numericFundAmount > (data?.availableBalance ?? 0) ||
+                  fundMutation.isPending
+                }
+                onClick={() => fundMutation.mutate({ data: { amount: numericFundAmount } })}
+              >
+                Transfer to Vault Wallet
+              </Button>
+              <button
+                className="text-xs text-muted-foreground underline underline-offset-2 self-center"
+                onClick={() => setShowFund(false)}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 
@@ -262,7 +340,7 @@ export default function Vault() {
               <h2 className="text-lg font-bold">Congratulations! 🎉</h2>
               <p className="text-sm text-muted-foreground">
                 Your Vault investment has matured. Your principal and rewards have been added to your Vault Wallet.
-                Transfer them to your Spot Wallet to use them for trading.
+                Transfer them to your Main Wallet to use them for trading.
               </p>
               <div className="w-full rounded-xl bg-muted/40 p-3 flex flex-col gap-1.5 text-sm">
                 <div className="flex justify-between">
@@ -282,10 +360,10 @@ export default function Vault() {
                 className="w-full mt-1"
                 onClick={() => {
                   setCongrats(null);
-                  transferMutation.mutate();
+                  transferMutation.mutate({ data: {} });
                 }}
               >
-                Transfer to Spot Wallet
+                Transfer to Main Wallet
               </Button>
               <button
                 className="text-xs text-muted-foreground underline underline-offset-2"
@@ -306,7 +384,7 @@ export default function Vault() {
               <CheckCircle2 className="w-10 h-10 text-emerald-500" />
               <h2 className="text-lg font-bold">Transfer Complete</h2>
               <p className="text-sm text-muted-foreground">
-                {formatMoney(transferred.amount)} has been moved from your Vault Wallet to your Spot Wallet and is now available for trading.
+                {formatMoney(transferred.amount)} has been moved from your Vault Wallet to your Main Wallet and is now available for trading.
               </p>
               <Button className="w-full mt-1" onClick={() => setTransferred(null)}>
                 Great, thanks!
@@ -401,11 +479,30 @@ export default function Vault() {
             )}
 
             <p className="text-xs text-muted-foreground">
-              Available balance: {formatMoney(data.availableBalance)}
+              Vault Wallet balance: {formatMoney(vaultWalletBalance)}
             </p>
 
+            {insufficientVaultFunds && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 flex flex-col gap-2">
+                <p className="text-xs text-red-400">
+                  Insufficient funds in your Vault Wallet. Transfer {formatMoney(shortfall)} more from your Main
+                  Wallet to activate this investment.
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setFundAmount(shortfall.toFixed(2));
+                    setShowFund(true);
+                  }}
+                >
+                  Fund {formatMoney(shortfall)} from Main Wallet
+                </Button>
+              </div>
+            )}
+
             <Button
-              disabled={!matchedTier || !termDays || investMutation.isPending}
+              disabled={!matchedTier || !termDays || insufficientVaultFunds || investMutation.isPending}
               onClick={() =>
                 investMutation.mutate({
                   data: { amount: numericAmount, termDays: termDays!, ...(testMode ? { testMode: true } : {}) },

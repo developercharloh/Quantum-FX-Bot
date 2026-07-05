@@ -395,13 +395,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /vault/fund:
+    post:
+      operationId: fundVaultWallet
+      tags: [vault]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultFundInput"
+      responses:
+        "200":
+          description: Main wallet funds transferred to vault wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultFundResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /vault/transfer:
     post:
       operationId: transferVaultWallet
       tags: [vault]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultTransferInput"
       responses:
         "200":
-          description: Vault wallet funds transferred to spot wallet
+          description: Vault wallet funds transferred to main wallet
           content:
             application/json:
               schema:
@@ -2031,6 +2061,32 @@ components:
         totalCredited:
           type: number
       required: [message, principalAmount, rewardAmount, totalCredited]
+
+    VaultFundInput:
+      type: object
+      properties:
+        amount:
+          type: number
+      required: [amount]
+
+    VaultFundResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        fundedAmount:
+          type: number
+        availableBalance:
+          type: number
+        vaultWalletBalance:
+          type: number
+      required: [message, fundedAmount, availableBalance, vaultWalletBalance]
+
+    VaultTransferInput:
+      type: object
+      properties:
+        amount:
+          type: number
 
     VaultTransferResponse:
       type: object

@@ -62370,6 +62370,7 @@ var PurchaseBotResponse = objectType({
 });
 var GetVaultStatusResponse = objectType({
   "availableBalance": numberType(),
+  "vaultWalletBalance": numberType(),
   "tiers": arrayType(objectType({
     "min": numberType(),
     "max": numberType().nullable(),
@@ -62412,13 +62413,38 @@ var GetVaultStatusResponse = objectType({
 });
 var CreateVaultInvestmentBody = objectType({
   "amount": numberType(),
-  "termDays": numberType()
+  "termDays": numberType(),
+  "testMode": booleanType().optional()
 });
 var CreateVaultInvestmentResponse = objectType({
   "message": stringType()
 });
+var RedeemVaultInvestmentBody = objectType({
+  "force": booleanType().optional()
+});
 var RedeemVaultInvestmentResponse = objectType({
-  "message": stringType()
+  "message": stringType(),
+  "principalAmount": numberType(),
+  "rewardAmount": numberType(),
+  "totalCredited": numberType()
+});
+var FundVaultWalletBody = objectType({
+  "amount": numberType()
+});
+var FundVaultWalletResponse = objectType({
+  "message": stringType(),
+  "fundedAmount": numberType(),
+  "availableBalance": numberType(),
+  "vaultWalletBalance": numberType()
+});
+var TransferVaultWalletBody = objectType({
+  "amount": numberType().optional()
+});
+var TransferVaultWalletResponse = objectType({
+  "message": stringType(),
+  "transferredAmount": numberType(),
+  "availableBalance": numberType(),
+  "vaultWalletBalance": numberType()
 });
 var CreateDepositBody = objectType({
   "amount": numberType(),
@@ -65406,10 +65432,20 @@ async function getAvailableBalance(userId) {
   for (const t2 of txns) {
     const amt = parseFloat(t2.amount);
     if (t2.status === "completed") {
-      if (t2.type === "deposit" || t2.type === "trade_profit" || t2.type === "vault_reward") balance += amt;
-      if (t2.type === "withdrawal" || t2.type === "trade_loss" || t2.type === "bot_purchase" || t2.type === "vault_lock") balance -= amt;
+      if (t2.type === "deposit" || t2.type === "trade_profit" || t2.type === "vault_transfer") balance += amt;
+      if (t2.type === "withdrawal" || t2.type === "trade_loss" || t2.type === "bot_purchase" || t2.type === "vault_fund") balance -= amt;
     }
     if (t2.status === "pending" && t2.type === "withdrawal") balance -= amt;
+  }
+  return balance;
+}
+async function getVaultWalletBalance(userId) {
+  const txns = await db.select().from(transactionsTable).where(and(eq(transactionsTable.userId, userId), eq(transactionsTable.status, "completed")));
+  let balance = 0;
+  for (const t2 of txns) {
+    const amt = parseFloat(t2.amount);
+    if (t2.type === "vault_fund" || t2.type === "vault_unlock" || t2.type === "vault_reward") balance += amt;
+    if (t2.type === "vault_lock" || t2.type === "vault_transfer") balance -= amt;
   }
   return balance;
 }
@@ -67591,6 +67627,7 @@ var TIERS = [
 ];
 var TERMS = [7, 30, 90, 180, 365];
 var MIN_AMOUNT = 100;
+var TEST_DURATION_MS = 60 * 1e3;
 function rateForAmount(amount) {
   const tier = TIERS.find((t2) => amount >= t2.min && (t2.max === null || amount <= t2.max));
   return tier ? tier.dailyRate : null;
@@ -67639,8 +67676,10 @@ router13.get("/vault/status", async (req, res) => {
   const active = investments.find((i2) => i2.status === "active");
   const history = investments.filter((i2) => i2.status !== "active");
   const availableBalance = await getAvailableBalance(user.id);
+  const vaultWalletBalance = await getVaultWalletBalance(user.id);
   return res.json({
     availableBalance,
+    vaultWalletBalance,
     tiers: TIERS,
     terms: TERMS,
     minAmount: MIN_AMOUNT,
@@ -67654,6 +67693,7 @@ router13.post("/vault/invest", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   const amount = parseFloat(req.body?.amount);
   const termDays = parseInt(req.body?.termDays);
+  const testMode = req.body?.testMode === true;
   if (!Number.isFinite(amount) || amount < MIN_AMOUNT) {
     return res.status(400).json({ error: `Minimum investment is $${MIN_AMOUNT}.` });
   }
@@ -67668,13 +67708,16 @@ router13.post("/vault/invest", async (req, res) => {
   if (dailyRate === null) {
     return res.status(400).json({ error: "Amount does not match any Quantum Vault tier." });
   }
-  const available = await getAvailableBalance(user.id);
-  if (available < amount) {
-    return res.status(400).json({ error: `Insufficient balance. You need $${amount.toFixed(2)} but have $${available.toFixed(2)}.` });
+  const vaultWalletBalance = await getVaultWalletBalance(user.id);
+  if (vaultWalletBalance < amount) {
+    return res.status(400).json({
+      error: `Insufficient funds in your Vault Wallet. You need $${amount.toFixed(2)} but have $${vaultWalletBalance.toFixed(2)}. Transfer funds from your Main Wallet to your Vault Wallet first.`
+    });
   }
   const rewardAmount = parseFloat((amount * (dailyRate / 100) * termDays).toFixed(2));
   const startedAt = /* @__PURE__ */ new Date();
-  const maturesAt = new Date(startedAt.getTime() + termDays * 24 * 60 * 60 * 1e3);
+  const durationMs = testMode ? TEST_DURATION_MS : termDays * 24 * 60 * 60 * 1e3;
+  const maturesAt = new Date(startedAt.getTime() + durationMs);
   await db.insert(vaultInvestmentsTable).values({
     userId: user.id,
     amount: amount.toFixed(2),
@@ -67699,12 +67742,13 @@ router13.post("/vault/redeem", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   const user = await getUserFromToken9(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const force = req.body?.force === true;
   const rows = await db.select().from(vaultInvestmentsTable).where(and(eq(vaultInvestmentsTable.userId, user.id), eq(vaultInvestmentsTable.status, "active"))).limit(1);
   if (rows.length === 0) {
     return res.status(400).json({ error: "No active Quantum Vault investment found." });
   }
   const inv = rows[0];
-  if (Date.now() < inv.maturesAt.getTime()) {
+  if (!force && Date.now() < inv.maturesAt.getTime()) {
     return res.status(400).json({ error: "This investment has not matured yet." });
   }
   await db.update(vaultInvestmentsTable).set({
@@ -67713,13 +67757,85 @@ router13.post("/vault/redeem", async (req, res) => {
   }).where(eq(vaultInvestmentsTable.id, inv.id));
   await db.insert(transactionsTable).values({
     userId: user.id,
+    type: "vault_unlock",
+    amount: inv.amount,
+    status: "completed",
+    paymentMethod: "balance",
+    description: `Quantum Vault: ${inv.termDays}-day principal returned to Vault Wallet`
+  });
+  await db.insert(transactionsTable).values({
+    userId: user.id,
     type: "vault_reward",
     amount: inv.rewardAmount,
     status: "completed",
     paymentMethod: "balance",
-    description: `Quantum Vault: ${inv.termDays}-day reward redeemed`
+    description: `Quantum Vault: ${inv.termDays}-day reward credited to Vault Wallet`
   });
-  return res.json({ message: "Rewards redeemed to your main balance." });
+  const totalCredited = parseFloat(inv.amount) + parseFloat(inv.rewardAmount);
+  return res.json({
+    message: "Investment redeemed \u2014 principal and rewards added to your Vault Wallet. Transfer to your Spot Wallet to use them.",
+    principalAmount: parseFloat(inv.amount),
+    rewardAmount: parseFloat(inv.rewardAmount),
+    totalCredited
+  });
+});
+router13.post("/vault/fund", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken9(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const amount = parseFloat(req.body?.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({ error: "Enter a valid amount to transfer." });
+  }
+  const availableBalance = await getAvailableBalance(user.id);
+  if (availableBalance < amount) {
+    return res.status(400).json({
+      error: `Insufficient balance in your Main Wallet. You need $${amount.toFixed(2)} but have $${availableBalance.toFixed(2)}.`
+    });
+  }
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "vault_fund",
+    amount: amount.toFixed(2),
+    status: "completed",
+    paymentMethod: "balance",
+    description: "Main Wallet: transferred to Vault Wallet"
+  });
+  return res.json({
+    message: "Funds transferred to your Vault Wallet.",
+    fundedAmount: parseFloat(amount.toFixed(2)),
+    availableBalance: await getAvailableBalance(user.id),
+    vaultWalletBalance: await getVaultWalletBalance(user.id)
+  });
+});
+router13.post("/vault/transfer", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken9(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const vaultWalletBalance = await getVaultWalletBalance(user.id);
+  const requestedAmount = req.body?.amount != null ? parseFloat(req.body.amount) : vaultWalletBalance;
+  if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+    return res.status(400).json({ error: "Enter a valid amount to transfer." });
+  }
+  if (requestedAmount > vaultWalletBalance) {
+    return res.status(400).json({
+      error: `Insufficient funds in your Vault Wallet. You have $${vaultWalletBalance.toFixed(2)} available.`
+    });
+  }
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "vault_transfer",
+    amount: requestedAmount.toFixed(2),
+    status: "completed",
+    paymentMethod: "balance",
+    description: "Vault Wallet: transferred to Main Wallet"
+  });
+  return res.json({
+    message: "Funds transferred to your Main Wallet.",
+    transferredAmount: parseFloat(requestedAmount.toFixed(2)),
+    availableBalance: await getAvailableBalance(user.id),
+    vaultWalletBalance: await getVaultWalletBalance(user.id)
+  });
 });
 var vault_default = router13;
 

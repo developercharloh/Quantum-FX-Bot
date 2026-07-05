@@ -115,9 +115,13 @@ router.post("/vault/invest", async (req, res) => {
     return res.status(400).json({ error: "Amount does not match any Quantum Vault tier." });
   }
 
-  const available = await getAvailableBalance(user.id);
-  if (available < amount) {
-    return res.status(400).json({ error: `Insufficient balance. You need $${amount.toFixed(2)} but have $${available.toFixed(2)}.` });
+  // Investments are funded exclusively from the Vault Wallet — never directly
+  // from the Main (Spot) Wallet. Users must transfer funds in via /vault/fund first.
+  const vaultWalletBalance = await getVaultWalletBalance(user.id);
+  if (vaultWalletBalance < amount) {
+    return res.status(400).json({
+      error: `Insufficient funds in your Vault Wallet. You need $${amount.toFixed(2)} but have $${vaultWalletBalance.toFixed(2)}. Transfer funds from your Main Wallet to your Vault Wallet first.`,
+    });
   }
 
   const rewardAmount = parseFloat((amount * (dailyRate / 100) * termDays).toFixed(2));
@@ -173,14 +177,14 @@ router.post("/vault/redeem", async (req, res) => {
     redeemedAt: new Date(),
   }).where(eq(vaultInvestmentsTable.id, inv.id));
 
-  // Redeemed funds land in the Vault Wallet (status "vault_hold"), NOT the main
-  // balance — they cannot be used for trading, withdrawals, or new investments
-  // until the user explicitly transfers them via /vault/transfer.
+  // Redeemed funds land in the Vault Wallet, NOT the Main Wallet — they cannot be
+  // used for trading, withdrawals, or new investments until the user explicitly
+  // transfers them to the Main Wallet via /vault/transfer.
   await db.insert(transactionsTable).values({
     userId: user.id,
     type: "vault_unlock",
     amount: inv.amount,
-    status: "vault_hold",
+    status: "completed",
     paymentMethod: "balance",
     description: `Quantum Vault: ${inv.termDays}-day principal returned to Vault Wallet`,
   });
@@ -189,7 +193,7 @@ router.post("/vault/redeem", async (req, res) => {
     userId: user.id,
     type: "vault_reward",
     amount: inv.rewardAmount,
-    status: "vault_hold",
+    status: "completed",
     paymentMethod: "balance",
     description: `Quantum Vault: ${inv.termDays}-day reward credited to Vault Wallet`,
   });
@@ -204,42 +208,76 @@ router.post("/vault/redeem", async (req, res) => {
   });
 });
 
+// Main (Spot) Wallet -> Vault Wallet. Required before a user can hold/invest in
+// the Quantum Vault — investments are always funded from the Vault Wallet, never
+// directly from the Main Wallet.
+router.post("/vault/fund", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const amount = parseFloat(req.body?.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({ error: "Enter a valid amount to transfer." });
+  }
+
+  const availableBalance = await getAvailableBalance(user.id);
+  if (availableBalance < amount) {
+    return res.status(400).json({
+      error: `Insufficient balance in your Main Wallet. You need $${amount.toFixed(2)} but have $${availableBalance.toFixed(2)}.`,
+    });
+  }
+
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "vault_fund",
+    amount: amount.toFixed(2),
+    status: "completed",
+    paymentMethod: "balance",
+    description: "Main Wallet: transferred to Vault Wallet",
+  });
+
+  return res.json({
+    message: "Funds transferred to your Vault Wallet.",
+    fundedAmount: parseFloat(amount.toFixed(2)),
+    availableBalance: await getAvailableBalance(user.id),
+    vaultWalletBalance: await getVaultWalletBalance(user.id),
+  });
+});
+
+// Vault Wallet -> Main (Spot) Wallet. Required before redeemed/idle Vault Wallet
+// funds can be used for trading, withdrawals, or bot purchases.
 router.post("/vault/transfer", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const holdRows = await db.select().from(transactionsTable)
-    .where(and(eq(transactionsTable.userId, user.id), eq(transactionsTable.status, "vault_hold")));
+  const vaultWalletBalance = await getVaultWalletBalance(user.id);
+  const requestedAmount = req.body?.amount != null ? parseFloat(req.body.amount) : vaultWalletBalance;
 
-  const transferable = holdRows.filter((t) => t.type === "vault_unlock" || t.type === "vault_reward");
-  const transferAmount = transferable.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-  if (transferable.length === 0 || transferAmount <= 0) {
-    return res.status(400).json({ error: "No funds available in your Vault Wallet to transfer." });
+  if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+    return res.status(400).json({ error: "Enter a valid amount to transfer." });
   }
-
-  for (const t of transferable) {
-    await db.update(transactionsTable).set({ status: "transferred" }).where(eq(transactionsTable.id, t.id));
+  if (requestedAmount > vaultWalletBalance) {
+    return res.status(400).json({
+      error: `Insufficient funds in your Vault Wallet. You have $${vaultWalletBalance.toFixed(2)} available.`,
+    });
   }
 
   await db.insert(transactionsTable).values({
     userId: user.id,
     type: "vault_transfer",
-    amount: transferAmount.toFixed(2),
+    amount: requestedAmount.toFixed(2),
     status: "completed",
     paymentMethod: "balance",
-    description: "Vault Wallet: transferred to Spot Wallet",
+    description: "Vault Wallet: transferred to Main Wallet",
   });
 
-  const availableBalance = await getAvailableBalance(user.id);
-  const vaultWalletBalance = await getVaultWalletBalance(user.id);
-
   return res.json({
-    message: "Funds transferred to your Spot Wallet.",
-    transferredAmount: parseFloat(transferAmount.toFixed(2)),
-    availableBalance,
-    vaultWalletBalance,
+    message: "Funds transferred to your Main Wallet.",
+    transferredAmount: parseFloat(requestedAmount.toFixed(2)),
+    availableBalance: await getAvailableBalance(user.id),
+    vaultWalletBalance: await getVaultWalletBalance(user.id),
   });
 });
 

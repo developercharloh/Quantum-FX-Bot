@@ -15,10 +15,15 @@ Principal IS redeemable at maturity, together with rewards, via the redeem butto
 
 **How to apply:** A `force: true` field on the redeem request bypasses the maturity check — this exists only as a developer/testing escape hatch (exposed in the UI as "Reset investment (testing only)"), not a real product feature. Similarly `testMode: true` on `/vault/invest` sets maturity to 60 seconds instead of the real term — also testing-only, remove or gate behind an admin flag before real launch.
 
-## Vault Wallet separation (current, as of 2026-07-05)
+## Vault Wallet separation — two-way ledger (current, as of 2026-07-05)
 
-Redeemed vault funds (principal + reward) are NOT usable for trading immediately — they land in a separate "Vault Wallet," not the main "Spot Wallet" (available balance). The user must explicitly tap "Transfer to Spot Wallet" to move them before they count toward available balance.
+The Vault Wallet is a fully separate two-way wallet from the Main (Spot) Wallet, not just a one-way redemption holding area:
 
-**Why:** Explicit user instruction, superseding the earlier rule where redeem credited the main balance directly. Rationale: vault funds should require a deliberate action before being tradeable, mirroring real fixed-income-to-spot transfers.
+1. Funds must be explicitly transferred Main→Vault (`POST /vault/fund`) before they can be invested/held in the Quantum Vault. Investing without enough Vault Wallet balance returns "Insufficient funds in your Vault Wallet... Transfer funds from your Main Wallet first."
+2. Investing (`POST /vault/invest`) draws from the Vault Wallet balance, not the Main Wallet balance.
+3. Redeeming (`POST /vault/redeem`) credits principal+reward back into the Vault Wallet (not Main).
+4. To use funds for trading/withdrawal, the user must explicitly transfer Vault→Main (`POST /vault/transfer`, optional `amount` param, defaults to full balance).
 
-**How to apply:** `POST /vault/redeem` inserts `vault_unlock`/`vault_reward` transactions with `status="vault_hold"` (not `"completed"`) — `getAvailableBalance` in `balance.ts` deliberately excludes these statuses/types. `getVaultWalletBalance(userId)` sums `vault_hold` vault_unlock/vault_reward transactions to show the Vault Wallet balance. `POST /vault/transfer` marks all `vault_hold` rows as `status="transferred"` and inserts one new `vault_transfer` transaction with `status="completed"`, which IS counted by `getAvailableBalance`. If adding new vault-related transaction types, decide explicitly whether they should land in Spot Wallet (`completed`) or Vault Wallet (`vault_hold`) — do not default to `completed`. Pre-existing (grandfathered) `vault_unlock`/`vault_reward` rows with `status="completed"` from before this change are intentionally left as-is (no backfill).
+**Why:** Explicit, repeated user instruction — vault funds should require deliberate action to move in *and* out, mirroring a real fixed-income sub-account rather than a one-way lockup.
+
+**How to apply:** All vault ledger transaction types use `status="completed"` uniformly (no more special `"vault_hold"`/`"transferred"` statuses — that earlier design was superseded). In `balance.ts`: `getAvailableBalance` sums `deposit`/`trade_profit`/`vault_transfer` (+) and `withdrawal`/`trade_loss`/`bot_purchase`/`vault_fund` (-), all `status="completed"`. `getVaultWalletBalance` sums `vault_fund`/`vault_unlock`/`vault_reward` (+) and `vault_lock`/`vault_transfer` (-), all `status="completed"`. When adding any new vault-adjacent transaction type, register it explicitly in exactly one of these two ledger functions with `status="completed"` — do not invent new status values for wallet segregation; the wallets are segregated by transaction `type`, not `status`.

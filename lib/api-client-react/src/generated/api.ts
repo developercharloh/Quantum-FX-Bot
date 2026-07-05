@@ -99,10 +99,13 @@ import type {
   TwoFAStatus,
   TwoFAToggleInput,
   User,
+  VaultFundInput,
+  VaultFundResponse,
   VaultInvestInput,
   VaultRedeemInput,
   VaultRedeemResponse,
   VaultStatus,
+  VaultTransferInput,
   VaultTransferResponse,
   WithdrawInput
 } from './api.schemas';
@@ -1507,6 +1510,71 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRedeemVaultInvestmentMutationOptions(options));
     }
 
+export const getFundVaultWalletUrl = () => {
+
+
+
+
+  return `/api/vault/fund`
+}
+
+export const fundVaultWallet = async (vaultFundInput: VaultFundInput, options?: RequestInit): Promise<VaultFundResponse> => {
+
+  return customFetch<VaultFundResponse>(getFundVaultWalletUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      vaultFundInput,)
+  }
+);}
+
+
+
+
+export const getFundVaultWalletMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fundVaultWallet>>, TError,{data: BodyType<VaultFundInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof fundVaultWallet>>, TError,{data: BodyType<VaultFundInput>}, TContext> => {
+
+const mutationKey = ['fundVaultWallet'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof fundVaultWallet>>, {data: BodyType<VaultFundInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  fundVaultWallet(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FundVaultWalletMutationResult = NonNullable<Awaited<ReturnType<typeof fundVaultWallet>>>
+    export type FundVaultWalletMutationBody = BodyType<VaultFundInput>
+    export type FundVaultWalletMutationError = ErrorType<ErrorResponse>
+
+    export const useFundVaultWallet = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fundVaultWallet>>, TError,{data: BodyType<VaultFundInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof fundVaultWallet>>,
+        TError,
+        {data: BodyType<VaultFundInput>},
+        TContext
+      > => {
+      return useMutation(getFundVaultWalletMutationOptions(options));
+    }
+
 export const getTransferVaultWalletUrl = () => {
 
 
@@ -1515,14 +1583,15 @@ export const getTransferVaultWalletUrl = () => {
   return `/api/vault/transfer`
 }
 
-export const transferVaultWallet = async ( options?: RequestInit): Promise<VaultTransferResponse> => {
+export const transferVaultWallet = async (vaultTransferInput?: VaultTransferInput, options?: RequestInit): Promise<VaultTransferResponse> => {
 
   return customFetch<VaultTransferResponse>(getTransferVaultWalletUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      vaultTransferInput,)
   }
 );}
 
@@ -1530,8 +1599,8 @@ export const transferVaultWallet = async ( options?: RequestInit): Promise<Vault
 
 
 export const getTransferVaultWalletMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferVaultWallet>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof transferVaultWallet>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferVaultWallet>>, TError,{data?: BodyType<VaultTransferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transferVaultWallet>>, TError,{data?: BodyType<VaultTransferInput>}, TContext> => {
 
 const mutationKey = ['transferVaultWallet'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -1543,10 +1612,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transferVaultWallet>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transferVaultWallet>>, {data?: BodyType<VaultTransferInput>}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  transferVaultWallet(requestOptions)
+          return  transferVaultWallet(data,requestOptions)
         }
 
 
@@ -1557,15 +1626,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type TransferVaultWalletMutationResult = NonNullable<Awaited<ReturnType<typeof transferVaultWallet>>>
-
+    export type TransferVaultWalletMutationBody = BodyType<VaultTransferInput> | undefined
     export type TransferVaultWalletMutationError = ErrorType<ErrorResponse>
 
     export const useTransferVaultWallet = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferVaultWallet>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferVaultWallet>>, TError,{data?: BodyType<VaultTransferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof transferVaultWallet>>,
         TError,
-        void,
+        {data?: BodyType<VaultTransferInput>},
         TContext
       > => {
       return useMutation(getTransferVaultWalletMutationOptions(options));
