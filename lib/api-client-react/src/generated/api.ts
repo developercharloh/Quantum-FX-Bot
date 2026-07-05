@@ -100,6 +100,8 @@ import type {
   TwoFAToggleInput,
   User,
   VaultInvestInput,
+  VaultRedeemInput,
+  VaultRedeemResponse,
   VaultStatus,
   WithdrawInput
 } from './api.schemas';
@@ -1447,14 +1449,15 @@ export const getRedeemVaultInvestmentUrl = () => {
   return `/api/vault/redeem`
 }
 
-export const redeemVaultInvestment = async ( options?: RequestInit): Promise<SuccessResponse> => {
+export const redeemVaultInvestment = async (vaultRedeemInput?: VaultRedeemInput, options?: RequestInit): Promise<VaultRedeemResponse> => {
 
-  return customFetch<SuccessResponse>(getRedeemVaultInvestmentUrl(),
+  return customFetch<VaultRedeemResponse>(getRedeemVaultInvestmentUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      vaultRedeemInput,)
   }
 );}
 
@@ -1462,8 +1465,8 @@ export const redeemVaultInvestment = async ( options?: RequestInit): Promise<Suc
 
 
 export const getRedeemVaultInvestmentMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemVaultInvestment>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof redeemVaultInvestment>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemVaultInvestment>>, TError,{data?: BodyType<VaultRedeemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof redeemVaultInvestment>>, TError,{data?: BodyType<VaultRedeemInput>}, TContext> => {
 
 const mutationKey = ['redeemVaultInvestment'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -1475,10 +1478,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redeemVaultInvestment>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redeemVaultInvestment>>, {data?: BodyType<VaultRedeemInput>}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  redeemVaultInvestment(requestOptions)
+          return  redeemVaultInvestment(data,requestOptions)
         }
 
 
@@ -1489,15 +1492,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type RedeemVaultInvestmentMutationResult = NonNullable<Awaited<ReturnType<typeof redeemVaultInvestment>>>
-
+    export type RedeemVaultInvestmentMutationBody = BodyType<VaultRedeemInput> | undefined
     export type RedeemVaultInvestmentMutationError = ErrorType<ErrorResponse>
 
     export const useRedeemVaultInvestment = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemVaultInvestment>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemVaultInvestment>>, TError,{data?: BodyType<VaultRedeemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof redeemVaultInvestment>>,
         TError,
-        void,
+        {data?: BodyType<VaultRedeemInput>},
         TContext
       > => {
       return useMutation(getRedeemVaultInvestmentMutationOptions(options));

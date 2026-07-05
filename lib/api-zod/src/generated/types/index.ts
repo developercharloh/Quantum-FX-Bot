@@ -93,6 +93,8 @@ export * from './twoFAToggleInput';
 export * from './user';
 export * from './vaultInvestInput';
 export * from './vaultInvestment';
+export * from './vaultRedeemInput';
+export * from './vaultRedeemResponse';
 export * from './vaultStatus';
 export * from './vaultTier';
 export * from './withdrawInput';

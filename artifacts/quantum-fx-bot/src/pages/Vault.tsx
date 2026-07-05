@@ -33,7 +33,9 @@ export default function Vault() {
   const { data, isLoading } = useGetVaultStatus();
   const [amount, setAmount] = useState("");
   const [termDays, setTermDays] = useState<number | null>(null);
+  const [testMode, setTestMode] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [congrats, setCongrats] = useState<{ principal: number; reward: number; total: number } | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 60_000);
@@ -45,9 +47,10 @@ export default function Vault() {
   const investMutation = useCreateVaultInvestment({
     mutation: {
       onSuccess: () => {
-        toast({ title: "Investment started", description: "Your funds are now locked in Quantum Vault." });
+        toast({ title: "Investment started", description: "Your funds are now locked in your Vault." });
         setAmount("");
         setTermDays(null);
+        setTestMode(false);
         invalidate();
       },
       onError: (err: any) => {
@@ -58,8 +61,11 @@ export default function Vault() {
 
   const redeemMutation = useRedeemVaultInvestment({
     mutation: {
-      onSuccess: () => {
-        toast({ title: "Rewards redeemed", description: "Your rewards have been added to your main balance." });
+      onSuccess: (res: any) => {
+        const principal = res?.principalAmount ?? 0;
+        const reward = res?.rewardAmount ?? 0;
+        const total = res?.totalCredited ?? principal + reward;
+        setCongrats({ principal, reward, total });
         invalidate();
       },
       onError: (err: any) => {
@@ -189,11 +195,57 @@ export default function Vault() {
 
             <Button
               disabled={!data.active.isMatured || redeemMutation.isPending}
-              onClick={() => redeemMutation.mutate()}
+              onClick={() => redeemMutation.mutate({ data: {} })}
               className="w-full mt-1"
             >
-              {data.active.isMatured ? "Redeem Rewards" : "Locked until maturity"}
+              {data.active.isMatured
+                ? `Redeem ${formatMoney(data.active.amount + data.active.rewardAmount)} (Principal + Reward)`
+                : "Locked until maturity"}
             </Button>
+
+            <button
+              onClick={() => {
+                if (confirm("This will reset your active investment for testing and return your funds to your balance. Continue?")) {
+                  redeemMutation.mutate({ data: { force: true } });
+                }
+              }}
+              disabled={redeemMutation.isPending}
+              className="text-xs text-muted-foreground underline underline-offset-2 self-center"
+            >
+              Reset investment (testing only)
+            </button>
+          </div>
+        )}
+
+        {congrats && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6" onClick={() => setCongrats(null)}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl bg-card border border-amber-500/30 p-6 flex flex-col items-center gap-3 text-center"
+            >
+              <Gift className="w-10 h-10 text-amber-500" />
+              <h2 className="text-lg font-bold">Congratulations! 🎉</h2>
+              <p className="text-sm text-muted-foreground">
+                Your Vault investment has matured. Your principal and rewards have been added to your main wallet.
+              </p>
+              <div className="w-full rounded-xl bg-muted/40 p-3 flex flex-col gap-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Principal returned</span>
+                  <span className="font-medium">{formatMoney(congrats.principal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Reward earned</span>
+                  <span className="font-medium text-emerald-500">{formatMoney(congrats.reward)}</span>
+                </div>
+                <div className="flex justify-between pt-1.5 border-t border-border/40">
+                  <span className="font-semibold">Total credited</span>
+                  <span className="font-bold text-amber-500">{formatMoney(congrats.total)}</span>
+                </div>
+              </div>
+              <Button className="w-full mt-1" onClick={() => setCongrats(null)}>
+                Great, thanks!
+              </Button>
+            </div>
           </div>
         )}
 
@@ -224,9 +276,12 @@ export default function Vault() {
                 {data.terms.map((t) => (
                   <button
                     key={t}
-                    onClick={() => setTermDays(t)}
+                    onClick={() => {
+                      setTermDays(t);
+                      setTestMode(false);
+                    }}
                     className={`h-10 rounded-xl text-sm font-medium border transition-colors ${
-                      termDays === t
+                      termDays === t && !testMode
                         ? "bg-amber-500 text-amber-950 border-amber-500"
                         : "bg-muted/40 border-border/40 text-muted-foreground"
                     }`}
@@ -234,6 +289,19 @@ export default function Vault() {
                     {t}d
                   </button>
                 ))}
+                <button
+                  onClick={() => {
+                    setTermDays(data.terms[0]);
+                    setTestMode(true);
+                  }}
+                  className={`h-10 rounded-xl text-sm font-medium border transition-colors ${
+                    testMode
+                      ? "bg-amber-500 text-amber-950 border-amber-500"
+                      : "bg-muted/40 border-border/40 text-muted-foreground"
+                  }`}
+                >
+                  1 min (test)
+                </button>
               </div>
             </div>
 
@@ -258,7 +326,9 @@ export default function Vault() {
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-border/40">
-                  <span className="text-xs font-medium">Expected total after {termDays} days</span>
+                  <span className="text-xs font-medium">
+                    {testMode ? "Expected total after 1 minute (test)" : `Expected total after ${termDays} days`}
+                  </span>
                   <span className="text-sm font-bold text-emerald-500">{formatMoney(projectedReward ?? 0)}</span>
                 </div>
               </div>
@@ -270,7 +340,11 @@ export default function Vault() {
 
             <Button
               disabled={!matchedTier || !termDays || investMutation.isPending}
-              onClick={() => investMutation.mutate({ data: { amount: numericAmount, termDays: termDays! } })}
+              onClick={() =>
+                investMutation.mutate({
+                  data: { amount: numericAmount, termDays: termDays!, ...(testMode ? { testMode: true } : {}) },
+                })
+              }
               className="w-full"
             >
               Activate Investment Plan

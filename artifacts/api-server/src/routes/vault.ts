@@ -14,6 +14,7 @@ const TIERS = [
 
 const TERMS = [7, 30, 90, 180, 365];
 const MIN_AMOUNT = 100;
+const TEST_DURATION_MS = 60 * 1000;
 
 function rateForAmount(amount: number): number | null {
   const tier = TIERS.find((t) => amount >= t.min && (t.max === null || amount <= t.max));
@@ -91,6 +92,7 @@ router.post("/vault/invest", async (req, res) => {
 
   const amount = parseFloat(req.body?.amount);
   const termDays = parseInt(req.body?.termDays);
+  const testMode = req.body?.testMode === true;
 
   if (!Number.isFinite(amount) || amount < MIN_AMOUNT) {
     return res.status(400).json({ error: `Minimum investment is $${MIN_AMOUNT}.` });
@@ -118,7 +120,8 @@ router.post("/vault/invest", async (req, res) => {
 
   const rewardAmount = parseFloat((amount * (dailyRate / 100) * termDays).toFixed(2));
   const startedAt = new Date();
-  const maturesAt = new Date(startedAt.getTime() + termDays * 24 * 60 * 60 * 1000);
+  const durationMs = testMode ? TEST_DURATION_MS : termDays * 24 * 60 * 60 * 1000;
+  const maturesAt = new Date(startedAt.getTime() + durationMs);
 
   await db.insert(vaultInvestmentsTable).values({
     userId: user.id,
@@ -148,6 +151,8 @@ router.post("/vault/redeem", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
+  const force = req.body?.force === true;
+
   const rows = await db.select().from(vaultInvestmentsTable)
     .where(and(eq(vaultInvestmentsTable.userId, user.id), eq(vaultInvestmentsTable.status, "active")))
     .limit(1);
@@ -157,7 +162,7 @@ router.post("/vault/redeem", async (req, res) => {
   }
 
   const inv = rows[0];
-  if (Date.now() < inv.maturesAt.getTime()) {
+  if (!force && Date.now() < inv.maturesAt.getTime()) {
     return res.status(400).json({ error: "This investment has not matured yet." });
   }
 
@@ -168,6 +173,15 @@ router.post("/vault/redeem", async (req, res) => {
 
   await db.insert(transactionsTable).values({
     userId: user.id,
+    type: "vault_unlock",
+    amount: inv.amount,
+    status: "completed",
+    paymentMethod: "balance",
+    description: `Quantum Vault: ${inv.termDays}-day principal returned`,
+  });
+
+  await db.insert(transactionsTable).values({
+    userId: user.id,
     type: "vault_reward",
     amount: inv.rewardAmount,
     status: "completed",
@@ -175,7 +189,14 @@ router.post("/vault/redeem", async (req, res) => {
     description: `Quantum Vault: ${inv.termDays}-day reward redeemed`,
   });
 
-  return res.json({ message: "Rewards redeemed to your main balance." });
+  const totalCredited = parseFloat(inv.amount) + parseFloat(inv.rewardAmount);
+
+  return res.json({
+    message: "Investment redeemed — principal and rewards added to your main balance.",
+    principalAmount: parseFloat(inv.amount),
+    rewardAmount: parseFloat(inv.rewardAmount),
+    totalCredited,
+  });
 });
 
 export default router;

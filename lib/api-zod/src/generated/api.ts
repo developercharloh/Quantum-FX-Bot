@@ -263,7 +263,8 @@ export const GetVaultStatusResponse = zod.object({
 
 export const CreateVaultInvestmentBody = zod.object({
   "amount": zod.number(),
-  "termDays": zod.number()
+  "termDays": zod.number(),
+  "testMode": zod.boolean().optional()
 })
 
 export const CreateVaultInvestmentResponse = zod.object({
@@ -271,8 +272,15 @@ export const CreateVaultInvestmentResponse = zod.object({
 })
 
 
+export const RedeemVaultInvestmentBody = zod.object({
+  "force": zod.boolean().optional()
+})
+
 export const RedeemVaultInvestmentResponse = zod.object({
-  "message": zod.string()
+  "message": zod.string(),
+  "principalAmount": zod.number(),
+  "rewardAmount": zod.number(),
+  "totalCredited": zod.number()
 })
 
 

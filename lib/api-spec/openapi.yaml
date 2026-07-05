@@ -375,13 +375,19 @@ paths:
     post:
       operationId: redeemVaultInvestment
       tags: [vault]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultRedeemInput"
       responses:
         "200":
           description: Rewards redeemed
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
+                $ref: "#/components/schemas/VaultRedeemResponse"
         "400":
           description: Error
           content:
@@ -1983,7 +1989,28 @@ components:
           type: number
         termDays:
           type: integer
+        testMode:
+          type: boolean
       required: [amount, termDays]
+
+    VaultRedeemInput:
+      type: object
+      properties:
+        force:
+          type: boolean
+
+    VaultRedeemResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        principalAmount:
+          type: number
+        rewardAmount:
+          type: number
+        totalCredited:
+          type: number
+      required: [message, principalAmount, rewardAmount, totalCredited]
 
     # Cashier
     DepositInput:

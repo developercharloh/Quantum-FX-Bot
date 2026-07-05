@@ -11,7 +11,7 @@ export async function getAvailableBalance(userId: number): Promise<number> {
   for (const t of txns) {
     const amt = parseFloat(t.amount);
     if (t.status === "completed") {
-      if (t.type === "deposit" || t.type === "trade_profit" || t.type === "vault_reward") balance += amt;
+      if (t.type === "deposit" || t.type === "trade_profit" || t.type === "vault_reward" || t.type === "vault_unlock") balance += amt;
       if (t.type === "withdrawal" || t.type === "trade_loss" || t.type === "bot_purchase" || t.type === "vault_lock") balance -= amt;
     }
     // Pending withdrawals also lock the funds so users can't double-spend

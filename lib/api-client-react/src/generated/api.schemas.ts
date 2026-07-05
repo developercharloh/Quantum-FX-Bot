@@ -224,6 +224,18 @@ export interface VaultStatus {
 export interface VaultInvestInput {
   amount: number;
   termDays: number;
+  testMode?: boolean;
+}
+
+export interface VaultRedeemInput {
+  force?: boolean;
+}
+
+export interface VaultRedeemResponse {
+  message: string;
+  principalAmount: number;
+  rewardAmount: number;
+  totalCredited: number;
 }
 
 export interface DepositInput {

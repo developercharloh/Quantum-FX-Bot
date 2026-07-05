@@ -6,8 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface VaultInvestInput {
-  amount: number;
-  termDays: number;
-  testMode?: boolean;
+export interface VaultRedeemInput {
+  force?: boolean;
 }
