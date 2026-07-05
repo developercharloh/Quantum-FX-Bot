@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, Gift, Lock, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, Gift, Lock, CheckCircle2, ShieldCheck, TrendingUp, BadgeCheck } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -75,7 +75,7 @@ export default function Vault() {
       </div>
 
       <div className="px-4 pb-10 flex flex-col gap-5">
-        <div className="flex flex-col items-center text-center gap-3 py-4">
+        <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-b from-amber-500/[0.07] to-transparent p-5 flex flex-col items-center text-center gap-3">
           <div
             className="flex items-center justify-center w-16 h-16 rounded-2xl"
             style={{
@@ -85,11 +85,25 @@ export default function Vault() {
           >
             <Gift className="w-8 h-8 text-amber-950" strokeWidth={2.25} />
           </div>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            Lock funds for a fixed term and grow daily. Once your term ends,
-            redeem your rewards straight to your main balance. Locked capital
-            cannot be withdrawn.
-          </p>
+          <div className="flex flex-col gap-1">
+            <h2 className="text-base font-semibold">A Fixed-Term Growth Plan</h2>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              Commit funds for a set term and earn guaranteed daily rewards
+              — paid out in full the moment your term completes.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
+            <span className="flex items-center gap-1.5 rounded-full bg-muted/50 border border-border/40 px-3 py-1.5 text-xs font-medium">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-500" /> Secure Term
+            </span>
+            <span className="flex items-center gap-1.5 rounded-full bg-muted/50 border border-border/40 px-3 py-1.5 text-xs font-medium">
+              <TrendingUp className="w-3.5 h-3.5 text-amber-500" /> Daily Growth
+            </span>
+            <span className="flex items-center gap-1.5 rounded-full bg-muted/50 border border-border/40 px-3 py-1.5 text-xs font-medium">
+              <BadgeCheck className="w-3.5 h-3.5 text-amber-500" /> Guaranteed Payout
+            </span>
+          </div>
         </div>
 
         {isLoading && (
