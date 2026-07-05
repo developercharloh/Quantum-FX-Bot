@@ -1,5 +1,6 @@
 import { useState, ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
+import { QuantumVaultFAB } from "./QuantumVaultFAB";
 import { Sun, Moon } from "lucide-react";
 
 function ThemeToggle() {
@@ -44,6 +45,7 @@ export function Layout({ children, showNav = false }: LayoutProps) {
       <div className={showNav ? "pb-[72px]" : ""}>
         {children}
       </div>
+      {showNav && <QuantumVaultFAB />}
       {showNav && <BottomNav />}
     </div>
   );

@@ -41,6 +41,7 @@ import Register from "@/pages/auth/Register";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
+import Vault from "@/pages/Vault";
 import Bots from "@/pages/bots/Bots";
 import BotDetail from "@/pages/bots/BotDetail";
 import BotAnalytics from "@/pages/bots/BotAnalytics";
@@ -83,6 +84,9 @@ function Router() {
       {/* Authenticated Routes */}
       <Route path="/dashboard">
         <AuthGuard><Dashboard /></AuthGuard>
+      </Route>
+      <Route path="/vault">
+        <AuthGuard><Vault /></AuthGuard>
       </Route>
       <Route path="/bots">
         <AuthGuard><Bots /></AuthGuard>
