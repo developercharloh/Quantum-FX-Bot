@@ -35,7 +35,7 @@ export default function Vault() {
         invalidate();
       },
       onError: (err: any) => {
-        toast({ title: "Could not invest", description: err?.error ?? "Something went wrong.", variant: "destructive" });
+        toast({ title: "Could not invest", description: err?.message ?? "Something went wrong.", variant: "destructive" });
       },
     },
   });
@@ -47,7 +47,7 @@ export default function Vault() {
         invalidate();
       },
       onError: (err: any) => {
-        toast({ title: "Could not redeem", description: err?.error ?? "Something went wrong.", variant: "destructive" });
+        toast({ title: "Could not redeem", description: err?.message ?? "Something went wrong.", variant: "destructive" });
       },
     },
   });
