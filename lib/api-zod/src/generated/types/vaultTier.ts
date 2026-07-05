@@ -10,5 +10,5 @@ export interface VaultTier {
   min: number;
   /** @nullable */
   max: number | null;
-  annualRate: number;
+  dailyRate: number;
 }

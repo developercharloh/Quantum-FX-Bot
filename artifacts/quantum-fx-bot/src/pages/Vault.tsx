@@ -74,7 +74,7 @@ export default function Vault() {
   );
   const dailyReward =
     matchedTier && Number.isFinite(numericAmount)
-      ? numericAmount * (matchedTier.annualRate / 100) / 365
+      ? numericAmount * (matchedTier.dailyRate / 100)
       : null;
   const projectedReward =
     dailyReward != null && termDays ? dailyReward * termDays : null;
@@ -148,8 +148,8 @@ export default function Vault() {
                 <p className="text-xl font-bold">{formatMoney(data.active.amount)}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-muted-foreground">Annual rate</p>
-                <p className="text-sm font-semibold text-amber-500">{data.active.annualRate}%</p>
+                <p className="text-xs text-muted-foreground">Daily rate</p>
+                <p className="text-sm font-semibold text-amber-500">{data.active.dailyRate}%/day</p>
               </div>
             </div>
 
@@ -212,7 +212,7 @@ export default function Vault() {
               />
               {matchedTier && (
                 <span className="text-xs text-amber-500">
-                  Tier rate: {matchedTier.annualRate}% annual
+                  Tier rate: {matchedTier.dailyRate}% daily
                 </span>
               )}
             </div>
@@ -280,7 +280,7 @@ export default function Vault() {
               {data.tiers.map((t, i) => (
                 <div key={i} className="flex justify-between text-xs">
                   <span>{formatMoney(t.min)}{t.max ? ` – ${formatMoney(t.max)}` : "+"}</span>
-                  <span className="text-amber-500 font-medium">{t.annualRate}% / yr</span>
+                  <span className="text-amber-500 font-medium">{t.dailyRate}% / day</span>
                 </div>
               ))}
             </div>

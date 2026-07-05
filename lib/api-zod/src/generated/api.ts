@@ -222,7 +222,7 @@ export const GetVaultStatusResponse = zod.object({
   "tiers": zod.array(zod.object({
   "min": zod.number(),
   "max": zod.number().nullable(),
-  "annualRate": zod.number()
+  "dailyRate": zod.number()
 })),
   "terms": zod.array(zod.number()),
   "minAmount": zod.number(),
@@ -230,7 +230,7 @@ export const GetVaultStatusResponse = zod.object({
   "id": zod.number(),
   "amount": zod.number(),
   "termDays": zod.number(),
-  "annualRate": zod.number(),
+  "dailyRate": zod.number(),
   "rewardAmount": zod.number(),
   "status": zod.string(),
   "startedAt": zod.string(),
@@ -246,7 +246,7 @@ export const GetVaultStatusResponse = zod.object({
   "id": zod.number(),
   "amount": zod.number(),
   "termDays": zod.number(),
-  "annualRate": zod.number(),
+  "dailyRate": zod.number(),
   "rewardAmount": zod.number(),
   "status": zod.string(),
   "startedAt": zod.string(),

@@ -6,10 +6,10 @@ import { getAvailableBalance } from "../utils/balance.js";
 const router = Router();
 
 const TIERS = [
-  { min: 100, max: 9999, annualRate: 4.5 },
-  { min: 10000, max: 49999, annualRate: 6 },
-  { min: 50000, max: 99999, annualRate: 8 },
-  { min: 100000, max: null as number | null, annualRate: 12 },
+  { min: 100, max: 9999, dailyRate: 0.45 },
+  { min: 10000, max: 49999, dailyRate: 0.6 },
+  { min: 50000, max: 99999, dailyRate: 0.8 },
+  { min: 100000, max: null as number | null, dailyRate: 1.2 },
 ];
 
 const TERMS = [7, 30, 90, 180, 365];
@@ -17,7 +17,7 @@ const MIN_AMOUNT = 100;
 
 function rateForAmount(amount: number): number | null {
   const tier = TIERS.find((t) => amount >= t.min && (t.max === null || amount <= t.max));
-  return tier ? tier.annualRate : null;
+  return tier ? tier.dailyRate : null;
 }
 
 async function getUserFromToken(token: string | undefined) {
@@ -47,7 +47,7 @@ function serializeInvestment(inv: typeof vaultInvestmentsTable.$inferSelect) {
     id: inv.id,
     amount: parseFloat(inv.amount),
     termDays: inv.termDays,
-    annualRate: parseFloat(inv.annualRate),
+    dailyRate: parseFloat(inv.dailyRate),
     rewardAmount,
     status: inv.status,
     startedAt: inv.startedAt.toISOString(),
@@ -106,8 +106,8 @@ router.post("/vault/invest", async (req, res) => {
     return res.status(400).json({ error: "You already have an active Quantum Vault investment. Redeem it before starting a new one." });
   }
 
-  const annualRate = rateForAmount(amount);
-  if (annualRate === null) {
+  const dailyRate = rateForAmount(amount);
+  if (dailyRate === null) {
     return res.status(400).json({ error: "Amount does not match any Quantum Vault tier." });
   }
 
@@ -116,7 +116,7 @@ router.post("/vault/invest", async (req, res) => {
     return res.status(400).json({ error: `Insufficient balance. You need $${amount.toFixed(2)} but have $${available.toFixed(2)}.` });
   }
 
-  const rewardAmount = parseFloat((amount * (annualRate / 100) * (termDays / 365)).toFixed(2));
+  const rewardAmount = parseFloat((amount * (dailyRate / 100) * termDays).toFixed(2));
   const startedAt = new Date();
   const maturesAt = new Date(startedAt.getTime() + termDays * 24 * 60 * 60 * 1000);
 
@@ -124,7 +124,7 @@ router.post("/vault/invest", async (req, res) => {
     userId: user.id,
     amount: amount.toFixed(2),
     termDays,
-    annualRate: annualRate.toFixed(2),
+    dailyRate: dailyRate.toFixed(2),
     rewardAmount: rewardAmount.toFixed(2),
     status: "active",
     startedAt,

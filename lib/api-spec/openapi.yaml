@@ -1914,9 +1914,9 @@ components:
           type: number
         max:
           type: ["number", "null"]
-        annualRate:
+        dailyRate:
           type: number
-      required: [min, max, annualRate]
+      required: [min, max, dailyRate]
 
     VaultInvestment:
       type: object
@@ -1927,7 +1927,7 @@ components:
           type: number
         termDays:
           type: integer
-        annualRate:
+        dailyRate:
           type: number
         rewardAmount:
           type: number
@@ -1949,7 +1949,7 @@ components:
           type: number
         accruedSoFar:
           type: number
-      required: [id, amount, termDays, annualRate, rewardAmount, status, startedAt, maturesAt, isMatured, daysElapsed, daysRemaining, progressPercent, accruedSoFar]
+      required: [id, amount, termDays, dailyRate, rewardAmount, status, startedAt, maturesAt, isMatured, daysElapsed, daysRemaining, progressPercent, accruedSoFar]
 
     VaultStatus:
       type: object

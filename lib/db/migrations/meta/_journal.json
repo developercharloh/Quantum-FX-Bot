@@ -11,6 +11,7 @@
     { "idx": 6, "version": "7", "when": 1782500000000, "tag": "0006_is_admin", "breakpoints": true },
     { "idx": 7, "version": "7", "when": 1782560000000, "tag": "0007_broadcasts", "breakpoints": true },
     { "idx": 8, "version": "7", "when": 1782561000000, "tag": "0008_admin_login_notifications", "breakpoints": true },
-    { "idx": 9, "version": "7", "when": 1782620000000, "tag": "0009_vault_investments", "breakpoints": true }
+    { "idx": 9, "version": "7", "when": 1782620000000, "tag": "0009_vault_investments", "breakpoints": true },
+    { "idx": 10, "version": "7", "when": 1782630000000, "tag": "0010_vault_daily_rate", "breakpoints": true }
   ]
 }

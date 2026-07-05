@@ -56722,7 +56722,7 @@ var vaultInvestmentsTable = pgTable("vault_investments", {
   userId: integer("user_id").notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   termDays: integer("term_days").notNull(),
-  annualRate: numeric("annual_rate", { precision: 5, scale: 2 }).notNull(),
+  dailyRate: numeric("daily_rate", { precision: 5, scale: 2 }).notNull(),
   rewardAmount: numeric("reward_amount", { precision: 12, scale: 2 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default("active"),
   startedAt: timestamp("started_at").notNull().defaultNow(),
@@ -62373,7 +62373,7 @@ var GetVaultStatusResponse = objectType({
   "tiers": arrayType(objectType({
     "min": numberType(),
     "max": numberType().nullable(),
-    "annualRate": numberType()
+    "dailyRate": numberType()
   })),
   "terms": arrayType(numberType()),
   "minAmount": numberType(),
@@ -62381,7 +62381,7 @@ var GetVaultStatusResponse = objectType({
     "id": numberType(),
     "amount": numberType(),
     "termDays": numberType(),
-    "annualRate": numberType(),
+    "dailyRate": numberType(),
     "rewardAmount": numberType(),
     "status": stringType(),
     "startedAt": stringType(),
@@ -62397,7 +62397,7 @@ var GetVaultStatusResponse = objectType({
     "id": numberType(),
     "amount": numberType(),
     "termDays": numberType(),
-    "annualRate": numberType(),
+    "dailyRate": numberType(),
     "rewardAmount": numberType(),
     "status": stringType(),
     "startedAt": stringType(),
@@ -67584,16 +67584,16 @@ var webhooks_default = router12;
 var import_express13 = __toESM(require_express2(), 1);
 var router13 = (0, import_express13.Router)();
 var TIERS = [
-  { min: 100, max: 9999, annualRate: 4.5 },
-  { min: 1e4, max: 49999, annualRate: 6 },
-  { min: 5e4, max: 99999, annualRate: 8 },
-  { min: 1e5, max: null, annualRate: 12 }
+  { min: 100, max: 9999, dailyRate: 0.45 },
+  { min: 1e4, max: 49999, dailyRate: 0.6 },
+  { min: 5e4, max: 99999, dailyRate: 0.8 },
+  { min: 1e5, max: null, dailyRate: 1.2 }
 ];
 var TERMS = [7, 30, 90, 180, 365];
 var MIN_AMOUNT = 100;
 function rateForAmount(amount) {
   const tier = TIERS.find((t2) => amount >= t2.min && (t2.max === null || amount <= t2.max));
-  return tier ? tier.annualRate : null;
+  return tier ? tier.dailyRate : null;
 }
 async function getUserFromToken9(token) {
   if (!token) return null;
@@ -67618,7 +67618,7 @@ function serializeInvestment(inv) {
     id: inv.id,
     amount: parseFloat(inv.amount),
     termDays: inv.termDays,
-    annualRate: parseFloat(inv.annualRate),
+    dailyRate: parseFloat(inv.dailyRate),
     rewardAmount,
     status: inv.status,
     startedAt: inv.startedAt.toISOString(),
@@ -67664,22 +67664,22 @@ router13.post("/vault/invest", async (req, res) => {
   if (existing.length > 0) {
     return res.status(400).json({ error: "You already have an active Quantum Vault investment. Redeem it before starting a new one." });
   }
-  const annualRate = rateForAmount(amount);
-  if (annualRate === null) {
+  const dailyRate = rateForAmount(amount);
+  if (dailyRate === null) {
     return res.status(400).json({ error: "Amount does not match any Quantum Vault tier." });
   }
   const available = await getAvailableBalance(user.id);
   if (available < amount) {
     return res.status(400).json({ error: `Insufficient balance. You need $${amount.toFixed(2)} but have $${available.toFixed(2)}.` });
   }
-  const rewardAmount = parseFloat((amount * (annualRate / 100) * (termDays / 365)).toFixed(2));
+  const rewardAmount = parseFloat((amount * (dailyRate / 100) * termDays).toFixed(2));
   const startedAt = /* @__PURE__ */ new Date();
   const maturesAt = new Date(startedAt.getTime() + termDays * 24 * 60 * 60 * 1e3);
   await db.insert(vaultInvestmentsTable).values({
     userId: user.id,
     amount: amount.toFixed(2),
     termDays,
-    annualRate: annualRate.toFixed(2),
+    dailyRate: dailyRate.toFixed(2),
     rewardAmount: rewardAmount.toFixed(2),
     status: "active",
     startedAt,

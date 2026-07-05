@@ -299,7 +299,7 @@ export const vaultInvestmentsTable = pgTable("vault_investments", {
   userId: integer("user_id").notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   termDays: integer("term_days").notNull(),
-  annualRate: numeric("annual_rate", { precision: 5, scale: 2 }).notNull(),
+  dailyRate: numeric("daily_rate", { precision: 5, scale: 2 }).notNull(),
   rewardAmount: numeric("reward_amount", { precision: 12, scale: 2 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default("active"),
   startedAt: timestamp("started_at").notNull().defaultNow(),

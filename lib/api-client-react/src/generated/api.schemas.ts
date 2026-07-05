@@ -191,14 +191,14 @@ export interface VaultTier {
   min: number;
   /** @nullable */
   max: number | null;
-  annualRate: number;
+  dailyRate: number;
 }
 
 export interface VaultInvestment {
   id: number;
   amount: number;
   termDays: number;
-  annualRate: number;
+  dailyRate: number;
   rewardAmount: number;
   status: string;
   startedAt: string;

@@ -10,7 +10,7 @@ export interface VaultInvestment {
   id: number;
   amount: number;
   termDays: number;
-  annualRate: number;
+  dailyRate: number;
   rewardAmount: number;
   status: string;
   startedAt: string;
