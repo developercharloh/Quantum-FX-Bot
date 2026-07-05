@@ -95,7 +95,7 @@ export default function Vault() {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-lg font-semibold">Quantum Vault</h1>
+        <h1 className="text-lg font-semibold">Premium Fixed-Income Vault</h1>
       </div>
 
       <div className="px-4 pb-10 flex flex-col gap-5">
@@ -273,7 +273,7 @@ export default function Vault() {
               onClick={() => investMutation.mutate({ data: { amount: numericAmount, termDays: termDays! } })}
               className="w-full"
             >
-              Lock Funds in Quantum Vault
+              Activate Investment Plan
             </Button>
 
             <div className="pt-2 border-t border-border/40 flex flex-col gap-1.5">
