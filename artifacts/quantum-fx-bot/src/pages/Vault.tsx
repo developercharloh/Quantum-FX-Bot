@@ -120,13 +120,13 @@ export default function Vault() {
 
           <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
             <span className="flex items-center gap-1.5 rounded-full bg-muted/50 border border-border/40 px-3 py-1.5 text-xs font-medium">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-500" /> Secure Term
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-500" /> Capital Security
             </span>
             <span className="flex items-center gap-1.5 rounded-full bg-muted/50 border border-border/40 px-3 py-1.5 text-xs font-medium">
-              <TrendingUp className="w-3.5 h-3.5 text-amber-500" /> Daily Growth
+              <TrendingUp className="w-3.5 h-3.5 text-amber-500" /> Predictable Returns
             </span>
             <span className="flex items-center gap-1.5 rounded-full bg-muted/50 border border-border/40 px-3 py-1.5 text-xs font-medium">
-              <BadgeCheck className="w-3.5 h-3.5 text-amber-500" /> Guaranteed Payout
+              <BadgeCheck className="w-3.5 h-3.5 text-amber-500" /> Maturity Payout
             </span>
           </div>
         </div>
