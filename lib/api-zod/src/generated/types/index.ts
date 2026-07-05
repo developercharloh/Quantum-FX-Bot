@@ -97,4 +97,5 @@ export * from './vaultRedeemInput';
 export * from './vaultRedeemResponse';
 export * from './vaultStatus';
 export * from './vaultTier';
+export * from './vaultTransferResponse';
 export * from './withdrawInput';

@@ -8,6 +8,7 @@ import {
   useGetVaultStatus,
   useCreateVaultInvestment,
   useRedeemVaultInvestment,
+  useTransferVaultWallet,
   getGetVaultStatusQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,6 +37,7 @@ export default function Vault() {
   const [testMode, setTestMode] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [congrats, setCongrats] = useState<{ principal: number; reward: number; total: number } | null>(null);
+  const [transferred, setTransferred] = useState<{ amount: number } | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 60_000);
@@ -70,6 +72,18 @@ export default function Vault() {
       },
       onError: (err: any) => {
         toast({ title: "Could not redeem", description: err?.message ?? "Something went wrong.", variant: "destructive" });
+      },
+    },
+  });
+
+  const transferMutation = useTransferVaultWallet({
+    mutation: {
+      onSuccess: (res: any) => {
+        setTransferred({ amount: res?.transferredAmount ?? 0 });
+        invalidate();
+      },
+      onError: (err: any) => {
+        toast({ title: "Could not transfer", description: err?.message ?? "Something went wrong.", variant: "destructive" });
       },
     },
   });
@@ -139,6 +153,27 @@ export default function Vault() {
 
         {isLoading && (
           <div className="text-center text-sm text-muted-foreground py-6">Loading Quantum Vault...</div>
+        )}
+
+        {data && data.vaultWalletBalance > 0 && (
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold flex items-center gap-1.5">
+                <Gift className="w-4 h-4 text-emerald-500" /> Vault Wallet
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Redeemed funds sit here until you transfer them to your Spot Wallet for trading.
+            </p>
+            <p className="text-xl font-bold text-emerald-500">{formatMoney(data.vaultWalletBalance)}</p>
+            <Button
+              onClick={() => transferMutation.mutate()}
+              disabled={transferMutation.isPending}
+              className="w-full"
+            >
+              Transfer to Spot Wallet
+            </Button>
+          </div>
         )}
 
         {data?.active && (
@@ -226,7 +261,8 @@ export default function Vault() {
               <Gift className="w-10 h-10 text-amber-500" />
               <h2 className="text-lg font-bold">Congratulations! 🎉</h2>
               <p className="text-sm text-muted-foreground">
-                Your Vault investment has matured. Your principal and rewards have been added to your main wallet.
+                Your Vault investment has matured. Your principal and rewards have been added to your Vault Wallet.
+                Transfer them to your Spot Wallet to use them for trading.
               </p>
               <div className="w-full rounded-xl bg-muted/40 p-3 flex flex-col gap-1.5 text-sm">
                 <div className="flex justify-between">
@@ -238,11 +274,41 @@ export default function Vault() {
                   <span className="font-medium text-emerald-500">{formatMoney(congrats.reward)}</span>
                 </div>
                 <div className="flex justify-between pt-1.5 border-t border-border/40">
-                  <span className="font-semibold">Total credited</span>
+                  <span className="font-semibold">Total in Vault Wallet</span>
                   <span className="font-bold text-amber-500">{formatMoney(congrats.total)}</span>
                 </div>
               </div>
-              <Button className="w-full mt-1" onClick={() => setCongrats(null)}>
+              <Button
+                className="w-full mt-1"
+                onClick={() => {
+                  setCongrats(null);
+                  transferMutation.mutate();
+                }}
+              >
+                Transfer to Spot Wallet
+              </Button>
+              <button
+                className="text-xs text-muted-foreground underline underline-offset-2"
+                onClick={() => setCongrats(null)}
+              >
+                I'll transfer later
+              </button>
+            </div>
+          </div>
+        )}
+
+        {transferred && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6" onClick={() => setTransferred(null)}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl bg-card border border-emerald-500/30 p-6 flex flex-col items-center gap-3 text-center"
+            >
+              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+              <h2 className="text-lg font-bold">Transfer Complete</h2>
+              <p className="text-sm text-muted-foreground">
+                {formatMoney(transferred.amount)} has been moved from your Vault Wallet to your Spot Wallet and is now available for trading.
+              </p>
+              <Button className="w-full mt-1" onClick={() => setTransferred(null)}>
                 Great, thanks!
               </Button>
             </div>

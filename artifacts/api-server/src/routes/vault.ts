@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, transactionsTable, vaultInvestmentsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
-import { getAvailableBalance } from "../utils/balance.js";
+import { getAvailableBalance, getVaultWalletBalance } from "../utils/balance.js";
 
 const router = Router();
 
@@ -74,9 +74,11 @@ router.get("/vault/status", async (req, res) => {
   const active = investments.find((i) => i.status === "active");
   const history = investments.filter((i) => i.status !== "active");
   const availableBalance = await getAvailableBalance(user.id);
+  const vaultWalletBalance = await getVaultWalletBalance(user.id);
 
   return res.json({
     availableBalance,
+    vaultWalletBalance,
     tiers: TIERS,
     terms: TERMS,
     minAmount: MIN_AMOUNT,
@@ -171,31 +173,73 @@ router.post("/vault/redeem", async (req, res) => {
     redeemedAt: new Date(),
   }).where(eq(vaultInvestmentsTable.id, inv.id));
 
+  // Redeemed funds land in the Vault Wallet (status "vault_hold"), NOT the main
+  // balance — they cannot be used for trading, withdrawals, or new investments
+  // until the user explicitly transfers them via /vault/transfer.
   await db.insert(transactionsTable).values({
     userId: user.id,
     type: "vault_unlock",
     amount: inv.amount,
-    status: "completed",
+    status: "vault_hold",
     paymentMethod: "balance",
-    description: `Quantum Vault: ${inv.termDays}-day principal returned`,
+    description: `Quantum Vault: ${inv.termDays}-day principal returned to Vault Wallet`,
   });
 
   await db.insert(transactionsTable).values({
     userId: user.id,
     type: "vault_reward",
     amount: inv.rewardAmount,
-    status: "completed",
+    status: "vault_hold",
     paymentMethod: "balance",
-    description: `Quantum Vault: ${inv.termDays}-day reward redeemed`,
+    description: `Quantum Vault: ${inv.termDays}-day reward credited to Vault Wallet`,
   });
 
   const totalCredited = parseFloat(inv.amount) + parseFloat(inv.rewardAmount);
 
   return res.json({
-    message: "Investment redeemed — principal and rewards added to your main balance.",
+    message: "Investment redeemed — principal and rewards added to your Vault Wallet. Transfer to your Spot Wallet to use them.",
     principalAmount: parseFloat(inv.amount),
     rewardAmount: parseFloat(inv.rewardAmount),
     totalCredited,
+  });
+});
+
+router.post("/vault/transfer", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const holdRows = await db.select().from(transactionsTable)
+    .where(and(eq(transactionsTable.userId, user.id), eq(transactionsTable.status, "vault_hold")));
+
+  const transferable = holdRows.filter((t) => t.type === "vault_unlock" || t.type === "vault_reward");
+  const transferAmount = transferable.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+  if (transferable.length === 0 || transferAmount <= 0) {
+    return res.status(400).json({ error: "No funds available in your Vault Wallet to transfer." });
+  }
+
+  for (const t of transferable) {
+    await db.update(transactionsTable).set({ status: "transferred" }).where(eq(transactionsTable.id, t.id));
+  }
+
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "vault_transfer",
+    amount: transferAmount.toFixed(2),
+    status: "completed",
+    paymentMethod: "balance",
+    description: "Vault Wallet: transferred to Spot Wallet",
+  });
+
+  const availableBalance = await getAvailableBalance(user.id);
+  const vaultWalletBalance = await getVaultWalletBalance(user.id);
+
+  return res.json({
+    message: "Funds transferred to your Spot Wallet.",
+    transferredAmount: parseFloat(transferAmount.toFixed(2)),
+    availableBalance,
+    vaultWalletBalance,
   });
 });
 

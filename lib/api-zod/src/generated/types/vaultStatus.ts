@@ -10,6 +10,7 @@ import type { VaultTier } from './vaultTier';
 
 export interface VaultStatus {
   availableBalance: number;
+  vaultWalletBalance: number;
   tiers: VaultTier[];
   terms: number[];
   minAmount: number;

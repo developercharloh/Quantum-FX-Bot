@@ -9,10 +9,16 @@ The Quantum Vault reward tier percentage (`dailyRate` on `vault_investments` / `
 
 **How to apply:** If touching vault reward math, tier definitions, or UI copy, always treat the stored/displayed percentage as per-day. Do not reintroduce `/365` annualization. Current tiers (as of this decision): 0.45%/0.6%/0.8%/1.2% daily.
 
-## Principal redemption rule (current, as of 2026-07-05)
+## Principal redemption rule (superseded — see Vault Wallet separation below)
 
-Principal IS redeemable at maturity, together with rewards, via the redeem button — both amounts are credited to the main wallet balance in one action, with a congratulations dialog summarizing principal/reward/total.
+Principal IS redeemable at maturity, together with rewards, via the redeem button. As of 2026-07-05 this history is preserved for context, but see "Vault Wallet separation" below for the current (later) rule about *where* redeemed funds land.
 
-**Why:** The business rule was reversed by explicit user instruction after being implemented the opposite way ("principal locked forever") multiple times previously. Treat this as the current source of truth unless the user says otherwise again — if it conflicts with older copy/UI text found in the code, the code's actual redeem behavior (not old marketing copy) is authoritative.
+**How to apply:** A `force: true` field on the redeem request bypasses the maturity check — this exists only as a developer/testing escape hatch (exposed in the UI as "Reset investment (testing only)"), not a real product feature. Similarly `testMode: true` on `/vault/invest` sets maturity to 60 seconds instead of the real term — also testing-only, remove or gate behind an admin flag before real launch.
 
-**How to apply:** `POST /vault/redeem` inserts both a `vault_unlock` (principal) and `vault_reward` transaction on redemption; `balance.ts` must treat both as balance-adding types. A `force: true` field on the redeem request bypasses the maturity check — this exists only as a developer/testing escape hatch (exposed in the UI as "Reset investment (testing only)"), not a real product feature. Similarly `testMode: true` on `/vault/invest` sets maturity to 60 seconds instead of the real term — also testing-only, remove or gate behind an admin flag before real launch.
+## Vault Wallet separation (current, as of 2026-07-05)
+
+Redeemed vault funds (principal + reward) are NOT usable for trading immediately — they land in a separate "Vault Wallet," not the main "Spot Wallet" (available balance). The user must explicitly tap "Transfer to Spot Wallet" to move them before they count toward available balance.
+
+**Why:** Explicit user instruction, superseding the earlier rule where redeem credited the main balance directly. Rationale: vault funds should require a deliberate action before being tradeable, mirroring real fixed-income-to-spot transfers.
+
+**How to apply:** `POST /vault/redeem` inserts `vault_unlock`/`vault_reward` transactions with `status="vault_hold"` (not `"completed"`) — `getAvailableBalance` in `balance.ts` deliberately excludes these statuses/types. `getVaultWalletBalance(userId)` sums `vault_hold` vault_unlock/vault_reward transactions to show the Vault Wallet balance. `POST /vault/transfer` marks all `vault_hold` rows as `status="transferred"` and inserts one new `vault_transfer` transaction with `status="completed"`, which IS counted by `getAvailableBalance`. If adding new vault-related transaction types, decide explicitly whether they should land in Spot Wallet (`completed`) or Vault Wallet (`vault_hold`) — do not default to `completed`. Pre-existing (grandfathered) `vault_unlock`/`vault_reward` rows with `status="completed"` from before this change are intentionally left as-is (no backfill).

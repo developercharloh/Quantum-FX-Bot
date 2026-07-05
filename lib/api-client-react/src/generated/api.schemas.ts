@@ -214,6 +214,7 @@ export interface VaultInvestment {
 
 export interface VaultStatus {
   availableBalance: number;
+  vaultWalletBalance: number;
   tiers: VaultTier[];
   terms: number[];
   minAmount: number;
@@ -236,6 +237,13 @@ export interface VaultRedeemResponse {
   principalAmount: number;
   rewardAmount: number;
   totalCredited: number;
+}
+
+export interface VaultTransferResponse {
+  message: string;
+  transferredAmount: number;
+  availableBalance: number;
+  vaultWalletBalance: number;
 }
 
 export interface DepositInput {

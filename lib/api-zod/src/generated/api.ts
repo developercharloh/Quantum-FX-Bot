@@ -219,6 +219,7 @@ export const PurchaseBotResponse = zod.object({
 
 export const GetVaultStatusResponse = zod.object({
   "availableBalance": zod.number(),
+  "vaultWalletBalance": zod.number(),
   "tiers": zod.array(zod.object({
   "min": zod.number(),
   "max": zod.number().nullable(),
@@ -281,6 +282,14 @@ export const RedeemVaultInvestmentResponse = zod.object({
   "principalAmount": zod.number(),
   "rewardAmount": zod.number(),
   "totalCredited": zod.number()
+})
+
+
+export const TransferVaultWalletResponse = zod.object({
+  "message": zod.string(),
+  "transferredAmount": zod.number(),
+  "availableBalance": zod.number(),
+  "vaultWalletBalance": zod.number()
 })
 
 
