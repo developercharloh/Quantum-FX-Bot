@@ -56,10 +56,18 @@ export default function Vault() {
   const matchedTier = data?.tiers.find(
     (t) => Number.isFinite(numericAmount) && numericAmount >= t.min && (t.max == null || numericAmount <= t.max)
   );
-  const projectedReward =
-    matchedTier && termDays
-      ? numericAmount * (matchedTier.annualRate / 100) * (termDays / 365)
+  const dailyReward =
+    matchedTier && Number.isFinite(numericAmount)
+      ? numericAmount * (matchedTier.annualRate / 100) / 365
       : null;
+  const projectedReward =
+    dailyReward != null && termDays ? dailyReward * termDays : null;
+  const growthMilestones =
+    dailyReward != null && termDays
+      ? Array.from(new Set([0.25, 0.5, 0.75, 1].map((f) => Math.max(1, Math.round(termDays * f)))))
+          .sort((a, b) => a - b)
+          .map((day) => ({ day, cumulative: dailyReward * day }))
+      : [];
 
   return (
     <Layout>
@@ -151,6 +159,15 @@ export default function Vault() {
               </div>
             </div>
 
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" /> Earning
+              </span>
+              <span className="font-medium text-foreground/80">
+                {formatMoney(data.active.rewardAmount / data.active.termDays)}/day
+              </span>
+            </div>
+
             <Button
               disabled={!data.active.isMatured || redeemMutation.isPending}
               onClick={() => redeemMutation.mutate()}
@@ -201,10 +218,30 @@ export default function Vault() {
               </div>
             </div>
 
-            {projectedReward != null && (
-              <div className="rounded-xl bg-muted/40 p-3 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Projected reward</span>
-                <span className="text-sm font-semibold text-emerald-500">{formatMoney(projectedReward)}</span>
+            {dailyReward != null && termDays != null && (
+              <div className="rounded-xl bg-muted/40 p-3 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-500" /> Daily reward
+                  </span>
+                  <span className="text-sm font-semibold text-emerald-500">{formatMoney(dailyReward)}/day</span>
+                </div>
+
+                <div className="flex flex-col gap-1 pt-2 border-t border-border/40">
+                  {growthMilestones.map((m) => (
+                    <div key={m.day} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Day {m.day}</span>
+                      <span className={m.day === termDays ? "font-semibold text-emerald-500" : "text-foreground/80"}>
+                        {formatMoney(m.cumulative)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                  <span className="text-xs font-medium">Expected total after {termDays} days</span>
+                  <span className="text-sm font-bold text-emerald-500">{formatMoney(projectedReward ?? 0)}</span>
+                </div>
               </div>
             )}
 
