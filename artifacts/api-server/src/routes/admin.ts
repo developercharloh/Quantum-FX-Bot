@@ -19,6 +19,7 @@ import {
   broadcastsTable,
   adminLoginNotificationsTable,
   sessionsTable,
+  vaultInvestmentsTable,
   type PaymentMethod,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -720,6 +721,69 @@ router.post("/admin/transactions/:id/review", async (req, res) => {
     .limit(1);
   if (!row) return res.status(404).json({ error: "Transaction not found" });
   return res.json(mapTxnRow(row.txn, row.user));
+});
+
+// ---------------- Vault ----------------
+function mapAdminVaultInvestment(inv: typeof vaultInvestmentsTable.$inferSelect) {
+  return {
+    id: inv.id,
+    amount: parseFloat(inv.amount),
+    termDays: inv.termDays,
+    dailyRate: parseFloat(inv.dailyRate),
+    rewardAmount: parseFloat(inv.rewardAmount),
+    status: inv.status,
+    startedAt: inv.startedAt.toISOString(),
+    maturesAt: inv.maturesAt.toISOString(),
+    redeemedAt: inv.redeemedAt ? inv.redeemedAt.toISOString() : null,
+  };
+}
+
+router.get("/admin/vault", async (req, res) => {
+  const search = (req.query.search as string | undefined)?.trim().toLowerCase();
+  const filter = (req.query.filter as string | undefined) ?? "all";
+
+  const [users, investments] = await Promise.all([
+    db.select().from(usersTable).orderBy(desc(usersTable.createdAt)),
+    db.select().from(vaultInvestmentsTable).orderBy(desc(vaultInvestmentsTable.createdAt)),
+  ]);
+
+  const byUser = new Map<number, typeof investments>();
+  for (const inv of investments) {
+    const list = byUser.get(inv.userId) ?? [];
+    list.push(inv);
+    byUser.set(inv.userId, list);
+  }
+
+  let result = users.map((u) => {
+    const userInvestments = byUser.get(u.id) ?? [];
+    const active = userInvestments.find((i) => i.status === "active") ?? null;
+    const totalInvested = userInvestments.reduce((s, i) => s + parseFloat(i.amount), 0);
+    const totalRewardsEarned = userInvestments
+      .filter((i) => i.status === "redeemed")
+      .reduce((s, i) => s + parseFloat(i.rewardAmount), 0);
+    return {
+      userId: u.id,
+      userName: u.fullName,
+      userEmail: u.email,
+      invested: userInvestments.length > 0,
+      active: active ? mapAdminVaultInvestment(active) : null,
+      history: userInvestments.map(mapAdminVaultInvestment),
+      totalInvested: Math.round(totalInvested * 100) / 100,
+      totalRewardsEarned: Math.round(totalRewardsEarned * 100) / 100,
+    };
+  });
+
+  if (filter === "invested") result = result.filter((r) => r.invested);
+  if (filter === "active") result = result.filter((r) => r.active !== null);
+  if (filter === "not-invested") result = result.filter((r) => !r.invested);
+
+  if (search) {
+    result = result.filter(
+      (r) => r.userName.toLowerCase().includes(search) || r.userEmail.toLowerCase().includes(search),
+    );
+  }
+
+  return res.json(result);
 });
 
 // ---------------- Deposit Sessions ----------------

@@ -1,6 +1,6 @@
 import { useState, ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Bot, CircleDollarSign, LifeBuoy, Settings, Megaphone, Sun, Moon, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Bot, CircleDollarSign, LifeBuoy, Settings, Megaphone, Sun, Moon, LogOut, Vault } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./NotificationBell";
 
@@ -14,6 +14,7 @@ const navItems = [
   { path: "/users",      label: "Users",     icon: Users           },
   { path: "/bots",       label: "Bots",      icon: Bot             },
   { path: "/finance",    label: "Wallet",    icon: CircleDollarSign},
+  { path: "/vault",      label: "Vault",     icon: Vault           },
   { path: "/broadcast",  label: "Broadcast", icon: Megaphone       },
   { path: "/support",    label: "Support",   icon: LifeBuoy        },
   { path: "/settings",   label: "Settings",  icon: Settings        },

@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface VaultInvestInput {
-  amount: number;
-  termDays: number;
-}
+export type AdminListVaultUsersParams = {
+search?: string;
+filter?: string;
+};

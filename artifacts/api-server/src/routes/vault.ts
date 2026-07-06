@@ -14,7 +14,6 @@ const TIERS = [
 
 const TERMS = [7, 30, 90, 180, 365];
 const MIN_AMOUNT = 100;
-const TEST_DURATION_MS = 60 * 1000;
 
 function rateForAmount(amount: number): number | null {
   const tier = TIERS.find((t) => amount >= t.min && (t.max === null || amount <= t.max));
@@ -94,7 +93,6 @@ router.post("/vault/invest", async (req, res) => {
 
   const amount = parseFloat(req.body?.amount);
   const termDays = parseInt(req.body?.termDays);
-  const testMode = req.body?.testMode === true;
 
   if (!Number.isFinite(amount) || amount < MIN_AMOUNT) {
     return res.status(400).json({ error: `Minimum investment is $${MIN_AMOUNT}.` });
@@ -126,7 +124,7 @@ router.post("/vault/invest", async (req, res) => {
 
   const rewardAmount = parseFloat((amount * (dailyRate / 100) * termDays).toFixed(2));
   const startedAt = new Date();
-  const durationMs = testMode ? TEST_DURATION_MS : termDays * 24 * 60 * 60 * 1000;
+  const durationMs = termDays * 24 * 60 * 60 * 1000;
   const maturesAt = new Date(startedAt.getTime() + durationMs);
 
   await db.insert(vaultInvestmentsTable).values({

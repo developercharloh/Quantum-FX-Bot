@@ -1403,6 +1403,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminTransaction"
 
+  /admin/vault:
+    get:
+      operationId: adminListVaultUsers
+      tags: [admin]
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Per-user vault investment status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminVaultUser"
+
   /admin/tickets:
     get:
       operationId: adminListTickets
@@ -2039,8 +2064,6 @@ components:
           type: number
         termDays:
           type: integer
-        testMode:
-          type: boolean
       required: [amount, termDays]
 
     VaultRedeemInput:
@@ -2622,6 +2645,39 @@ components:
       properties:
         action: { type: string }
       required: [action]
+
+    AdminVaultInvestment:
+      type: object
+      properties:
+        id: { type: integer }
+        amount: { type: number }
+        termDays: { type: integer }
+        dailyRate: { type: number }
+        rewardAmount: { type: number }
+        status: { type: string }
+        startedAt: { type: string }
+        maturesAt: { type: string }
+        redeemedAt: { type: ["string", "null"] }
+      required: [id, amount, termDays, dailyRate, rewardAmount, status, startedAt, maturesAt]
+
+    AdminVaultUser:
+      type: object
+      properties:
+        userId: { type: integer }
+        userName: { type: string }
+        userEmail: { type: string }
+        invested: { type: boolean }
+        active:
+          oneOf:
+            - $ref: "#/components/schemas/AdminVaultInvestment"
+            - type: "null"
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminVaultInvestment"
+        totalInvested: { type: number }
+        totalRewardsEarned: { type: number }
+      required: [userId, userName, userEmail, invested, active, history, totalInvested, totalRewardsEarned]
 
     AdminTicket:
       type: object

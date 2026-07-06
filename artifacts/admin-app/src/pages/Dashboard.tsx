@@ -8,6 +8,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Users, Bot, CircleDollarSign, Activity, Megaphone, CheckCircle, Clock } from "lucide-react";
+import { transactionTypeLabel } from "@/lib/utils";
 import {
   AreaChart,
   Area,
@@ -236,7 +237,7 @@ export default function Dashboard() {
                     <div className="text-sm font-medium truncate">{txn.userName}</div>
                     <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      <span className="capitalize">{txn.type.replace('_', ' ')}</span>
+                      <span>{transactionTypeLabel(txn.type)}</span>
                       <span>·</span>
                       <span>{txn.status}</span>
                     </div>

@@ -15,6 +15,7 @@ import Users from "@/pages/Users";
 import UserDetail from "@/pages/UserDetail";
 import Bots from "@/pages/Bots";
 import Finance from "@/pages/Finance";
+import Vault from "@/pages/Vault";
 import Support from "@/pages/Support";
 import Settings from "@/pages/Settings";
 import Broadcast from "@/pages/Broadcast";
@@ -67,6 +68,7 @@ function Router({ onLogout, adminToken }: { onLogout: () => void; adminToken: st
         <Route path="/users/:id" component={UserDetail} />
         <Route path="/bots" component={Bots} />
         <Route path="/finance" component={Finance} />
+        <Route path="/vault" component={Vault} />
         <Route path="/support" component={Support} />
         <Route path="/settings" component={Settings} />
         <Route path="/broadcast" component={Broadcast} />

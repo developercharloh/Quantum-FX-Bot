@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { transactionTypeLabel } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -394,8 +395,8 @@ export default function UserDetail() {
                           {user.transactions.map(txn => (
                             <TableRow key={txn.id}>
                               <TableCell className="text-xs whitespace-nowrap">{format(new Date(txn.createdAt), "PP p")}</TableCell>
-                              <TableCell className="capitalize">
-                                <div>{txn.type.replace('_', ' ')}</div>
+                              <TableCell>
+                                <div>{transactionTypeLabel(txn.type)}</div>
                                 {txn.type === 'withdrawal' && txn.walletAddress && (
                                   <div className="mt-1 p-1.5 rounded-md bg-secondary/60 space-y-1">
                                     {txn.network && (

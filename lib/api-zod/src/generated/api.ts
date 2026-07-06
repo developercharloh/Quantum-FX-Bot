@@ -264,8 +264,7 @@ export const GetVaultStatusResponse = zod.object({
 
 export const CreateVaultInvestmentBody = zod.object({
   "amount": zod.number(),
-  "termDays": zod.number(),
-  "testMode": zod.boolean().optional()
+  "termDays": zod.number()
 })
 
 export const CreateVaultInvestmentResponse = zod.object({
@@ -1150,6 +1149,44 @@ export const AdminReviewTransactionResponse = zod.object({
   "description": zod.string().nullish(),
   "createdAt": zod.string()
 })
+
+
+export const AdminListVaultUsersQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "filter": zod.coerce.string().optional()
+})
+
+export const AdminListVaultUsersResponseItem = zod.object({
+  "userId": zod.number(),
+  "userName": zod.string(),
+  "userEmail": zod.string(),
+  "invested": zod.boolean(),
+  "active": zod.union([zod.object({
+  "id": zod.number(),
+  "amount": zod.number(),
+  "termDays": zod.number(),
+  "dailyRate": zod.number(),
+  "rewardAmount": zod.number(),
+  "status": zod.string(),
+  "startedAt": zod.string(),
+  "maturesAt": zod.string(),
+  "redeemedAt": zod.string().nullish()
+}),zod.null()]),
+  "history": zod.array(zod.object({
+  "id": zod.number(),
+  "amount": zod.number(),
+  "termDays": zod.number(),
+  "dailyRate": zod.number(),
+  "rewardAmount": zod.number(),
+  "status": zod.string(),
+  "startedAt": zod.string(),
+  "maturesAt": zod.string(),
+  "redeemedAt": zod.string().nullish()
+})),
+  "totalInvested": zod.number(),
+  "totalRewardsEarned": zod.number()
+})
+export const AdminListVaultUsersResponse = zod.array(AdminListVaultUsersResponseItem)
 
 
 export const AdminListTicketsQueryParams = zod.object({

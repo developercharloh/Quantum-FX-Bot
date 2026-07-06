@@ -62413,8 +62413,7 @@ var GetVaultStatusResponse = objectType({
 });
 var CreateVaultInvestmentBody = objectType({
   "amount": numberType(),
-  "termDays": numberType(),
-  "testMode": booleanType().optional()
+  "termDays": numberType()
 });
 var CreateVaultInvestmentResponse = objectType({
   "message": stringType()
@@ -63146,6 +63145,41 @@ var AdminReviewTransactionResponse = objectType({
   "description": stringType().nullish(),
   "createdAt": stringType()
 });
+var AdminListVaultUsersQueryParams = objectType({
+  "search": coerce.string().optional(),
+  "filter": coerce.string().optional()
+});
+var AdminListVaultUsersResponseItem = objectType({
+  "userId": numberType(),
+  "userName": stringType(),
+  "userEmail": stringType(),
+  "invested": booleanType(),
+  "active": unionType([objectType({
+    "id": numberType(),
+    "amount": numberType(),
+    "termDays": numberType(),
+    "dailyRate": numberType(),
+    "rewardAmount": numberType(),
+    "status": stringType(),
+    "startedAt": stringType(),
+    "maturesAt": stringType(),
+    "redeemedAt": stringType().nullish()
+  }), nullType()]),
+  "history": arrayType(objectType({
+    "id": numberType(),
+    "amount": numberType(),
+    "termDays": numberType(),
+    "dailyRate": numberType(),
+    "rewardAmount": numberType(),
+    "status": stringType(),
+    "startedAt": stringType(),
+    "maturesAt": stringType(),
+    "redeemedAt": stringType().nullish()
+  })),
+  "totalInvested": numberType(),
+  "totalRewardsEarned": numberType()
+});
+var AdminListVaultUsersResponse = arrayType(AdminListVaultUsersResponseItem);
 var AdminListTicketsQueryParams = objectType({
   "status": coerce.string().optional()
 });
@@ -67184,6 +67218,58 @@ router11.post("/admin/transactions/:id/review", async (req, res) => {
   if (!row) return res.status(404).json({ error: "Transaction not found" });
   return res.json(mapTxnRow(row.txn, row.user));
 });
+function mapAdminVaultInvestment(inv) {
+  return {
+    id: inv.id,
+    amount: parseFloat(inv.amount),
+    termDays: inv.termDays,
+    dailyRate: parseFloat(inv.dailyRate),
+    rewardAmount: parseFloat(inv.rewardAmount),
+    status: inv.status,
+    startedAt: inv.startedAt.toISOString(),
+    maturesAt: inv.maturesAt.toISOString(),
+    redeemedAt: inv.redeemedAt ? inv.redeemedAt.toISOString() : null
+  };
+}
+router11.get("/admin/vault", async (req, res) => {
+  const search = req.query.search?.trim().toLowerCase();
+  const filter = req.query.filter ?? "all";
+  const [users, investments] = await Promise.all([
+    db.select().from(usersTable).orderBy(desc(usersTable.createdAt)),
+    db.select().from(vaultInvestmentsTable).orderBy(desc(vaultInvestmentsTable.createdAt))
+  ]);
+  const byUser = /* @__PURE__ */ new Map();
+  for (const inv of investments) {
+    const list = byUser.get(inv.userId) ?? [];
+    list.push(inv);
+    byUser.set(inv.userId, list);
+  }
+  let result = users.map((u) => {
+    const userInvestments = byUser.get(u.id) ?? [];
+    const active = userInvestments.find((i2) => i2.status === "active") ?? null;
+    const totalInvested = userInvestments.reduce((s, i2) => s + parseFloat(i2.amount), 0);
+    const totalRewardsEarned = userInvestments.filter((i2) => i2.status === "redeemed").reduce((s, i2) => s + parseFloat(i2.rewardAmount), 0);
+    return {
+      userId: u.id,
+      userName: u.fullName,
+      userEmail: u.email,
+      invested: userInvestments.length > 0,
+      active: active ? mapAdminVaultInvestment(active) : null,
+      history: userInvestments.map(mapAdminVaultInvestment),
+      totalInvested: Math.round(totalInvested * 100) / 100,
+      totalRewardsEarned: Math.round(totalRewardsEarned * 100) / 100
+    };
+  });
+  if (filter === "invested") result = result.filter((r2) => r2.invested);
+  if (filter === "active") result = result.filter((r2) => r2.active !== null);
+  if (filter === "not-invested") result = result.filter((r2) => !r2.invested);
+  if (search) {
+    result = result.filter(
+      (r2) => r2.userName.toLowerCase().includes(search) || r2.userEmail.toLowerCase().includes(search)
+    );
+  }
+  return res.json(result);
+});
 function mapDepositSession(s, u) {
   return {
     id: s.id,
@@ -67602,7 +67688,6 @@ var TIERS = [
 ];
 var TERMS = [7, 30, 90, 180, 365];
 var MIN_AMOUNT = 100;
-var TEST_DURATION_MS = 60 * 1e3;
 function rateForAmount(amount) {
   const tier = TIERS.find((t2) => amount >= t2.min && (t2.max === null || amount <= t2.max));
   return tier ? tier.dailyRate : null;
@@ -67668,7 +67753,6 @@ router13.post("/vault/invest", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   const amount = parseFloat(req.body?.amount);
   const termDays = parseInt(req.body?.termDays);
-  const testMode = req.body?.testMode === true;
   if (!Number.isFinite(amount) || amount < MIN_AMOUNT) {
     return res.status(400).json({ error: `Minimum investment is $${MIN_AMOUNT}.` });
   }
@@ -67691,7 +67775,7 @@ router13.post("/vault/invest", async (req, res) => {
   }
   const rewardAmount = parseFloat((amount * (dailyRate / 100) * termDays).toFixed(2));
   const startedAt = /* @__PURE__ */ new Date();
-  const durationMs = testMode ? TEST_DURATION_MS : termDays * 24 * 60 * 60 * 1e3;
+  const durationMs = termDays * 24 * 60 * 60 * 1e3;
   const maturesAt = new Date(startedAt.getTime() + durationMs);
   await db.insert(vaultInvestmentsTable).values({
     userId: user.id,

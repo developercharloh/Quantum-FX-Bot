@@ -35,7 +35,6 @@ export default function Vault() {
   const { data, isLoading } = useGetVaultStatus();
   const [amount, setAmount] = useState("");
   const [termDays, setTermDays] = useState<number | null>(null);
-  const [testMode, setTestMode] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [congrats, setCongrats] = useState<{ principal: number; reward: number; total: number } | null>(null);
   const [transferred, setTransferred] = useState<{ amount: number } | null>(null);
@@ -55,7 +54,6 @@ export default function Vault() {
         toast({ title: "Investment started", description: "Your funds are now locked in your Vault." });
         setAmount("");
         setTermDays(null);
-        setTestMode(false);
         invalidate();
       },
       onError: (err: any) => {
@@ -420,12 +418,9 @@ export default function Vault() {
                 {data.terms.map((t) => (
                   <button
                     key={t}
-                    onClick={() => {
-                      setTermDays(t);
-                      setTestMode(false);
-                    }}
+                    onClick={() => setTermDays(t)}
                     className={`h-10 rounded-xl text-sm font-medium border transition-colors ${
-                      termDays === t && !testMode
+                      termDays === t
                         ? "bg-amber-500 text-amber-950 border-amber-500"
                         : "bg-muted/40 border-border/40 text-muted-foreground"
                     }`}
@@ -433,19 +428,6 @@ export default function Vault() {
                     {t}d
                   </button>
                 ))}
-                <button
-                  onClick={() => {
-                    setTermDays(data.terms[0]);
-                    setTestMode(true);
-                  }}
-                  className={`h-10 rounded-xl text-sm font-medium border transition-colors ${
-                    testMode
-                      ? "bg-amber-500 text-amber-950 border-amber-500"
-                      : "bg-muted/40 border-border/40 text-muted-foreground"
-                  }`}
-                >
-                  1 min (test)
-                </button>
               </div>
             </div>
 
@@ -471,7 +453,7 @@ export default function Vault() {
 
                 <div className="flex items-center justify-between pt-2 border-t border-border/40">
                   <span className="text-xs font-medium">
-                    {testMode ? "Expected total after 1 minute (test)" : `Expected total after ${termDays} days`}
+                    Expected total after {termDays} days
                   </span>
                   <span className="text-sm font-bold text-emerald-500">{formatMoney(projectedReward ?? 0)}</span>
                 </div>
@@ -505,7 +487,7 @@ export default function Vault() {
               disabled={!matchedTier || !termDays || insufficientVaultFunds || investMutation.isPending}
               onClick={() =>
                 investMutation.mutate({
-                  data: { amount: numericAmount, termDays: termDays!, ...(testMode ? { testMode: true } : {}) },
+                  data: { amount: numericAmount, termDays: termDays! },
                 })
               }
               className="w-full"

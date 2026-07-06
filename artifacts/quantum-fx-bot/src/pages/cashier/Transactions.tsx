@@ -4,7 +4,7 @@ import { useListTransactions, ListTransactionsType } from "@workspace/api-client
 import { Layout } from "@/components/Layout";
 import { ChevronLeft, ArrowDownRight, ArrowUpRight, Zap, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatUSD } from "@/lib/format";
+import { formatUSD, transactionTypeLabel } from "@/lib/format";
 
 const CLEAR_KEY = "qfx_cleared_txns_before";
 
@@ -78,9 +78,7 @@ export default function Transactions() {
                         : <Zap className="w-4 h-4 text-primary fill-primary" />}
                   </div>
                   <div>
-                    <div className="font-semibold text-sm mb-0.5 capitalize">{
-                      tx.type === "trade_loss" ? "Trade Capital" : tx.type.replace("_", " ")
-                    }</div>
+                    <div className="font-semibold text-sm mb-0.5">{transactionTypeLabel(tx.type)}</div>
                     <div className="text-xs text-muted-foreground">
                       {new Date(tx.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </div>

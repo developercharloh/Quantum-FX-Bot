@@ -225,7 +225,6 @@ export interface VaultStatus {
 export interface VaultInvestInput {
   amount: number;
   termDays: number;
-  testMode?: boolean;
 }
 
 export interface VaultRedeemInput {
@@ -628,6 +627,30 @@ export interface AdminTxnReviewInput {
   action: string;
 }
 
+export interface AdminVaultInvestment {
+  id: number;
+  amount: number;
+  termDays: number;
+  dailyRate: number;
+  rewardAmount: number;
+  status: string;
+  startedAt: string;
+  maturesAt: string;
+  /** @nullable */
+  redeemedAt?: string | null;
+}
+
+export interface AdminVaultUser {
+  userId: number;
+  userName: string;
+  userEmail: string;
+  invested: boolean;
+  active: AdminVaultInvestment | null;
+  history: AdminVaultInvestment[];
+  totalInvested: number;
+  totalRewardsEarned: number;
+}
+
 export interface AdminTicket {
   id: number;
   userId: number;
@@ -819,6 +842,11 @@ status?: string;
 export type AdminListTransactionsParams = {
 type?: string;
 status?: string;
+};
+
+export type AdminListVaultUsersParams = {
+search?: string;
+filter?: string;
 };
 
 export type AdminListTicketsParams = {

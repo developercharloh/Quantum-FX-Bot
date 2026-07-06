@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { transactionTypeLabel } from "@/lib/utils";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -123,7 +124,7 @@ function TransactionsTab() {
                         {txn.status === "pending" && <Clock className="w-2.5 h-2.5 mr-1 inline" />}
                         {txn.status}
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground capitalize">{txn.type === "trade_loss" ? "Trade Capital" : txn.type.replace("_", " ")}</span>
+                      <span className="text-[10px] text-muted-foreground">{transactionTypeLabel(txn.type)}</span>
                     </div>
                     <p className="text-sm font-semibold truncate">{txn.userName}</p>
                     <p className="text-[11px] text-muted-foreground truncate">{txn.userEmail}</p>
