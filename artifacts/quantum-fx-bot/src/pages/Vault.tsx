@@ -313,18 +313,6 @@ export default function Vault() {
                 ? `Redeem ${formatMoney(data.active.amount + data.active.rewardAmount)} (Principal + Reward)`
                 : "Locked until maturity"}
             </Button>
-
-            <button
-              onClick={() => {
-                if (confirm("This will reset your active investment for testing and return your funds to your balance. Continue?")) {
-                  redeemMutation.mutate({ data: { force: true } });
-                }
-              }}
-              disabled={redeemMutation.isPending}
-              className="text-xs text-muted-foreground underline underline-offset-2 self-center"
-            >
-              Reset investment (testing only)
-            </button>
           </div>
         )}
 

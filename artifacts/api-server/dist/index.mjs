@@ -62418,9 +62418,7 @@ var CreateVaultInvestmentBody = objectType({
 var CreateVaultInvestmentResponse = objectType({
   "message": stringType()
 });
-var RedeemVaultInvestmentBody = objectType({
-  "force": booleanType().optional()
-});
+var RedeemVaultInvestmentBody = objectType({}).passthrough();
 var RedeemVaultInvestmentResponse = objectType({
   "message": stringType(),
   "principalAmount": numberType(),
@@ -67801,13 +67799,12 @@ router13.post("/vault/redeem", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   const user = await getUserFromToken9(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
-  const force = req.body?.force === true;
   const rows = await db.select().from(vaultInvestmentsTable).where(and(eq(vaultInvestmentsTable.userId, user.id), eq(vaultInvestmentsTable.status, "active"))).limit(1);
   if (rows.length === 0) {
     return res.status(400).json({ error: "No active Quantum Vault investment found." });
   }
   const inv = rows[0];
-  if (!force && Date.now() < inv.maturesAt.getTime()) {
+  if (Date.now() < inv.maturesAt.getTime()) {
     return res.status(400).json({ error: "This investment has not matured yet." });
   }
   await db.update(vaultInvestmentsTable).set({

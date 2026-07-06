@@ -227,9 +227,7 @@ export interface VaultInvestInput {
   termDays: number;
 }
 
-export interface VaultRedeemInput {
-  force?: boolean;
-}
+export interface VaultRedeemInput { [key: string]: unknown }
 
 export interface VaultRedeemResponse {
   message: string;

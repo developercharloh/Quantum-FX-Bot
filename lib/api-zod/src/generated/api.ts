@@ -273,8 +273,8 @@ export const CreateVaultInvestmentResponse = zod.object({
 
 
 export const RedeemVaultInvestmentBody = zod.object({
-  "force": zod.boolean().optional()
-})
+
+}).passthrough()
 
 export const RedeemVaultInvestmentResponse = zod.object({
   "message": zod.string(),

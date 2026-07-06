@@ -155,8 +155,6 @@ router.post("/vault/redeem", async (req, res) => {
   const user = await getUserFromToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const force = req.body?.force === true;
-
   const rows = await db.select().from(vaultInvestmentsTable)
     .where(and(eq(vaultInvestmentsTable.userId, user.id), eq(vaultInvestmentsTable.status, "active")))
     .limit(1);
@@ -166,7 +164,7 @@ router.post("/vault/redeem", async (req, res) => {
   }
 
   const inv = rows[0];
-  if (!force && Date.now() < inv.maturesAt.getTime()) {
+  if (Date.now() < inv.maturesAt.getTime()) {
     return res.status(400).json({ error: "This investment has not matured yet." });
   }
 
