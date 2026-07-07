@@ -67679,13 +67679,12 @@ var webhooks_default = router12;
 var import_express13 = __toESM(require_express2(), 1);
 var router13 = (0, import_express13.Router)();
 var TIERS = [
-  { min: 100, max: 9999, dailyRate: 0.45 },
-  { min: 1e4, max: 49999, dailyRate: 0.6 },
-  { min: 5e4, max: 99999, dailyRate: 0.8 },
-  { min: 1e5, max: null, dailyRate: 1.2 }
+  { min: 15e3, max: 74999, dailyRate: 6 },
+  { min: 75e3, max: 149999, dailyRate: 8 },
+  { min: 15e4, max: null, dailyRate: 12 }
 ];
 var TERMS = [7, 30, 90, 180, 365];
-var MIN_AMOUNT = 100;
+var MIN_AMOUNT = 15e3;
 function rateForAmount(amount) {
   const tier = TIERS.find((t2) => amount >= t2.min && (t2.max === null || amount <= t2.max));
   return tier ? tier.dailyRate : null;

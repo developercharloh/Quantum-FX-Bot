@@ -406,19 +406,27 @@ export default function Vault() {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-muted-foreground">Term</label>
               <div className="grid grid-cols-3 gap-2">
-                {data.terms.map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTermDays(t)}
-                    className={`h-10 rounded-xl text-sm font-medium border transition-colors ${
-                      termDays === t
-                        ? "bg-amber-500 text-amber-950 border-amber-500"
-                        : "bg-muted/40 border-border/40 text-muted-foreground"
-                    }`}
-                  >
-                    {t}d
-                  </button>
-                ))}
+                {data.terms.map((t) => {
+                    const label =
+                      t === 7 ? "7 Days" :
+                      t === 30 ? "1 Month" :
+                      t === 90 ? "3 Months" :
+                      t === 180 ? "6 Months" :
+                      t === 365 ? "1 Year" : `${t}d`;
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => setTermDays(t)}
+                        className={`h-10 rounded-xl text-sm font-medium border transition-colors ${
+                          termDays === t
+                            ? "bg-amber-500 text-amber-950 border-amber-500"
+                            : "bg-muted/40 border-border/40 text-muted-foreground"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
 

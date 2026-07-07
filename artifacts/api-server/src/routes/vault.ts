@@ -6,14 +6,13 @@ import { getAvailableBalance, getVaultWalletBalance } from "../utils/balance.js"
 const router = Router();
 
 const TIERS = [
-  { min: 100, max: 9999, dailyRate: 0.45 },
-  { min: 10000, max: 49999, dailyRate: 0.6 },
-  { min: 50000, max: 99999, dailyRate: 0.8 },
-  { min: 100000, max: null as number | null, dailyRate: 1.2 },
+  { min: 15000, max: 74999, dailyRate: 6 },
+  { min: 75000, max: 149999, dailyRate: 8 },
+  { min: 150000, max: null as number | null, dailyRate: 12 },
 ];
 
 const TERMS = [7, 30, 90, 180, 365];
-const MIN_AMOUNT = 100;
+const MIN_AMOUNT = 15000;
 
 function rateForAmount(amount: number): number | null {
   const tier = TIERS.find((t) => amount >= t.min && (t.max === null || amount <= t.max));
