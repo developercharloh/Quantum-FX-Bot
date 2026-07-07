@@ -43,6 +43,8 @@ export default function Vault() {
   const [transferred, setTransferred] = useState<{ amount: number } | null>(null);
   const [showFund, setShowFund] = useState(false);
   const [fundAmount, setFundAmount] = useState("");
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferAmount, setTransferAmount] = useState("");
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1_000);
@@ -84,6 +86,8 @@ export default function Vault() {
     mutation: {
       onSuccess: (res: any) => {
         setTransferred({ amount: res?.transferredAmount ?? 0 });
+        setShowTransfer(false);
+        setTransferAmount("");
         invalidate();
       },
       onError: (err: any) => {
@@ -152,17 +156,15 @@ export default function Vault() {
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
 
-          {/* orange glow orb + gift icon */}
-          <div className="relative flex items-center justify-center w-20 h-20 mt-2">
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                background: "radial-gradient(circle, #f59e0b 0%, #b45309 55%, transparent 80%)",
-                filter: "blur(8px)",
-                opacity: 0.85,
-              }}
-            />
-            <Gift className="relative w-9 h-9 text-amber-900" strokeWidth={2.2} />
+          {/* gift icon — amber gradient square */}
+          <div
+            className="flex items-center justify-center w-16 h-16 rounded-2xl mt-2"
+            style={{
+              background: "linear-gradient(145deg, #fde68a, #f59e0b 45%, #b45309)",
+              boxShadow: "0 0 24px 6px rgba(245, 158, 11, 0.45)",
+            }}
+          >
+            <Gift className="w-8 h-8 text-amber-950" strokeWidth={2.25} />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -234,12 +236,55 @@ export default function Vault() {
                   ↓ Fund from Main Wallet
                 </button>
                 <button
-                  onClick={() => transferMutation.mutate({ data: {} })}
-                  disabled={vaultWalletBalance <= 0 || transferMutation.isPending}
+                  onClick={() => setShowTransfer(true)}
+                  disabled={vaultWalletBalance <= 0}
                   className="h-11 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 text-white disabled:opacity-40"
                   style={{ background: "linear-gradient(135deg, #6366f1, #4f46e5)" }}
                 >
                   ↑ Transfer to Main Wallet
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Transfer modal ── */}
+          {showTransfer && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6" onClick={() => setShowTransfer(false)}>
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-3"
+                style={{ background: "#0d1a2e", border: "1px solid rgba(99,102,241,0.3)" }}
+              >
+                <h2 className="text-lg font-bold text-white">Transfer to Main Wallet</h2>
+                <p className="text-sm text-white/50">
+                  Vault Wallet balance: <span className="text-white font-medium">{formatMoney(vaultWalletBalance)}</span>. Enter the amount to move to your Main Wallet.
+                </p>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  placeholder="Amount"
+                  className="h-11 rounded-xl bg-white/5 border border-white/10 px-3 text-sm text-white outline-none focus:border-indigo-500/60"
+                />
+                <button
+                  className="w-full h-11 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+                  style={{ background: "linear-gradient(135deg, #6366f1, #4f46e5)" }}
+                  disabled={
+                    !Number.isFinite(parseFloat(transferAmount)) ||
+                    parseFloat(transferAmount) <= 0 ||
+                    parseFloat(transferAmount) > vaultWalletBalance ||
+                    transferMutation.isPending
+                  }
+                  onClick={() => transferMutation.mutate({ data: { amount: parseFloat(transferAmount) } })}
+                >
+                  {transferMutation.isPending ? "Transferring…" : "Transfer to Main Wallet"}
+                </button>
+                <button
+                  className="text-xs text-white/40 underline underline-offset-2 self-center"
+                  onClick={() => setShowTransfer(false)}
+                >
+                  Cancel
                 </button>
               </div>
             </div>
