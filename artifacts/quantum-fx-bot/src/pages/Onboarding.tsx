@@ -35,7 +35,7 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background p-6">
+    <div className="flex flex-col min-h-[100dvh] bg-background p-6 max-w-[430px] mx-auto">
       <div className="flex justify-end pt-2">
         <Button variant="ghost" className="text-muted-foreground font-medium px-2" onClick={finishOnboarding}>
           Skip

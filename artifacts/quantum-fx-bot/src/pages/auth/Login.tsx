@@ -86,7 +86,7 @@ export default function Login() {
   // ── 2FA step UI ───────────────────────────────────────────────────
   if (step === "2fa") {
     return (
-      <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12">
+      <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12 max-w-[430px] mx-auto">
         <div className="flex-1 flex flex-col">
           <div className="flex items-center gap-2.5 mb-8">
             <QuantumLogo className="w-9 h-9" />
@@ -142,7 +142,7 @@ export default function Login() {
 
   // ── Credentials step UI ───────────────────────────────────────────
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12">
+    <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12 max-w-[430px] mx-auto">
       <div className="flex-1 flex flex-col">
         <div className="flex items-center gap-2.5 mb-8">
           <QuantumLogo className="w-9 h-9" />

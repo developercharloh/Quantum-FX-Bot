@@ -35,7 +35,7 @@ export default function Splash() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-between min-h-[100dvh] bg-background p-6">
+    <div className="flex flex-col items-center justify-between min-h-[100dvh] bg-background p-6 max-w-[430px] mx-auto">
       <div className="flex-1 flex flex-col items-center justify-center w-full">
         <div className="flex flex-col items-center gap-6">
           <div className="relative mb-4 flex items-center justify-center">

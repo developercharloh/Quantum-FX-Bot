@@ -8,7 +8,7 @@ export function QuantumVaultFAB() {
     <button
       onClick={() => navigate("/vault")}
       aria-label="Quantum Vault"
-      className="fixed z-50 bottom-24 right-4 flex flex-col items-center gap-1 group"
+      className="lg:hidden fixed z-50 bottom-24 right-4 flex flex-col items-center gap-1 group"
       style={{ right: "max(1rem, calc(50% - 215px + 1rem))" }}
     >
       <span

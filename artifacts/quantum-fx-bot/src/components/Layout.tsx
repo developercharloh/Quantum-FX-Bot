@@ -1,8 +1,10 @@
 import { useState, ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
 import { QuantumVaultFAB } from "./QuantumVaultFAB";
+import { SideNav } from "./SideNav";
 import { Sun, Moon } from "lucide-react";
 
+/** Mobile-only floating theme toggle (hidden on desktop — SideNav has its own). */
 function ThemeToggle() {
   const [isDark, setIsDark] = useState(() =>
     (localStorage.getItem("qfx_theme") ?? "dark") === "dark"
@@ -23,8 +25,8 @@ function ThemeToggle() {
     <button
       onClick={toggle}
       aria-label="Toggle theme"
-      className="fixed top-4 right-4 z-[60] w-9 h-9 rounded-full bg-card border border-border/40 flex items-center justify-center shadow-md hover:bg-muted transition-colors"
-      style={{ maxWidth: "calc(430px - 1rem)", right: "max(1rem, calc(50% - 215px + 1rem))" }}
+      className="lg:hidden fixed top-4 z-[60] w-9 h-9 rounded-full bg-card border border-border/40 flex items-center justify-center shadow-md hover:bg-muted transition-colors"
+      style={{ right: "max(1rem, calc(50% - 215px + 1rem))" }}
     >
       {isDark
         ? <Sun  className="w-4 h-4 text-amber-400" />
@@ -40,13 +42,21 @@ interface LayoutProps {
 
 export function Layout({ children, showNav = false }: LayoutProps) {
   return (
-    <div className="max-w-[430px] mx-auto min-h-[100dvh] bg-background text-foreground relative overflow-x-hidden shadow-2xl">
-      <ThemeToggle />
-      <div className={showNav ? "pb-[72px]" : ""}>
-        {children}
+    <div className="min-h-[100dvh] bg-background text-foreground">
+      {/* Desktop sidebar — hidden on mobile */}
+      <SideNav />
+
+      {/* Content area — offset by sidebar width on desktop */}
+      <div className="lg:ml-[240px]">
+        <div className="max-w-[430px] lg:max-w-[640px] mx-auto relative overflow-x-hidden shadow-2xl lg:shadow-none min-h-[100dvh]">
+          <ThemeToggle />
+          <div className={showNav ? "pb-[72px] lg:pb-6" : ""}>
+            {children}
+          </div>
+          {showNav && <QuantumVaultFAB />}
+          {showNav && <BottomNav />}
+        </div>
       </div>
-      {showNav && <QuantumVaultFAB />}
-      {showNav && <BottomNav />}
     </div>
   );
 }

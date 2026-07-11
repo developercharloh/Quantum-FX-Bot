@@ -49,7 +49,7 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background p-5">
+    <div className="flex flex-col min-h-[100dvh] bg-background p-5 max-w-[430px] mx-auto">
       <div className="flex-1 flex flex-col justify-center">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight mb-2">Reset Password</h1>

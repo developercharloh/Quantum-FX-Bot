@@ -53,7 +53,7 @@ export default function Register() {
   };
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12">
+    <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12 max-w-[430px] mx-auto">
       <div className="flex-1 flex flex-col justify-center">
         <div className="mb-10 text-center">
           <h1 className="text-2xl font-bold mb-2">Create Account</h1>

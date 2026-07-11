@@ -40,7 +40,7 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background p-5">
+    <div className="flex flex-col min-h-[100dvh] bg-background p-5 max-w-[430px] mx-auto">
       <div className="pt-2 pb-6">
         <button onClick={() => setLocation("/login")} className="w-10 h-10 flex items-center justify-center rounded-xl bg-card">
           <ChevronLeft className="w-5 h-5" />

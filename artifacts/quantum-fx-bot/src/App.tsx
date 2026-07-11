@@ -170,7 +170,10 @@ function App() {
         <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <ErrorBoundary>
-              <div className="max-w-[430px] mx-auto min-h-screen bg-background relative overflow-x-hidden shadow-2xl">
+              {/* On mobile: constrain all pages to 430px. On desktop: remove constraint so
+                  Layout.tsx can expand with its sidebar; auth/public pages get their own
+                  centered wrapper via the max-w-[430px] they inherited on mobile. */}
+              <div className="max-w-[430px] lg:max-w-none mx-auto lg:mx-0 min-h-screen bg-background relative overflow-x-hidden shadow-2xl lg:shadow-none">
                 <Router />
               </div>
             </ErrorBoundary>
