@@ -24,7 +24,8 @@ async function createAndSendOtp(email: string, userId: number, purpose: "registe
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
   await db.insert(emailOtpsTable).values({ email, otp, userId, expiresAt });
-  await sendOtpEmail(email, otp, purpose);
+  // Send email in the background — don't block the response
+  void sendOtpEmail(email, otp, purpose).catch(() => {});
 }
 // Clean up expired entries every 5 minutes
 setInterval(() => {
