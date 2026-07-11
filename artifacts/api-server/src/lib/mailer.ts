@@ -13,7 +13,7 @@ export async function sendOtpEmail(
     : "Your Quantum FX Bot login code";
 
   await resend.emails.send({
-    from: "Quantum FX Bot <onboarding@resend.dev>",
+    from: "Quantum FX Bot <noreply@quantum-fx-bot.site>",
     to: email,
     subject,
     html: `
