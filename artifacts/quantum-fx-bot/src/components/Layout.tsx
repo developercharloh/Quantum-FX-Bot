@@ -48,7 +48,7 @@ export function Layout({ children, showNav = false }: LayoutProps) {
 
       {/* Content area — offset by sidebar width on desktop */}
       <div className="lg:ml-[240px]">
-        <div className="max-w-[430px] lg:max-w-[640px] mx-auto relative overflow-x-hidden shadow-2xl lg:shadow-none min-h-[100dvh]">
+        <div className="max-w-[430px] lg:max-w-none mx-auto relative overflow-x-hidden shadow-2xl lg:shadow-none min-h-[100dvh]">
           <ThemeToggle />
           <div className={showNav ? "pb-[72px] lg:pb-6" : ""}>
             {children}
