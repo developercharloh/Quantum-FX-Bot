@@ -1,14 +1,6 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST ?? "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT ?? "587"),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendOtpEmail(
   email: string,
@@ -20,8 +12,8 @@ export async function sendOtpEmail(
     ? "Verify your Quantum FX Bot account"
     : "Your Quantum FX Bot login code";
 
-  await transporter.sendMail({
-    from: `"Quantum FX Bot" <${process.env.SMTP_FROM ?? process.env.SMTP_USER}>`,
+  await resend.emails.send({
+    from: "Quantum FX Bot <onboarding@resend.dev>",
     to: email,
     subject,
     html: `
