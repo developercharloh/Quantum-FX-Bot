@@ -1,6 +1,11 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy-initialize so a missing key doesn't crash the server at startup
+let _client: Resend | null = null;
+function getClient(): Resend {
+  if (!_client) _client = new Resend(process.env.RESEND_API_KEY);
+  return _client;
+}
 
 export async function sendOtpEmail(
   email: string,
@@ -12,7 +17,7 @@ export async function sendOtpEmail(
     ? "Verify your Quantum FX Bot account"
     : "Your Quantum FX Bot login code";
 
-  await resend.emails.send({
+  await getClient().emails.send({
     from: "Quantum FX Bot <noreply@quantum-fx-bot.site>",
     to: email,
     subject,
