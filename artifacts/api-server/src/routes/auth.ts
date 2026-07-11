@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { db, usersTable, sessionsTable, notificationSettingsTable, kycTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, sessionsTable, notificationSettingsTable, kycTable, emailOtpsTable } from "@workspace/db";
+import { eq, and, gt, isNull } from "drizzle-orm";
 import crypto from "crypto";
 import { verifySync } from "otplib";
 import { notifyUserLogin } from "../lib/loginAlarm";
 import { sendPushToAllAdmins } from "../lib/webPush";
+import { sendOtpEmail } from "../lib/mailer";
 import {
   RegisterBody,
   LoginBody,
@@ -14,6 +15,17 @@ import {
 
 // In-memory store for pending 2FA logins (tempToken → { userId, expires })
 const pending2FA = new Map<string, { userId: number; expires: number }>();
+
+function generateOtp(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+async function createAndSendOtp(email: string, userId: number, purpose: "register" | "login"): Promise<void> {
+  const otp = generateOtp();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  await db.insert(emailOtpsTable).values({ email, otp, userId, expiresAt });
+  await sendOtpEmail(email, otp, purpose);
+}
 // Clean up expired entries every 5 minutes
 setInterval(() => {
   const now = Date.now();
@@ -93,26 +105,10 @@ router.post("/auth/register", async (req, res) => {
   });
   await db.insert(kycTable).values({ userId: user.id, status: "not_submitted" });
 
-  const token = generateToken();
-  await db.insert(sessionsTable).values({
-    userId: user.id,
-    token,
-    device: getUserAgent(req),
-    ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
-    location: "Unknown",
-  });
+  // Send email OTP — user must verify before getting a session
+  await createAndSendOtp(email, user.id, "register");
 
-  return res.status(201).json({
-    token,
-    user: {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      avatarUrl: user.avatarUrl,
-      kycStatus: user.kycStatus,
-      createdAt: user.createdAt.toISOString(),
-    },
-  });
+  return res.status(201).json({ requiresEmailVerification: true, email });
 });
 
 router.post("/auth/login", async (req, res) => {
@@ -132,7 +128,44 @@ router.post("/auth/login", async (req, res) => {
     return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
   }
 
-  // If 2FA is enabled, return a temp token instead of a full session
+  // Send email OTP — user must verify before getting a session
+  await createAndSendOtp(user.email, user.id, "login");
+  return res.json({ requiresEmailVerification: true, email: user.email });
+});
+
+// Verify email OTP (used by both registration and login flows)
+router.post("/auth/verify-otp", async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) return res.status(400).json({ error: "Email and OTP are required." });
+
+  const now = new Date();
+  const rows = await db
+    .select()
+    .from(emailOtpsTable)
+    .where(
+      and(
+        eq(emailOtpsTable.email, email),
+        eq(emailOtpsTable.otp, String(otp)),
+        gt(emailOtpsTable.expiresAt, now),
+        isNull(emailOtpsTable.usedAt)
+      )
+    )
+    .orderBy(emailOtpsTable.createdAt)
+    .limit(1);
+
+  if (rows.length === 0) {
+    return res.status(401).json({ error: "Invalid or expired code. Please try again." });
+  }
+
+  const otpRow = rows[0];
+  // Mark OTP as used
+  await db.update(emailOtpsTable).set({ usedAt: now }).where(eq(emailOtpsTable.id, otpRow.id));
+
+  const users = await db.select().from(usersTable).where(eq(usersTable.id, otpRow.userId!)).limit(1);
+  if (users.length === 0) return res.status(401).json({ error: "User not found." });
+  const user = users[0];
+
+  // If 2FA is enabled, return a temp token for the next step
   if (user.twoFAEnabled && user.twoFASecret) {
     const tempToken = crypto.randomBytes(24).toString("hex");
     pending2FA.set(tempToken, { userId: user.id, expires: Date.now() + 5 * 60 * 1000 });
@@ -148,7 +181,7 @@ router.post("/auth/login", async (req, res) => {
     location: "Unknown",
   });
 
-  // Notify admin (fire-and-forget — must never throw or crash the server)
+  // Notify admin (fire-and-forget)
   void (async () => {
     try {
       const ip = (req.ip ?? "0.0.0.0").replace("::ffff:", "");
@@ -159,35 +192,28 @@ router.post("/auth/login", async (req, res) => {
           const geoJson = await geo.json() as { status?: string; country?: string };
           if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
         }
-      } catch { /* geo lookup failed — continue with Unknown */ }
-      await notifyUserLogin({
-        userId: user.id,
-        accountUid: user.accountUid,
-        name: user.fullName,
-        email: user.email,
-        ip,
-        country,
-      });
-      await sendPushToAllAdmins({
-        title: "🔐 User Login",
-        body: `${user.fullName} (${user.email}) logged in · ${country}`,
-        tag: "qfx-login",
-        data: { type: "login", userId: user.id },
-      });
-    } catch { /* notification failed — login still succeeds */ }
+      } catch { /* geo lookup failed */ }
+      await notifyUserLogin({ userId: user.id, accountUid: user.accountUid, name: user.fullName, email: user.email, ip, country });
+      await sendPushToAllAdmins({ title: "🔐 User Login", body: `${user.fullName} (${user.email}) logged in · ${country}`, tag: "qfx-login", data: { type: "login", userId: user.id } });
+    } catch { /* notification failed */ }
   })();
 
   return res.json({
     token,
-    user: {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      avatarUrl: user.avatarUrl,
-      kycStatus: user.kycStatus,
-      createdAt: user.createdAt.toISOString(),
-    },
+    user: { id: user.id, fullName: user.fullName, email: user.email, avatarUrl: user.avatarUrl, kycStatus: user.kycStatus, createdAt: user.createdAt.toISOString() },
   });
+});
+
+// Resend OTP
+router.post("/auth/resend-otp", async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Email is required." });
+
+  const users = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (users.length === 0) return res.status(404).json({ error: "No account found with that email." });
+
+  await createAndSendOtp(email, users[0].id, "login");
+  return res.json({ message: "A new code has been sent to your email." });
 });
 
 // Verify 2FA code after password login

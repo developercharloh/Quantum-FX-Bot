@@ -309,3 +309,16 @@ export const vaultInvestmentsTable = pgTable("vault_investments", {
 });
 
 export type VaultInvestment = typeof vaultInvestmentsTable.$inferSelect;
+
+// Email OTPs (for registration & login verification)
+export const emailOtpsTable = pgTable("email_otps", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull(),
+  otp: varchar("otp", { length: 6 }).notNull(),
+  userId: integer("user_id"),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type EmailOtp = typeof emailOtpsTable.$inferSelect;

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2, ShieldCheck, ChevronLeft } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldCheck, Mail, ChevronLeft } from "lucide-react";
 import { QuantumLogo } from "@/components/QuantumLogo";
 
 const loginSchema = z.object({
@@ -28,11 +28,13 @@ export default function Login() {
   const search = useSearch();
   const prefilledEmail = new URLSearchParams(search).get("email") ?? "";
 
-  // 2FA step state
-  const [step, setStep] = useState<"credentials" | "2fa">("credentials");
+  const [step, setStep] = useState<"credentials" | "email-otp" | "2fa">("credentials");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
   const [tempToken, setTempToken] = useState("");
   const [twoFACode, setTwoFACode] = useState("");
-  const [verifying, setVerifying] = useState(false);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -42,9 +44,11 @@ export default function Login() {
   const onSubmit = (values: z.infer<typeof loginSchema>) => {
     loginMutation.mutate({ data: { email: values.email, password: values.password } }, {
       onSuccess: (res: any) => {
-        if (res.requires2FA) {
+        if (res.requiresEmailVerification) {
+          setPendingEmail(res.email ?? values.email);
+          setStep("email-otp");
+        } else if (res.requires2FA) {
           setTempToken(res.tempToken);
-          setTwoFACode("");
           setStep("2fa");
         } else {
           setAuth(res.token, res.user);
@@ -56,6 +60,55 @@ export default function Login() {
         toast({ title: "Login failed", description: err.message || "An error occurred", variant: "destructive" });
       },
     });
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) {
+      toast({ title: "Enter the 6-digit code sent to your email", variant: "destructive" });
+      return;
+    }
+    setVerifying(true);
+    try {
+      const r = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: pendingEmail, otp: otpCode }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Invalid code");
+      if (data.requires2FA) {
+        setTempToken(data.tempToken);
+        setStep("2fa");
+      } else {
+        setAuth(data.token, data.user);
+        toast({ title: "Login successful" });
+        setLocation("/dashboard");
+      }
+    } catch (err: any) {
+      toast({ title: "Invalid code", description: err.message, variant: "destructive" });
+      setOtpCode("");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      const r = await fetch("/api/auth/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: pendingEmail }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Failed to resend");
+      toast({ title: "Code resent", description: `A new code was sent to ${pendingEmail}` });
+      setOtpCode("");
+    } catch (err: any) {
+      toast({ title: "Failed to resend", description: err.message, variant: "destructive" });
+    } finally {
+      setResending(false);
+    }
   };
 
   const handle2FAVerify = async () => {
@@ -83,23 +136,74 @@ export default function Login() {
     }
   };
 
-  // ── 2FA step UI ───────────────────────────────────────────────────
+  // ── Email OTP step ────────────────────────────────────────────────
+  if (step === "email-otp") {
+    return (
+      <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12 max-w-[430px] mx-auto">
+        <div className="flex-1 flex flex-col">
+          <div className="flex items-center gap-2.5 mb-8">
+            <QuantumLogo className="w-9 h-9" />
+            <span className="text-xl font-bold tracking-tight text-white">Quantum<span className="text-primary"> FX</span> Bot</span>
+          </div>
+
+          <button onClick={() => setStep("credentials")} className="flex items-center gap-1 text-muted-foreground text-sm mb-8 w-fit">
+            <ChevronLeft className="w-4 h-4" /> Back to login
+          </button>
+
+          <div className="flex flex-col items-center text-center mb-10">
+            <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mb-4">
+              <Mail className="w-8 h-8 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Check your email</h1>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              We sent a 6-digit code to<br />
+              <strong className="text-foreground">{pendingEmail}</strong>
+            </p>
+          </div>
+
+          <div className="space-y-5">
+            <Input
+              type="number"
+              inputMode="numeric"
+              placeholder="000000"
+              maxLength={6}
+              value={otpCode}
+              onChange={e => setOtpCode(e.target.value.slice(0, 6))}
+              className="h-16 rounded-xl text-center text-3xl font-mono tracking-[0.5em] bg-card border-none"
+            />
+
+            <Button
+              className="w-full h-14 rounded-xl text-lg font-medium shadow-none"
+              onClick={handleVerifyOtp}
+              disabled={verifying || otpCode.length !== 6}
+            >
+              {verifying ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify & Login"}
+            </Button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              Didn't receive it?{" "}
+              <button onClick={handleResend} disabled={resending} className="text-primary font-medium underline underline-offset-2">
+                {resending ? "Sending…" : "Resend code"}
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 2FA step ──────────────────────────────────────────────────────
   if (step === "2fa") {
     return (
       <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12 max-w-[430px] mx-auto">
         <div className="flex-1 flex flex-col">
           <div className="flex items-center gap-2.5 mb-8">
             <QuantumLogo className="w-9 h-9" />
-            <span className="text-xl font-bold tracking-tight text-white">
-              Quantum<span className="text-primary"> FX</span> Bot
-            </span>
+            <span className="text-xl font-bold tracking-tight text-white">Quantum<span className="text-primary"> FX</span> Bot</span>
           </div>
 
-          <button
-            onClick={() => setStep("credentials")}
-            className="flex items-center gap-1 text-muted-foreground text-sm mb-8 w-fit"
-          >
-            <ChevronLeft className="w-4 h-4" /> Back to login
+          <button onClick={() => setStep("email-otp")} className="flex items-center gap-1 text-muted-foreground text-sm mb-8 w-fit">
+            <ChevronLeft className="w-4 h-4" /> Back
           </button>
 
           <div className="flex flex-col items-center text-center mb-10">
@@ -122,33 +226,23 @@ export default function Login() {
               onChange={e => setTwoFACode(e.target.value.slice(0, 6))}
               className="h-16 rounded-xl text-center text-3xl font-mono tracking-[0.5em] bg-card border-none"
             />
-
-            <Button
-              className="w-full h-14 rounded-xl text-lg font-medium shadow-none"
-              onClick={handle2FAVerify}
-              disabled={verifying || twoFACode.length !== 6}
-            >
+            <Button className="w-full h-14 rounded-xl text-lg font-medium shadow-none" onClick={handle2FAVerify} disabled={verifying || twoFACode.length !== 6}>
               {verifying ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify & Login"}
             </Button>
-
-            <p className="text-center text-xs text-muted-foreground">
-              Code refreshes every 30 seconds. Make sure your phone clock is accurate.
-            </p>
+            <p className="text-center text-xs text-muted-foreground">Code refreshes every 30 seconds.</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // ── Credentials step UI ───────────────────────────────────────────
+  // ── Credentials step ──────────────────────────────────────────────
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background p-6 pt-12 max-w-[430px] mx-auto">
       <div className="flex-1 flex flex-col">
         <div className="flex items-center gap-2.5 mb-8">
           <QuantumLogo className="w-9 h-9" />
-          <span className="text-xl font-bold tracking-tight text-white">
-            Quantum<span className="text-primary"> FX</span> Bot
-          </span>
+          <span className="text-xl font-bold tracking-tight text-white">Quantum<span className="text-primary"> FX</span> Bot</span>
         </div>
 
         <div className="mb-8 w-full">
