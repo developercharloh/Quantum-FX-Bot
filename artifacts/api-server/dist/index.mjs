@@ -62945,8 +62945,8 @@ function buildPaginationQuery(options) {
   return searchParams.toString();
 }
 var ApiKeys = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async create(payload, options = {}) {
     return await this.resend.post("/api-keys", payload, options);
@@ -62961,8 +62961,8 @@ var ApiKeys = class {
   }
 };
 var AutomationRuns = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async get(options) {
     return await this.resend.get(`/automations/${options.automationId}/runs/${options.runId}`);
@@ -63069,8 +63069,8 @@ function parseEventToApiOptions(event) {
   };
 }
 var Automations = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
     this.runs = new AutomationRuns(this.resend);
   }
   async create(payload) {
@@ -63141,8 +63141,8 @@ async function render(node) {
   return render2(node);
 }
 var Batch = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async send(payload, options) {
     return this.create(payload, options);
@@ -63166,8 +63166,8 @@ var Batch = class {
   }
 };
 var Broadcasts = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async create(payload, options = {}) {
     const html = payload.react ? await render(payload.react) : payload.html;
@@ -63234,8 +63234,8 @@ function parseContactPropertyToApiOptions(contactProperty) {
   return { fallback_value: contactProperty.fallbackValue };
 }
 var ContactProperties = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async create(options) {
     const apiOptions = parseContactPropertyToApiOptions(options);
@@ -63303,8 +63303,8 @@ var ContactProperties = class {
   }
 };
 var ContactImports = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async create(payload, options = {}) {
     const formData = this.buildCreateFormData(payload);
@@ -63345,8 +63345,8 @@ var ContactImports = class {
   }
 };
 var ContactSegments = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async list(options) {
     if (!options.contactId && !options.email) return {
@@ -63391,8 +63391,8 @@ var ContactSegments = class {
   }
 };
 var ContactTopics = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async update(payload) {
     if (!payload.id && !payload.email) return {
@@ -63424,8 +63424,8 @@ var ContactTopics = class {
   }
 };
 var Contacts = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
     this.imports = new ContactImports(this.resend);
     this.topics = new ContactTopics(this.resend);
     this.segments = new ContactSegments(this.resend);
@@ -63535,8 +63535,8 @@ function parseDomainToApiOptions(domain2) {
   };
 }
 var DomainClaims = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async create(payload, options = {}) {
     return await this.resend.post("/domains/claim", {
@@ -63556,8 +63556,8 @@ var DomainClaims = class {
   }
 };
 var Domains = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
     this.claims = new DomainClaims(this.resend);
   }
   async create(payload, options = {}) {
@@ -63588,8 +63588,8 @@ var Domains = class {
   }
 };
 var Attachments$1 = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async get(options) {
     const { emailId, id } = options;
@@ -63603,8 +63603,8 @@ var Attachments$1 = class {
   }
 };
 var Attachments = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async get(options) {
     const { emailId, id } = options;
@@ -63618,9 +63618,9 @@ var Attachments = class {
   }
 };
 var Receiving = class {
-  constructor(resend2) {
-    this.resend = resend2;
-    this.attachments = new Attachments(resend2);
+  constructor(resend) {
+    this.resend = resend;
+    this.attachments = new Attachments(resend);
   }
   async get(id, options = {}) {
     const searchParams = new URLSearchParams();
@@ -63737,10 +63737,10 @@ var Receiving = class {
   }
 };
 var Emails = class {
-  constructor(resend2) {
-    this.resend = resend2;
-    this.attachments = new Attachments$1(resend2);
-    this.receiving = new Receiving(resend2);
+  constructor(resend) {
+    this.resend = resend;
+    this.attachments = new Attachments$1(resend);
+    this.receiving = new Receiving(resend);
   }
   async send(payload, options = {}) {
     return this.create(payload, options);
@@ -63766,8 +63766,8 @@ var Emails = class {
   }
 };
 var Events = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async send(payload) {
     return await this.resend.post("/events/send", parseEventToApiOptions(payload));
@@ -63791,8 +63791,8 @@ var Events = class {
   }
 };
 var Logs = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async list(options = {}) {
     const queryString = buildPaginationQuery(options);
@@ -63804,8 +63804,8 @@ var Logs = class {
   }
 };
 var OAuthGrants = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async list(options = {}) {
     const queryString = buildPaginationQuery(options);
@@ -63817,8 +63817,8 @@ var OAuthGrants = class {
   }
 };
 var Segments = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async create(payload, options = {}) {
     return await this.resend.post("/segments", payload, options);
@@ -63880,8 +63880,8 @@ var ChainableTemplateResult = class {
   }
 };
 var Templates = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   create(payload) {
     return new ChainableTemplateResult(this.performCreate(payload), this.publish.bind(this));
@@ -63911,8 +63911,8 @@ var Templates = class {
   }
 };
 var Topics = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async create(payload) {
     const { defaultSubscription, ...body } = payload;
@@ -63962,8 +63962,8 @@ var Topics = class {
   }
 };
 var Webhooks = class {
-  constructor(resend2) {
-    this.resend = resend2;
+  constructor(resend) {
+    this.resend = resend;
   }
   async create(payload, options = {}) {
     return await this.resend.post("/webhooks", payload, options);
@@ -64145,11 +64145,15 @@ var Resend = class {
 };
 
 // src/lib/mailer.ts
-var resend = new Resend(process.env.RESEND_API_KEY);
+var _client = null;
+function getClient() {
+  if (!_client) _client = new Resend(process.env.RESEND_API_KEY);
+  return _client;
+}
 async function sendOtpEmail(email3, otp, purpose) {
   const isRegister = purpose === "register";
   const subject = isRegister ? "Verify your Quantum FX Bot account" : "Your Quantum FX Bot login code";
-  await resend.emails.send({
+  await getClient().emails.send({
     from: "Quantum FX Bot <noreply@quantum-fx-bot.site>",
     to: email3,
     subject,

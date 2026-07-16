@@ -14,6 +14,7 @@
     { "idx": 9, "version": "7", "when": 1782620000000, "tag": "0009_vault_investments", "breakpoints": true },
     { "idx": 10, "version": "7", "when": 1782630000000, "tag": "0010_vault_daily_rate", "breakpoints": true },
     { "idx": 11, "version": "7", "when": 1782640000000, "tag": "0011_vault_fix_legacy_daily_rate", "breakpoints": true },
-    { "idx": 12, "version": "7", "when": 1782700000000, "tag": "0012_email_otps", "breakpoints": true }
+    { "idx": 12, "version": "7", "when": 1782700000000, "tag": "0012_email_otps", "breakpoints": true },
+    { "idx": 13, "version": "7", "when": 1782760000000, "tag": "0013_otp_bypass", "breakpoints": true }
   ]
 }

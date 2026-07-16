@@ -17,6 +17,7 @@ export const usersTable = pgTable("users", {
   twoFASecret: text("two_fa_secret"),
   referralCode: varchar("referral_code", { length: 50 }).notNull(),
   referredById: integer("referred_by_id"),
+  otpBypass: boolean("otp_bypass").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -129,6 +129,37 @@ router.post("/auth/login", async (req, res) => {
     return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
   }
 
+  // If this user has OTP bypass enabled, create session immediately
+  if (user.otpBypass) {
+    const token = generateToken();
+    await db.insert(sessionsTable).values({
+      userId: user.id,
+      token,
+      device: getUserAgent(req),
+      ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
+      location: "Unknown",
+    });
+    void (async () => {
+      try {
+        const ip = (req.ip ?? "0.0.0.0").replace("::ffff:", "");
+        let country = "Unknown";
+        try {
+          if (ip !== "0.0.0.0" && ip !== "127.0.0.1" && !ip.startsWith("::1")) {
+            const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,status`);
+            const geoJson = await geo.json() as { status?: string; country?: string };
+            if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
+          }
+        } catch { /* geo lookup failed */ }
+        await notifyUserLogin({ userId: user.id, accountUid: user.accountUid, name: user.fullName, email: user.email, ip, country });
+        await sendPushToAllAdmins({ title: "🔐 User Login", body: `${user.fullName} (${user.email}) logged in · ${country}`, tag: "qfx-login", data: { type: "login", userId: user.id } });
+      } catch { /* notification failed */ }
+    })();
+    return res.json({
+      token,
+      user: { id: user.id, fullName: user.fullName, email: user.email, avatarUrl: user.avatarUrl, kycStatus: user.kycStatus, createdAt: user.createdAt.toISOString() },
+    });
+  }
+
   // Send email OTP — user must verify before getting a session
   await createAndSendOtp(user.email, user.id, "login");
   return res.json({ requiresEmailVerification: true, email: user.email });
