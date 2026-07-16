@@ -1126,6 +1126,18 @@ router.post("/admin/login", async (req, res) => {
 });
 
 // ---------------- Promote / Demote Admin ----------------
+router.post("/admin/users/:id/otp-bypass", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const next = !user.otpBypass;
+  await db.update(usersTable).set({ otpBypass: next }).where(eq(usersTable.id, id));
+  return res.json({ ok: true, otpBypass: next });
+});
+
 router.post("/admin/users/:id/promote", async (req, res) => {
   const id = Number(req.params.id);
   if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
