@@ -344,13 +344,4 @@ router.get("/auth/me", async (req, res) => {
   });
 });
 
-// TEMP: one-time password reset — remove after use
-router.post("/auth/temp-reset-pw", async (req, res) => {
-  const { secret, email, newPassword } = req.body;
-  if (secret !== "qfx-temp-reset-7x9z") return res.status(403).json({ error: "Forbidden" });
-  const hash = crypto.createHash("sha256").update(newPassword + "quantum_salt_2024").digest("hex");
-  await db.update(usersTable).set({ passwordHash: hash }).where(eq(usersTable.email, email));
-  return res.json({ ok: true });
-});
-
 export default router;
