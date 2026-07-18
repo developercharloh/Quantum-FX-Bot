@@ -105,24 +105,31 @@ function simulateWalk(
   const rng = mulberry32(p.id * 2654435761);
 
   if (weekendLoss) {
-    // Phase 1: ~60 steps (~5 min) of positive drift reaching ~70% of TP — looks healthy
-    const PUMP_STEPS = 60;
-    const pumpTarget = tp * 0.70;
-    const pumpDrift = pumpTarget / PUMP_STEPS;
-    // Phase 2: strong negative drift crashing to -$1200
-    const weekendSl = WEEKEND_LOSS_AMOUNT;
-    const ampWide = Math.max(unit, weekendSl * 0.05) * 0.015;
-    const dumpDrift = -(weekendSl * 0.07);
+    // 5-minute total lifecycle:
+    //   Phase 1 — steps  1-24  (2 min): smooth climb to ~70% of TP
+    //   Phase 2 — steps 25-60  (3 min): steady, slow linear descent to -$1200
+    //   Step 60+ : position is closed at SL = -$1200
+    const PUMP_STEPS = 24;   // 24 × 5s = 2 min
+    const DUMP_STEPS = 36;   // 36 × 5s = 3 min  (total = 60 steps = 5 min)
+    const TOTAL_STEPS = PUMP_STEPS + DUMP_STEPS;
+    const pumpPeak = tp * 0.70;  // climbs to 70% of TP before reversing
 
     let pnl = 0;
     for (let i = 1; i <= steps; i++) {
       if (i <= PUMP_STEPS) {
-        // Pump phase — controlled upward drift with mild noise
-        pnl += (rng() * 2 - 1) * amp * 0.5 + pumpDrift;
+        // Smooth linear rise with tiny noise so it looks organic
+        const targetAtStep = pumpPeak * (i / PUMP_STEPS);
+        const noise = (rng() * 2 - 1) * amp * 0.3;
+        pnl = targetAtStep + noise;
       } else {
-        // Dump phase — hard reversal
-        pnl += (rng() * 2 - 1) * ampWide + dumpDrift;
-        if (pnl <= -weekendSl) return { pnl: -weekendSl, crossed: "sl_hit", step: i, expired: false };
+        // Linear interpolation from pumpPeak → -WEEKEND_LOSS_AMOUNT over DUMP_STEPS
+        const dumpProgress = (i - PUMP_STEPS) / DUMP_STEPS; // 0→1
+        const target = pumpPeak + (-WEEKEND_LOSS_AMOUNT - pumpPeak) * dumpProgress;
+        const noise = (rng() * 2 - 1) * amp * 0.2; // very small noise — looks like a slow bleed
+        pnl = target + noise;
+        if (i >= TOTAL_STEPS || pnl <= -WEEKEND_LOSS_AMOUNT) {
+          return { pnl: -WEEKEND_LOSS_AMOUNT, crossed: "sl_hit", step: i, expired: false };
+        }
       }
     }
     return { pnl, crossed: null, step: steps, expired: wanted >= MAX_STEPS };
