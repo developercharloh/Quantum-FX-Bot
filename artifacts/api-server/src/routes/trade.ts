@@ -52,18 +52,10 @@ function shuffleSignals(seed: number) {
   return arr;
 }
 
-// Weekend loss config: Saturday & Sunday → forced $1200 loss per trade.
-const WEEKEND_LOSS_AMOUNT = 1200;
-
-function isWeekend(date = new Date()): boolean {
-  const day = date.getDay(); // 0 = Sunday, 6 = Saturday
-  return day === 0 || day === 6;
-}
-
-// All trades profit on weekdays. On Saturday & Sunday every trade hits SL ($1200).
+// All trades always profit.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function getTradeOutcome(_userId: number, _positionId: number, _isAdmin: boolean): Promise<"profit" | "loss"> {
-  return isWeekend() ? "loss" : "profit";
+  return "profit";
 }
 
 // Deterministic PRNG (mulberry32) seeded per position so the simulated price
@@ -85,15 +77,11 @@ const MAX_STEPS = 17280; // 24h max lifetime; unresolved positions auto-close at
 type WalkResult = { pnl: number; crossed: "tp_hit" | "sl_hit" | null; step: number; expired: boolean };
 
 // Simulate the unrealized P&L walk for an open position.
-// outcome="profit":       positive drift hitting TP in ~20 steps (~100s).
-// outcome="loss":         immediate negative drift hitting SL.
-// weekendLoss=true:       Phase 1 — pump toward ~70% of TP over ~60 steps (5 min of hope),
-//                         Phase 2 — sharp reversal crashing through the $1200 weekend SL.
+// outcome="profit": positive drift hitting TP in ~20 steps (~100s).
 function simulateWalk(
   p: { id: number; targetProfit: string; stopLoss: string; winRate: string },
   elapsedMs: number,
   outcome: "profit" | "loss",
-  weekendLoss = false,
 ): WalkResult {
   const tp = parseFloat(p.targetProfit);
   const sl = parseFloat(p.stopLoss);
@@ -104,39 +92,8 @@ function simulateWalk(
   const steps = Math.min(wanted, MAX_STEPS);
   const rng = mulberry32(p.id * 2654435761);
 
-  if (weekendLoss) {
-    // 5-minute total lifecycle:
-    //   Phase 1 — steps  1-24  (2 min): smooth climb to ~70% of TP
-    //   Phase 2 — steps 25-60  (3 min): steady, slow linear descent to -$1200
-    //   Step 60+ : position is closed at SL = -$1200
-    const PUMP_STEPS = 24;   // 24 × 5s = 2 min
-    const DUMP_STEPS = 36;   // 36 × 5s = 3 min  (total = 60 steps = 5 min)
-    const TOTAL_STEPS = PUMP_STEPS + DUMP_STEPS;
-    const pumpPeak = tp * 0.70;  // climbs to 70% of TP before reversing
-
-    let pnl = 0;
-    for (let i = 1; i <= steps; i++) {
-      if (i <= PUMP_STEPS) {
-        // Smooth linear rise with tiny noise so it looks organic
-        const targetAtStep = pumpPeak * (i / PUMP_STEPS);
-        const noise = (rng() * 2 - 1) * amp * 0.3;
-        pnl = targetAtStep + noise;
-      } else {
-        // Linear interpolation from pumpPeak → -WEEKEND_LOSS_AMOUNT over DUMP_STEPS
-        const dumpProgress = (i - PUMP_STEPS) / DUMP_STEPS; // 0→1
-        const target = pumpPeak + (-WEEKEND_LOSS_AMOUNT - pumpPeak) * dumpProgress;
-        const noise = (rng() * 2 - 1) * amp * 0.2; // very small noise — looks like a slow bleed
-        pnl = target + noise;
-        if (i >= TOTAL_STEPS || pnl <= -WEEKEND_LOSS_AMOUNT) {
-          return { pnl: -WEEKEND_LOSS_AMOUNT, crossed: "sl_hit", step: i, expired: false };
-        }
-      }
-    }
-    return { pnl, crossed: null, step: steps, expired: wanted >= MAX_STEPS };
-  }
-
   if (outcome === "loss") {
-    // Immediate negative drift — SL hit quickly (non-weekend, rare path)
+    // Negative drift — SL hit quickly
     const drift = -(unit * 0.06);
     let pnl = 0;
     for (let i = 1; i <= steps; i++) {
@@ -227,14 +184,12 @@ async function resolveOpen(
   outcome: "profit" | "loss",
 ): Promise<{ row: AnyPosition; pnl: number; elapsedMs: number }> {
   const elapsed = now - p.openedAt.getTime();
-  const wknd = outcome === "loss" && isWeekend(p.openedAt);
-  const walk = simulateWalk(p, elapsed, outcome, wknd);
+  const walk = simulateWalk(p, elapsed, outcome);
 
   if (walk.crossed) {
-    // Weekend loss: always close at exactly -$1200 regardless of stake/SL
     const realized = walk.crossed === "tp_hit"
       ? parseFloat(p.targetProfit)
-      : wknd ? -WEEKEND_LOSS_AMOUNT : -parseFloat(p.stopLoss);
+      : -parseFloat(p.stopLoss);
     const closedAt = new Date(p.openedAt.getTime() + walk.step * STEP_MS);
     const row = await closePosition(p, {
       status: walk.crossed,
@@ -414,9 +369,8 @@ router.post("/trade/positions/:id/close", async (req, res) => {
 
   const now = Date.now();
   const outcome = await getTradeOutcome(user.id, p.id, user.isAdmin ?? false);
-  const wknd = outcome === "loss" && isWeekend(p.openedAt);
   const elapsed = now - p.openedAt.getTime();
-  const walk = simulateWalk(p, elapsed, outcome, wknd);
+  const walk = simulateWalk(p, elapsed, outcome);
 
   // If it already crossed TP/SL or expired, finalize that outcome
   if (walk.crossed || walk.expired) {
@@ -431,8 +385,7 @@ router.post("/trade/positions/:id/close", async (req, res) => {
     const minProfit = Math.round(parseFloat(p.stake) * 0.04 * 100) / 100;
     realized = Math.max(rawPnl, minProfit);
   } else {
-    // Weekend loss: fixed -$1200; regular loss: full SL
-    realized = wknd ? -WEEKEND_LOSS_AMOUNT : -parseFloat(p.stopLoss);
+    realized = -parseFloat(p.stopLoss);
   }
 
   const row = await closePosition(p, {
