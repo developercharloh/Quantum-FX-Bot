@@ -212,9 +212,11 @@ router.post("/auth/login", async (req, res) => {
   }
   return res.json({ requiresEmailVerification: true, email: user.email });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const e = err as any;
+    const msg = e?.message ?? String(err);
+    const cause = e?.cause?.message ?? e?.cause ?? "(no cause)";
     logger.error({ err }, "Login handler crashed");
-    return res.status(500).json({ error: "Login crashed: " + msg });
+    return res.status(500).json({ error: "Login crashed", msg, cause });
   }
 });
 

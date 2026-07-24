@@ -69394,9 +69394,11 @@ router2.post("/auth/login", async (req, res) => {
     }
     return res.json({ requiresEmailVerification: true, email: user.email });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const e = err;
+    const msg = e?.message ?? String(err);
+    const cause = e?.cause?.message ?? e?.cause ?? "(no cause)";
     logger.error({ err }, "Login handler crashed");
-    return res.status(500).json({ error: "Login crashed: " + msg });
+    return res.status(500).json({ error: "Login crashed", msg, cause });
   }
 });
 router2.post("/auth/verify-otp", async (req, res) => {
