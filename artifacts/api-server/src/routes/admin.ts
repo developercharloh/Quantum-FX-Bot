@@ -347,9 +347,9 @@ router.get("/admin/users/:id", async (req, res) => {
     if (t.type === "deposit") totalDeposits += amt;
     if (t.type === "withdrawal") totalWithdrawals += amt;
   }
-  const profitTotal = userBots.reduce((s, b) => s + parseFloat(b.ub.profitTotal), 0);
+  const tradeEarnings = userBots.reduce((s, b) => s + parseFloat(b.ub.profitTotal), 0);
   let balance = await getAvailableBalance(id);
-  balance += profitTotal;
+  balance += tradeEarnings;
 
   return res.json({
     id: user.id,
@@ -368,6 +368,8 @@ router.get("/admin/users/:id", async (req, res) => {
     referralCount: referrals.length,
     totalDeposits: Math.round(totalDeposits * 100) / 100,
     totalWithdrawals: Math.round(totalWithdrawals * 100) / 100,
+    tradeEarnings: Math.round(tradeEarnings * 100) / 100,
+    netDeposits: Math.round((totalDeposits - totalWithdrawals) * 100) / 100,
     createdAt: user.createdAt.toISOString(),
     bots: userBots.map((b) => ({
       id: b.ub.id,

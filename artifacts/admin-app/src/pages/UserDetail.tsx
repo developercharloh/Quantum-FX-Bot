@@ -260,23 +260,58 @@ export default function UserDetail() {
               </CardContent>
             </Card>
 
+            {/* ── Financial summary cards ── */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card>
+                <CardContent className="pt-4 pb-4">
+                  <div className="text-xs text-muted-foreground mb-1">Total Balance</div>
+                  <div className="text-2xl font-bold">${user.balance.toFixed(2)}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-4">
+                  <div className="text-xs text-muted-foreground mb-1">Trade Earnings</div>
+                  <div className={`text-2xl font-bold ${(user as any).tradeEarnings >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                    {(user as any).tradeEarnings >= 0 ? "+" : ""}${((user as any).tradeEarnings ?? 0).toFixed(2)}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-4">
+                  <div className="text-xs text-muted-foreground mb-1">Total Deposits</div>
+                  <div className="text-2xl font-bold text-emerald-500">${user.totalDeposits.toFixed(2)}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-4">
+                  <div className="text-xs text-muted-foreground mb-1">Total Withdrawals</div>
+                  <div className="text-2xl font-bold text-orange-500">${user.totalWithdrawals.toFixed(2)}</div>
+                </CardContent>
+              </Card>
+              <Card className="col-span-2">
+                <CardContent className="pt-4 pb-4">
+                  <div className="text-xs text-muted-foreground mb-1">Net Deposits</div>
+                  <div className={`text-2xl font-bold ${((user as any).netDeposits ?? user.totalDeposits - user.totalWithdrawals) >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                    ${((user as any).netDeposits ?? user.totalDeposits - user.totalWithdrawals).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Deposits minus withdrawals</div>
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
                 <CardTitle>Wallet</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground">Current Balance</div>
-                  <div className="text-3xl font-bold">${user.balance.toFixed(2)}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <div className="text-xs text-muted-foreground">Total Deposits</div>
                     <div className="font-medium text-emerald-500">${user.totalDeposits.toFixed(2)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Total Withdrawals</div>
-                    <div className="font-medium">${user.totalWithdrawals.toFixed(2)}</div>
+                    <div className="font-medium text-orange-500">${user.totalWithdrawals.toFixed(2)}</div>
                   </div>
                 </div>
                 
