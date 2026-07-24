@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable, kycTable, notificationSettingsTable, userProfilesTable } from "@workspace/db";
-import { eq, ne } from "drizzle-orm";
+import { eq, ne, and } from "drizzle-orm";
 import crypto from "crypto";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
@@ -187,9 +187,8 @@ router.get("/profile/kyc", async (req, res) => {
       rejectionReason: kyc?.rejectionReason ?? null,
     });
   } catch (err: any) {
-    const cause = err?.cause?.message ?? err?.cause ?? "";
-    logger.error({ errMsg: err?.message, cause }, "GET /profile/kyc error");
-    return res.status(500).json({ error: "Failed to fetch KYC status", detail: err?.message, cause });
+    logger.error({ err }, "GET /profile/kyc error");
+    return res.status(500).json({ error: "Failed to fetch KYC status" });
   }
 });
 
@@ -234,7 +233,7 @@ router.post("/profile/kyc/session", async (req, res) => {
     if (!response.ok) {
       const errText = await response.text();
       logger.error({ status: response.status, errText }, "Didit session creation failed");
-      return res.status(502).json({ error: "Failed to create verification session", detail: errText });
+      return res.status(502).json({ error: "Failed to create verification session" });
     }
 
     const data = await response.json() as { session_id: string; url: string };
@@ -252,9 +251,8 @@ router.post("/profile/kyc/session", async (req, res) => {
 
     return res.json({ url: data.url, sessionId: data.session_id });
   } catch (err: any) {
-    const cause = err?.cause?.message ?? err?.cause ?? "";
-    logger.error({ errMsg: err?.message, cause, stack: err?.stack }, "Didit session error");
-    return res.status(500).json({ error: "Internal error creating KYC session", detail: err?.message ?? String(err), cause });
+    logger.error({ err }, "Didit session error");
+    return res.status(500).json({ error: "Internal error creating KYC session" });
   }
 });
 
@@ -369,7 +367,10 @@ router.delete("/profile/sessions/:id", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const id = parseInt(req.params.id);
-  await db.delete(sessionsTable).where(eq(sessionsTable.id, id));
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid session id" });
+
+  // IDOR fix: only delete sessions that belong to the authenticated user
+  await db.delete(sessionsTable).where(and(eq(sessionsTable.id, id), eq(sessionsTable.userId, user.id)));
 
   return res.json({ message: "Session revoked" });
 });

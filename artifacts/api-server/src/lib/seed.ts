@@ -18,15 +18,16 @@ const FAQ_ENTRIES = [
 const SEED_ADMINS = ["mrcharlohfx@gmail.com"];
 
 function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "quantum_salt_2024").digest("hex");
+  const bcrypt = require("bcryptjs");
+  return bcrypt.hashSync(password, 12);
 }
 
 function generateUid(): string {
-  return Math.random().toString(36).substring(2, 10).toUpperCase();
+  return crypto.randomBytes(5).toString("hex").toUpperCase();
 }
 
 function generateReferralCode(): string {
-  return Math.random().toString(36).substring(2, 9).toUpperCase();
+  return crypto.randomBytes(4).toString("hex").toUpperCase();
 }
 
 export async function ensureAdminEmail(): Promise<void> {
@@ -50,7 +51,8 @@ export async function ensureAdminEmail(): Promise<void> {
 
     // User doesn't exist — create the admin account automatically
     try {
-      const adminPassword = process.env["ADMIN_ACCOUNT_PASSWORD"] ?? "Admin@Quantum2027!";
+      const adminPassword = process.env["ADMIN_ACCOUNT_PASSWORD"];
+      if (!adminPassword) { logger.warn({ email }, "ADMIN_ACCOUNT_PASSWORD not set — skipping auto-create"); continue; }
       await db.insert(usersTable).values({
         accountUid: generateUid(),
         fullName: "Platform Admin",

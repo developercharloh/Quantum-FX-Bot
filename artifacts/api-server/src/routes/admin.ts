@@ -40,9 +40,25 @@ import {
 
 const router = Router();
 
+import bcrypt from "bcryptjs";
+
 function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "quantum_salt_2024").digest("hex");
+  return bcrypt.hashSync(password, 12);
 }
+
+/** Verify password — supports bcrypt (new) and legacy SHA-256 */
+function verifyPassword(password: string, hash: string): boolean {
+  if (hash.startsWith("$2")) return bcrypt.compareSync(password, hash);
+  const legacy = crypto.createHash("sha256").update(password + "quantum_salt_2024").digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(legacy), Buffer.from(hash));
+}
+
+// Short-lived SSE tokens: token → expiry timestamp
+const sseTokens = new Map<string, number>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of sseTokens) if (v < now) sseTokens.delete(k);
+}, 60_000);
 
 async function createAdminToken(userId: number, ip: string): Promise<string> {
   const token = crypto.randomBytes(32).toString("hex");
@@ -73,12 +89,21 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   // so req.path here is "/login", not "/admin/login".
   if (req.path === "/login" && req.method === "POST") return next();
 
-  // Accept token from Authorization header or ?token= query param (EventSource)
+  // Accept token from Authorization header or short-lived SSE ?token= query param
   const authHeader = req.headers.authorization ?? "";
   const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
   const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
-  const token = bearerToken ?? queryToken;
 
+  // Short-lived SSE tokens are validated inline (no DB hit)
+  if (queryToken && sseTokens.has(queryToken)) {
+    if ((sseTokens.get(queryToken) ?? 0) > Date.now()) {
+      sseTokens.delete(queryToken); // one-time use
+      return next();
+    }
+    sseTokens.delete(queryToken);
+  }
+
+  const token = bearerToken ?? queryToken;
   validateAdminToken(token).then((valid) => {
     if (!valid) { res.status(401).json({ error: "Admin authentication required." }); return; }
     next();
@@ -86,6 +111,13 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 router.use("/admin", requireAdmin);
+
+// ─── SSE short-lived token (prevents long-lived token appearing in URLs) ──────
+router.post("/admin/sse-token", (req, res) => {
+  const tok = crypto.randomBytes(16).toString("hex");
+  sseTokens.set(tok, Date.now() + 30_000); // valid for 30 seconds, one-time use
+  return res.json({ token: tok });
+});
 
 // ─── SSE: Login Alarm ────────────────────────────────────────────────────────
 router.get("/admin/login-events", (req, res) => {
@@ -1087,9 +1119,6 @@ router.post("/admin/chat/:userId", async (req, res) => {
 });
 
 // ---------------- Admin Login ----------------
-// Seed admins are auto-promoted on first login — no manual DB step needed.
-const ADMIN_USERNAME = "admin.quantum-bot";
-const ADMIN_PASSWORD = "admin@2027/org";
 const SEED_ADMIN_EMAILS = ["mrcharlohfx@gmail.com", "leijamichelle08@gmail.com"];
 
 router.post("/admin/login", async (req, res) => {
@@ -1098,7 +1127,15 @@ router.post("/admin/login", async (req, res) => {
   if (!email || !username || !password)
     return res.status(400).json({ error: "Email, username and password are required." });
 
-  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD)
+  // Credentials sourced from env vars — never hardcoded
+  const expectedUsername = process.env["ADMIN_USERNAME"];
+  const expectedPassword = process.env["ADMIN_PASSWORD"];
+  if (!expectedUsername || !expectedPassword)
+    return res.status(503).json({ error: "Admin panel not configured." });
+
+  const usernameMatch = crypto.timingSafeEqual(Buffer.from(username), Buffer.from(expectedUsername));
+  const passwordMatch = crypto.timingSafeEqual(Buffer.from(password), Buffer.from(expectedPassword));
+  if (!usernameMatch || !passwordMatch)
     return res.status(401).json({ error: "Invalid credentials. Access denied." });
 
   const normalised = String(email).toLowerCase().trim();

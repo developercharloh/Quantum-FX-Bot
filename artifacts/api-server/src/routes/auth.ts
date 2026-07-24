@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable, notificationSettingsTable, kycTable, emailOtpsTable } from "@workspace/db";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import { verifySync } from "otplib";
 import { notifyUserLogin } from "../lib/loginAlarm";
 import { sendPushToAllAdmins } from "../lib/webPush";
@@ -17,8 +18,9 @@ import {
 // In-memory store for pending 2FA logins (tempToken → { userId, expires })
 const pending2FA = new Map<string, { userId: number; expires: number }>();
 
+/** Cryptographically secure 6-digit OTP */
 function generateOtp(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(crypto.randomInt(100000, 999999));
 }
 
 async function createAndSendOtp(email: string, userId: number, purpose: "register" | "login"): Promise<void> {
@@ -38,18 +40,30 @@ setInterval(() => {
 
 const router = Router();
 
+/** bcrypt hash — cost factor 12 */
 function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "quantum_salt_2024").digest("hex");
+  return bcrypt.hashSync(password, 12);
+}
+
+/** Verify password — supports bcrypt (new) and legacy SHA-256 (migration) */
+function verifyPassword(password: string, hash: string): boolean {
+  // New bcrypt hashes start with $2a$ or $2b$
+  if (hash.startsWith("$2")) return bcrypt.compareSync(password, hash);
+  // Legacy SHA-256 fallback for accounts created before the bcrypt migration
+  const legacy = crypto.createHash("sha256").update(password + "quantum_salt_2024").digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(legacy), Buffer.from(hash));
 }
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
+/** Cryptographically secure account UID */
 function generateAccountUid(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.randomBytes(8);
   let uid = "QFX";
-  for (let i = 0; i < 8; i++) uid += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 8; i++) uid += chars[bytes[i] % chars.length];
   return uid;
 }
 
@@ -143,10 +157,16 @@ router.post("/auth/login", async (req, res) => {
     createdAt: usersTable.createdAt,
     updatedAt: usersTable.updatedAt,
   }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
-  if (users.length === 0 || users[0].passwordHash !== hashPassword(password)) {
+  if (users.length === 0 || !verifyPassword(password, users[0].passwordHash)) {
     return res.status(401).json({ error: "Invalid email or password" });
   }
   const user = users[0];
+
+  // Transparently upgrade legacy SHA-256 hash to bcrypt on successful login
+  if (!user.passwordHash.startsWith("$2")) {
+    const newHash = hashPassword(password);
+    db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, user.id)).catch(() => {});
+  }
 
   // Fetch columns added in later migrations — wrapped so a missing column
   // never prevents login (falls back: status=active, otpBypass=false, accountUid='').
@@ -188,7 +208,7 @@ router.post("/auth/login", async (req, res) => {
         let country = "Unknown";
         try {
           if (ip !== "0.0.0.0" && ip !== "127.0.0.1" && !ip.startsWith("::1")) {
-            const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,status`);
+            const geo = await fetch(`https://ip-api.com/json/${ip}?fields=country,status`);
             const geoJson = await geo.json() as { status?: string; country?: string };
             if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
           }
@@ -277,7 +297,7 @@ router.post("/auth/verify-otp", async (req, res) => {
       let country = "Unknown";
       try {
         if (ip !== "0.0.0.0" && ip !== "127.0.0.1" && !ip.startsWith("::1")) {
-          const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,status`);
+          const geo = await fetch(`https://ip-api.com/json/${ip}?fields=country,status`);
           const geoJson = await geo.json() as { status?: string; country?: string };
           if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
         }

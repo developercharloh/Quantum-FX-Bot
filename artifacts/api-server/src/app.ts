@@ -1,11 +1,55 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import path from "node:path";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+
+// ── Security headers ─────────────────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: false, // managed per-app in the React builds
+  crossOriginEmbedderPolicy: false,
+}));
+
+// ── CORS — only allow the production domain (+ localhost for dev) ─────────────
+const allowedOrigins = [
+  "https://quantum-fx-bot.site",
+  "https://www.quantum-fx-bot.site",
+  ...(process.env.NODE_ENV !== "production" ? ["http://localhost:18900", "http://localhost:18391"] : []),
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error("CORS policy violation"));
+  },
+  credentials: true,
+}));
+
+// ── Rate limiting on auth routes ──────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+  skip: (req) => req.path === "/api/healthz",
+});
+const strictLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts, please try again in an hour." },
+});
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+app.use("/api/auth/forgot-password", strictLimiter);
+app.use("/api/auth/verify-otp", authLimiter);
 
 // Ultra-simple health check before any middleware — responds instantly even if
 // pinoHttp or static-file middleware is slow to initialize on cold start.

@@ -28,18 +28,26 @@ router.post("/webhooks/didit", async (req, res) => {
   const signature = req.headers["x-signature"] as string | undefined;
   const timestamp = req.headers["x-timestamp"] as string | undefined;
 
-  if (secret && rawBody && signature && timestamp) {
-    const now = Math.floor(Date.now() / 1000);
-    if (Math.abs(now - Number(timestamp)) > 300) {
-      return res.status(400).json({ error: "Timestamp expired" });
-    }
-    const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-    if (!timingSafeEqual(expected, signature)) {
-      logger.warn("Didit webhook signature mismatch");
-      return res.status(401).json({ error: "Invalid signature" });
-    }
-  } else if (secret) {
-    logger.warn("Didit webhook received without signature — verify DIDIT_WEBHOOK_SECRET is set in both Render and Didit console");
+  // Fail closed: if no secret is configured, reject ALL webhook calls.
+  // Set DIDIT_WEBHOOK_SECRET in Render env vars and in the Didit console.
+  if (!secret) {
+    logger.error("DIDIT_WEBHOOK_SECRET not set — rejecting webhook to prevent KYC spoofing");
+    return res.status(503).json({ error: "Webhook not configured" });
+  }
+
+  if (!rawBody || !signature || !timestamp) {
+    logger.warn("Didit webhook missing signature headers");
+    return res.status(401).json({ error: "Missing signature" });
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - Number(timestamp)) > 300) {
+    return res.status(400).json({ error: "Timestamp expired" });
+  }
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  if (!timingSafeEqual(expected, signature)) {
+    logger.warn("Didit webhook signature mismatch");
+    return res.status(401).json({ error: "Invalid signature" });
   }
 
   const body = req.body as {

@@ -303,10 +303,19 @@ export function useLoginAlarm() {
     return () => navigator.serviceWorker.removeEventListener("message", onSwMsg);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function connect() {
+  async function connect() {
     if (esRef.current) return;
-    const token = localStorage.getItem("qfx_admin_token") ?? "";
-    const es = new EventSource(`${API_BASE}/api/admin/login-events?token=${encodeURIComponent(token)}`);
+    // Fetch a short-lived SSE token so the long-lived admin token never appears in URLs
+    let sseToken = "";
+    try {
+      const mainToken = localStorage.getItem("qfx_admin_token") ?? "";
+      const r = await fetch(`${API_BASE}/api/admin/sse-token`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${mainToken}` },
+      });
+      if (r.ok) sseToken = (await r.json()).token ?? "";
+    } catch { /* fall through — EventSource will fail and retry */ }
+    const es = new EventSource(`${API_BASE}/api/admin/login-events?token=${encodeURIComponent(sseToken)}`);
 
     es.onmessage = (e) => {
       try {
