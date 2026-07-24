@@ -2,3 +2,4 @@
 - [Migration pattern](migration-pattern.md) — drizzle-kit generate has __dirname bug; always write SQL manually + journal entry; next timestamp must be > last used (0004 used 1782380000000).
 - [Balance is computed](balance-computed.md) — no balance column on usersTable; balance is derived from transactionsTable via getAvailableBalance(). Never try to update user.balance directly.
 - [Vault tier rate is daily](vault-daily-rate.md) — Quantum Vault tier % is a per-day rate (amount * rate/100 * termDays), not annualized ÷365; confirmed with user after "rate doesn't make sense" report.
+- [Render production database](render-production-database.md) — live Render data is separate from Replit development data; schema fixes require the Render publish/redeploy path.
