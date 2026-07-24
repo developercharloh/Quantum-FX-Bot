@@ -119,6 +119,7 @@ router.post("/auth/register", async (req, res) => {
 });
 
 router.post("/auth/login", async (req, res) => {
+  try {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input" });
@@ -210,6 +211,11 @@ router.post("/auth/login", async (req, res) => {
     return res.status(500).json({ error: "Failed to send verification code. Please try again." });
   }
   return res.json({ requiresEmailVerification: true, email: user.email });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err }, "Login handler crashed");
+    return res.status(500).json({ error: "Login crashed: " + msg });
+  }
 });
 
 // Verify email OTP (used by both registration and login flows)

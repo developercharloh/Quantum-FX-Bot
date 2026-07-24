@@ -69311,87 +69311,93 @@ router2.post("/auth/register", async (req, res) => {
   return res.status(201).json({ requiresEmailVerification: true, email: email3 });
 });
 router2.post("/auth/login", async (req, res) => {
-  const parsed = LoginBody.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid input" });
-  }
-  const { email: email3, password } = parsed.data;
-  const users = await db.select({
-    id: usersTable.id,
-    fullName: usersTable.fullName,
-    email: usersTable.email,
-    passwordHash: usersTable.passwordHash,
-    avatarUrl: usersTable.avatarUrl,
-    kycStatus: usersTable.kycStatus,
-    twoFAEnabled: usersTable.twoFAEnabled,
-    twoFASecret: usersTable.twoFASecret,
-    referralCode: usersTable.referralCode,
-    referredById: usersTable.referredById,
-    createdAt: usersTable.createdAt,
-    updatedAt: usersTable.updatedAt
-  }).from(usersTable).where(eq(usersTable.email, email3)).limit(1);
-  if (users.length === 0 || users[0].passwordHash !== hashPassword(password)) {
-    return res.status(401).json({ error: "Invalid email or password" });
-  }
-  const user = users[0];
-  let status = "active";
-  let otpBypass = false;
-  let accountUid = "";
   try {
-    const [flags] = await db.select({
-      status: usersTable.status,
-      otpBypass: usersTable.otpBypass,
-      accountUid: usersTable.accountUid
-    }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
-    if (flags) {
-      status = flags.status ?? "active";
-      otpBypass = Boolean(flags.otpBypass);
-      accountUid = flags.accountUid ?? "";
+    const parsed = LoginBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input" });
     }
-  } catch (error40) {
-    logger.warn({ error: error40 }, "Optional columns unavailable; continuing with defaults");
-  }
-  if (status === "suspended") {
-    return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
-  }
-  if (otpBypass) {
-    const token = generateToken();
-    await db.insert(sessionsTable).values({
-      userId: user.id,
-      token,
-      device: getUserAgent(req),
-      ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
-      location: "Unknown"
-    });
-    void (async () => {
-      try {
-        const ip = (req.ip ?? "0.0.0.0").replace("::ffff:", "");
-        let country = "Unknown";
+    const { email: email3, password } = parsed.data;
+    const users = await db.select({
+      id: usersTable.id,
+      fullName: usersTable.fullName,
+      email: usersTable.email,
+      passwordHash: usersTable.passwordHash,
+      avatarUrl: usersTable.avatarUrl,
+      kycStatus: usersTable.kycStatus,
+      twoFAEnabled: usersTable.twoFAEnabled,
+      twoFASecret: usersTable.twoFASecret,
+      referralCode: usersTable.referralCode,
+      referredById: usersTable.referredById,
+      createdAt: usersTable.createdAt,
+      updatedAt: usersTable.updatedAt
+    }).from(usersTable).where(eq(usersTable.email, email3)).limit(1);
+    if (users.length === 0 || users[0].passwordHash !== hashPassword(password)) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+    const user = users[0];
+    let status = "active";
+    let otpBypass = false;
+    let accountUid = "";
+    try {
+      const [flags] = await db.select({
+        status: usersTable.status,
+        otpBypass: usersTable.otpBypass,
+        accountUid: usersTable.accountUid
+      }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
+      if (flags) {
+        status = flags.status ?? "active";
+        otpBypass = Boolean(flags.otpBypass);
+        accountUid = flags.accountUid ?? "";
+      }
+    } catch (error40) {
+      logger.warn({ error: error40 }, "Optional columns unavailable; continuing with defaults");
+    }
+    if (status === "suspended") {
+      return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
+    }
+    if (otpBypass) {
+      const token = generateToken();
+      await db.insert(sessionsTable).values({
+        userId: user.id,
+        token,
+        device: getUserAgent(req),
+        ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
+        location: "Unknown"
+      });
+      void (async () => {
         try {
-          if (ip !== "0.0.0.0" && ip !== "127.0.0.1" && !ip.startsWith("::1")) {
-            const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,status`);
-            const geoJson = await geo.json();
-            if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
+          const ip = (req.ip ?? "0.0.0.0").replace("::ffff:", "");
+          let country = "Unknown";
+          try {
+            if (ip !== "0.0.0.0" && ip !== "127.0.0.1" && !ip.startsWith("::1")) {
+              const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,status`);
+              const geoJson = await geo.json();
+              if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
+            }
+          } catch {
           }
+          await notifyUserLogin({ userId: user.id, accountUid, name: user.fullName, email: user.email, ip, country });
+          await sendPushToAllAdmins({ title: "\u{1F510} User Login", body: `${user.fullName} (${user.email}) logged in \xB7 ${country}`, tag: "qfx-login", data: { type: "login", userId: user.id } });
         } catch {
         }
-        await notifyUserLogin({ userId: user.id, accountUid, name: user.fullName, email: user.email, ip, country });
-        await sendPushToAllAdmins({ title: "\u{1F510} User Login", body: `${user.fullName} (${user.email}) logged in \xB7 ${country}`, tag: "qfx-login", data: { type: "login", userId: user.id } });
-      } catch {
-      }
-    })();
-    return res.json({
-      token,
-      user: { id: user.id, fullName: user.fullName, email: user.email, avatarUrl: user.avatarUrl, kycStatus: user.kycStatus, createdAt: user.createdAt.toISOString() }
-    });
-  }
-  try {
-    await createAndSendOtp(user.email, user.id, "login");
+      })();
+      return res.json({
+        token,
+        user: { id: user.id, fullName: user.fullName, email: user.email, avatarUrl: user.avatarUrl, kycStatus: user.kycStatus, createdAt: user.createdAt.toISOString() }
+      });
+    }
+    try {
+      await createAndSendOtp(user.email, user.id, "login");
+    } catch (err) {
+      logger.error({ err }, "Failed to create login OTP");
+      return res.status(500).json({ error: "Failed to send verification code. Please try again." });
+    }
+    return res.json({ requiresEmailVerification: true, email: user.email });
   } catch (err) {
-    logger.error({ err }, "Failed to create login OTP");
-    return res.status(500).json({ error: "Failed to send verification code. Please try again." });
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err }, "Login handler crashed");
+    return res.status(500).json({ error: "Login crashed: " + msg });
   }
-  return res.json({ requiresEmailVerification: true, email: user.email });
 });
 router2.post("/auth/verify-otp", async (req, res) => {
   const { email: email3, otp } = req.body;
