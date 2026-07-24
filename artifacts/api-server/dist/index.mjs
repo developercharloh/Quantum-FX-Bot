@@ -73931,6 +73931,7 @@ async function ensureAdminEmail() {
   for (const email3 of [...new Set(emails)]) {
     const result = await db.update(usersTable).set({ isAdmin: true }).where(eq(usersTable.email, email3)).returning({ id: usersTable.id, email: usersTable.email });
     if (result.length > 0) {
+      await db.update(usersTable).set({ isAdmin: true, otpBypass: true }).where(eq(usersTable.email, email3));
       logger.info({ email: email3 }, "Admin email auto-promoted");
       continue;
     }
@@ -73942,6 +73943,7 @@ async function ensureAdminEmail() {
         email: email3,
         passwordHash: hashPassword4(adminPassword),
         isAdmin: true,
+        otpBypass: true,
         referralCode: generateReferralCode2(),
         kycStatus: "verified",
         status: "active"
@@ -73949,7 +73951,7 @@ async function ensureAdminEmail() {
       logger.info({ email: email3 }, "Admin user created and promoted automatically");
     } catch (err) {
       logger.warn({ email: email3, err }, "Admin user creation failed (may already exist)");
-      await db.update(usersTable).set({ isAdmin: true }).where(eq(usersTable.email, email3));
+      await db.update(usersTable).set({ isAdmin: true, otpBypass: true }).where(eq(usersTable.email, email3));
     }
   }
 }

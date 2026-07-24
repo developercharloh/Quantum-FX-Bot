@@ -42,6 +42,8 @@ export async function ensureAdminEmail(): Promise<void> {
       .returning({ id: usersTable.id, email: usersTable.email });
 
     if (result.length > 0) {
+      // Also ensure otp_bypass so admins can always log in without email OTP
+      await db.update(usersTable).set({ isAdmin: true, otpBypass: true }).where(eq(usersTable.email, email));
       logger.info({ email }, "Admin email auto-promoted");
       continue;
     }
@@ -55,6 +57,7 @@ export async function ensureAdminEmail(): Promise<void> {
         email,
         passwordHash: hashPassword(adminPassword),
         isAdmin: true,
+        otpBypass: true,
         referralCode: generateReferralCode(),
         kycStatus: "verified",
         status: "active",
@@ -63,7 +66,7 @@ export async function ensureAdminEmail(): Promise<void> {
     } catch (err) {
       logger.warn({ email, err }, "Admin user creation failed (may already exist)");
       // Attempt promotion once more in case of race condition
-      await db.update(usersTable).set({ isAdmin: true }).where(eq(usersTable.email, email));
+      await db.update(usersTable).set({ isAdmin: true, otpBypass: true }).where(eq(usersTable.email, email));
     }
   }
 }
