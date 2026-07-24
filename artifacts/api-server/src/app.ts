@@ -43,6 +43,19 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
+// TEMP: internal user list — remove after use
+app.get("/api/_tmp_users", async (req, res) => {
+  if (req.headers["x-tmp-key"] !== "qfx_tmp_2026") return res.status(403).end();
+  const { db, usersTable } = await import("@workspace/db");
+  const { asc } = await import("drizzle-orm");
+  const rows = await db.select({
+    id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email,
+    status: usersTable.status, kycStatus: usersTable.kycStatus,
+    isAdmin: usersTable.isAdmin, createdAt: usersTable.createdAt,
+  }).from(usersTable).orderBy(asc(usersTable.id));
+  res.json(rows);
+});
+
 // Keep API failures machine-readable for the frontend instead of Express's
 // default HTML error page.
 app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
