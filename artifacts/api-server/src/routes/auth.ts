@@ -73,14 +73,14 @@ router.post("/auth/register", async (req, res) => {
   }
   const { fullName, email, password, referralCode } = parsed.data;
 
-  const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing.length > 0) {
     return res.status(400).json({ error: "Email already registered" });
   }
 
   let referredById: number | null = null;
   if (referralCode) {
-    const referrer = await db.select().from(usersTable).where(eq(usersTable.referralCode, referralCode)).limit(1);
+    const referrer = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.referralCode, referralCode)).limit(1);
     if (referrer.length > 0) {
       referredById = referrer[0].id;
     }
@@ -225,7 +225,12 @@ router.post("/auth/verify-otp", async (req, res) => {
   // Mark OTP as used
   await db.update(emailOtpsTable).set({ usedAt: now }).where(eq(emailOtpsTable.id, otpRow.id));
 
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, otpRow.userId!)).limit(1);
+  const users = await db.select({
+    id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email,
+    avatarUrl: usersTable.avatarUrl, kycStatus: usersTable.kycStatus,
+    twoFAEnabled: usersTable.twoFAEnabled, twoFASecret: usersTable.twoFASecret,
+    createdAt: usersTable.createdAt,
+  }).from(usersTable).where(eq(usersTable.id, otpRow.userId!)).limit(1);
   if (users.length === 0) return res.status(401).json({ error: "User not found." });
   const user = users[0];
 
@@ -257,7 +262,7 @@ router.post("/auth/verify-otp", async (req, res) => {
           if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
         }
       } catch { /* geo lookup failed */ }
-      await notifyUserLogin({ userId: user.id, accountUid: user.accountUid, name: user.fullName, email: user.email, ip, country });
+      await notifyUserLogin({ userId: user.id, accountUid: (user as any).accountUid ?? '', name: user.fullName, email: user.email, ip, country });
       await sendPushToAllAdmins({ title: "🔐 User Login", body: `${user.fullName} (${user.email}) logged in · ${country}`, tag: "qfx-login", data: { type: "login", userId: user.id } });
     } catch { /* notification failed */ }
   })();
@@ -273,7 +278,7 @@ router.post("/auth/resend-otp", async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "Email is required." });
 
-  const users = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  const users = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (users.length === 0) return res.status(404).json({ error: "No account found with that email." });
 
   await createAndSendOtp(email, users[0].id, "login");
@@ -291,7 +296,12 @@ router.post("/auth/2fa/verify", async (req, res) => {
     return res.status(401).json({ error: "Session expired. Please log in again." });
   }
 
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, pending.userId)).limit(1);
+  const users = await db.select({
+    id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email,
+    avatarUrl: usersTable.avatarUrl, kycStatus: usersTable.kycStatus,
+    twoFAEnabled: usersTable.twoFAEnabled, twoFASecret: usersTable.twoFASecret,
+    createdAt: usersTable.createdAt,
+  }).from(usersTable).where(eq(usersTable.id, pending.userId)).limit(1);
   if (users.length === 0) return res.status(401).json({ error: "User not found" });
   const user = users[0];
 
@@ -359,15 +369,28 @@ router.get("/auth/me", async (req, res) => {
     return res.status(401).json({ error: "Invalid or expired session" });
   }
 
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
+  const users = await db.select({
+    id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email,
+    avatarUrl: usersTable.avatarUrl, kycStatus: usersTable.kycStatus,
+    createdAt: usersTable.createdAt,
+  }).from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
   if (users.length === 0) {
     return res.status(401).json({ error: "User not found" });
   }
   const user = users[0];
 
+  // Fetch accountUid separately — column added in migration 0005; may be absent
+  // on older production databases before migration 0014 runs.
+  let accountUid: string | null = null;
+  try {
+    const [extra] = await db.select({ accountUid: usersTable.accountUid })
+      .from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
+    accountUid = extra?.accountUid ?? null;
+  } catch { /* column not yet present */ }
+
   return res.json({
     id: user.id,
-    accountUid: user.accountUid,
+    accountUid,
     fullName: user.fullName,
     email: user.email,
     avatarUrl: user.avatarUrl,

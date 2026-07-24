@@ -69247,13 +69247,13 @@ router2.post("/auth/register", async (req, res) => {
     return res.status(400).json({ error: "Invalid input" });
   }
   const { fullName, email: email3, password, referralCode } = parsed.data;
-  const existing = await db.select().from(usersTable).where(eq(usersTable.email, email3)).limit(1);
+  const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email3)).limit(1);
   if (existing.length > 0) {
     return res.status(400).json({ error: "Email already registered" });
   }
   let referredById = null;
   if (referralCode) {
-    const referrer = await db.select().from(usersTable).where(eq(usersTable.referralCode, referralCode)).limit(1);
+    const referrer = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.referralCode, referralCode)).limit(1);
     if (referrer.length > 0) {
       referredById = referrer[0].id;
     }
@@ -69366,7 +69366,16 @@ router2.post("/auth/verify-otp", async (req, res) => {
   }
   const otpRow = rows[0];
   await db.update(emailOtpsTable).set({ usedAt: now }).where(eq(emailOtpsTable.id, otpRow.id));
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, otpRow.userId)).limit(1);
+  const users = await db.select({
+    id: usersTable.id,
+    fullName: usersTable.fullName,
+    email: usersTable.email,
+    avatarUrl: usersTable.avatarUrl,
+    kycStatus: usersTable.kycStatus,
+    twoFAEnabled: usersTable.twoFAEnabled,
+    twoFASecret: usersTable.twoFASecret,
+    createdAt: usersTable.createdAt
+  }).from(usersTable).where(eq(usersTable.id, otpRow.userId)).limit(1);
   if (users.length === 0) return res.status(401).json({ error: "User not found." });
   const user = users[0];
   if (user.twoFAEnabled && user.twoFASecret) {
@@ -69394,7 +69403,7 @@ router2.post("/auth/verify-otp", async (req, res) => {
         }
       } catch {
       }
-      await notifyUserLogin({ userId: user.id, accountUid: user.accountUid, name: user.fullName, email: user.email, ip, country });
+      await notifyUserLogin({ userId: user.id, accountUid: user.accountUid ?? "", name: user.fullName, email: user.email, ip, country });
       await sendPushToAllAdmins({ title: "\u{1F510} User Login", body: `${user.fullName} (${user.email}) logged in \xB7 ${country}`, tag: "qfx-login", data: { type: "login", userId: user.id } });
     } catch {
     }
@@ -69407,7 +69416,7 @@ router2.post("/auth/verify-otp", async (req, res) => {
 router2.post("/auth/resend-otp", async (req, res) => {
   const { email: email3 } = req.body;
   if (!email3) return res.status(400).json({ error: "Email is required." });
-  const users = await db.select().from(usersTable).where(eq(usersTable.email, email3)).limit(1);
+  const users = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, email3)).limit(1);
   if (users.length === 0) return res.status(404).json({ error: "No account found with that email." });
   await createAndSendOtp(email3, users[0].id, "login");
   return res.json({ message: "A new code has been sent to your email." });
@@ -69420,7 +69429,16 @@ router2.post("/auth/2fa/verify", async (req, res) => {
     pending2FA.delete(tempToken);
     return res.status(401).json({ error: "Session expired. Please log in again." });
   }
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, pending.userId)).limit(1);
+  const users = await db.select({
+    id: usersTable.id,
+    fullName: usersTable.fullName,
+    email: usersTable.email,
+    avatarUrl: usersTable.avatarUrl,
+    kycStatus: usersTable.kycStatus,
+    twoFAEnabled: usersTable.twoFAEnabled,
+    twoFASecret: usersTable.twoFASecret,
+    createdAt: usersTable.createdAt
+  }).from(usersTable).where(eq(usersTable.id, pending.userId)).limit(1);
   if (users.length === 0) return res.status(401).json({ error: "User not found" });
   const user = users[0];
   if (!user.twoFASecret || !d3({ token: code, secret: user.twoFASecret }).valid) {
@@ -69477,14 +69495,27 @@ router2.get("/auth/me", async (req, res) => {
   if (sessions.length === 0) {
     return res.status(401).json({ error: "Invalid or expired session" });
   }
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
+  const users = await db.select({
+    id: usersTable.id,
+    fullName: usersTable.fullName,
+    email: usersTable.email,
+    avatarUrl: usersTable.avatarUrl,
+    kycStatus: usersTable.kycStatus,
+    createdAt: usersTable.createdAt
+  }).from(usersTable).where(eq(usersTable.id, sessions[0].userId)).limit(1);
   if (users.length === 0) {
     return res.status(401).json({ error: "User not found" });
   }
   const user = users[0];
+  let accountUid = null;
+  try {
+    const [extra] = await db.select({ accountUid: usersTable.accountUid }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
+    accountUid = extra?.accountUid ?? null;
+  } catch {
+  }
   return res.json({
     id: user.id,
-    accountUid: user.accountUid,
+    accountUid,
     fullName: user.fullName,
     email: user.email,
     avatarUrl: user.avatarUrl,
