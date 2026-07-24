@@ -1,4 +1,4 @@
-import { runMigrations } from "@workspace/db/migrate";
+import { runMigrations, ensureCriticalSchema } from "@workspace/db/migrate";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import app from "./app";
@@ -20,6 +20,16 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function runStartupTasks() {
+  // Run critical DDL first — raw SQL via pool, no file-system dependency.
+  // This guarantees the minimum schema exists even when the migration runner
+  // cannot locate its SQL files (e.g. different CWD on some host envs).
+  try {
+    await ensureCriticalSchema();
+    logger.info("Critical schema ensured");
+  } catch (err) {
+    logger.warn({ err }, "ensureCriticalSchema failed (non-fatal)");
+  }
+
   try {
     const migrationsFolder = await runMigrations();
     logger.info({ migrationsFolder }, "Database migrations applied");

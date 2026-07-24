@@ -57545,6 +57545,32 @@ function resolveMigrationsFolder() {
   }
   return path.join(process.cwd(), "lib", "db", "migrations");
 }
+async function ensureCriticalSchema() {
+  const stmts = [
+    // Users table — columns added in migrations 0001, 0005, 0006, 0013
+    `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "status" varchar(20) NOT NULL DEFAULT 'active'`,
+    `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "is_admin" boolean NOT NULL DEFAULT false`,
+    `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "account_uid" varchar(15)`,
+    `UPDATE "users" SET "account_uid" = 'QFX' || upper(substring(md5(id::text || 'qfxuid'), 1, 8)) WHERE "account_uid" IS NULL OR "account_uid" = ''`,
+    `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "otp_bypass" boolean NOT NULL DEFAULT false`,
+    // email_otps table — migration 0012
+    `CREATE TABLE IF NOT EXISTS "email_otps" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "email" varchar(255) NOT NULL,
+      "otp" varchar(6) NOT NULL,
+      "user_id" integer,
+      "expires_at" timestamp NOT NULL,
+      "used_at" timestamp,
+      "created_at" timestamp DEFAULT now() NOT NULL
+    )`
+  ];
+  for (const sql3 of stmts) {
+    try {
+      await pool.query(sql3);
+    } catch {
+    }
+  }
+}
 async function runMigrations() {
   const migrationsFolder = resolveMigrationsFolder();
   const journal = path.join(migrationsFolder, "meta", "_journal.json");
@@ -69276,7 +69302,12 @@ router2.post("/auth/register", async (req, res) => {
     promotions: false
   });
   await db.insert(kycTable).values({ userId: user.id, status: "not_submitted" });
-  await createAndSendOtp(email3, user.id, "register");
+  try {
+    await createAndSendOtp(email3, user.id, "register");
+  } catch (err) {
+    logger.error({ err }, "Failed to create registration OTP");
+    return res.status(500).json({ error: "Account created but failed to send verification code. Please use 'Resend code'." });
+  }
   return res.status(201).json({ requiresEmailVerification: true, email: email3 });
 });
 router2.post("/auth/login", async (req, res) => {
@@ -69354,7 +69385,12 @@ router2.post("/auth/login", async (req, res) => {
       user: { id: user.id, fullName: user.fullName, email: user.email, avatarUrl: user.avatarUrl, kycStatus: user.kycStatus, createdAt: user.createdAt.toISOString() }
     });
   }
-  await createAndSendOtp(user.email, user.id, "login");
+  try {
+    await createAndSendOtp(user.email, user.id, "login");
+  } catch (err) {
+    logger.error({ err }, "Failed to create login OTP");
+    return res.status(500).json({ error: "Failed to send verification code. Please try again." });
+  }
   return res.json({ requiresEmailVerification: true, email: user.email });
 });
 router2.post("/auth/verify-otp", async (req, res) => {
@@ -69426,7 +69462,12 @@ router2.post("/auth/resend-otp", async (req, res) => {
   if (!email3) return res.status(400).json({ error: "Email is required." });
   const users = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, email3)).limit(1);
   if (users.length === 0) return res.status(404).json({ error: "No account found with that email." });
-  await createAndSendOtp(email3, users[0].id, "login");
+  try {
+    await createAndSendOtp(email3, users[0].id, "login");
+  } catch (err) {
+    logger.error({ err }, "Failed to resend OTP");
+    return res.status(500).json({ error: "Failed to send verification code. Please try again." });
+  }
   return res.json({ message: "A new code has been sent to your email." });
 });
 router2.post("/auth/2fa/verify", async (req, res) => {
@@ -74103,6 +74144,12 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 async function runStartupTasks() {
+  try {
+    await ensureCriticalSchema();
+    logger.info("Critical schema ensured");
+  } catch (err) {
+    logger.warn({ err }, "ensureCriticalSchema failed (non-fatal)");
+  }
   try {
     const migrationsFolder = await runMigrations();
     logger.info({ migrationsFolder }, "Database migrations applied");

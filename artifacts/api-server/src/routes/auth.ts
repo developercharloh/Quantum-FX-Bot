@@ -108,7 +108,12 @@ router.post("/auth/register", async (req, res) => {
   await db.insert(kycTable).values({ userId: user.id, status: "not_submitted" });
 
   // Send email OTP — user must verify before getting a session
-  await createAndSendOtp(email, user.id, "register");
+  try {
+    await createAndSendOtp(email, user.id, "register");
+  } catch (err) {
+    logger.error({ err }, "Failed to create registration OTP");
+    return res.status(500).json({ error: "Account created but failed to send verification code. Please use 'Resend code'." });
+  }
 
   return res.status(201).json({ requiresEmailVerification: true, email });
 });
@@ -198,7 +203,12 @@ router.post("/auth/login", async (req, res) => {
   }
 
   // Send email OTP — user must verify before getting a session
-  await createAndSendOtp(user.email, user.id, "login");
+  try {
+    await createAndSendOtp(user.email, user.id, "login");
+  } catch (err) {
+    logger.error({ err }, "Failed to create login OTP");
+    return res.status(500).json({ error: "Failed to send verification code. Please try again." });
+  }
   return res.json({ requiresEmailVerification: true, email: user.email });
 });
 
@@ -286,7 +296,12 @@ router.post("/auth/resend-otp", async (req, res) => {
   const users = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (users.length === 0) return res.status(404).json({ error: "No account found with that email." });
 
-  await createAndSendOtp(email, users[0].id, "login");
+  try {
+    await createAndSendOtp(email, users[0].id, "login");
+  } catch (err) {
+    logger.error({ err }, "Failed to resend OTP");
+    return res.status(500).json({ error: "Failed to send verification code. Please try again." });
+  }
   return res.json({ message: "A new code has been sent to your email." });
 });
 
