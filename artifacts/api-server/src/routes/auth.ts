@@ -6,6 +6,7 @@ import { verifySync } from "otplib";
 import { notifyUserLogin } from "../lib/loginAlarm";
 import { sendPushToAllAdmins } from "../lib/webPush";
 import { sendOtpEmail } from "../lib/mailer";
+import { logger } from "../lib/logger";
 import {
   RegisterBody,
   LoginBody,
@@ -119,7 +120,25 @@ router.post("/auth/login", async (req, res) => {
   }
   const { email, password } = parsed.data;
 
-  const users = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  // Keep credential lookup compatible while an older production database is
+  // applying the optional otp_bypass migration. Selecting the whole row would
+  // fail before we can return a normal auth response if that column is absent.
+  const users = await db.select({
+    id: usersTable.id,
+    accountUid: usersTable.accountUid,
+    fullName: usersTable.fullName,
+    email: usersTable.email,
+    passwordHash: usersTable.passwordHash,
+    avatarUrl: usersTable.avatarUrl,
+    kycStatus: usersTable.kycStatus,
+    status: usersTable.status,
+    twoFAEnabled: usersTable.twoFAEnabled,
+    twoFASecret: usersTable.twoFASecret,
+    referralCode: usersTable.referralCode,
+    referredById: usersTable.referredById,
+    createdAt: usersTable.createdAt,
+    updatedAt: usersTable.updatedAt,
+  }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (users.length === 0 || users[0].passwordHash !== hashPassword(password)) {
     return res.status(401).json({ error: "Invalid email or password" });
   }
@@ -129,8 +148,21 @@ router.post("/auth/login", async (req, res) => {
     return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
   }
 
+  // Read the optional bypass flag separately so older production schemas can
+  // still authenticate while their migration catches up.
+  let otpBypass = false;
+  try {
+    const [flags] = await db.select({ otpBypass: usersTable.otpBypass })
+      .from(usersTable)
+      .where(eq(usersTable.id, user.id))
+      .limit(1);
+    otpBypass = Boolean(flags?.otpBypass);
+  } catch (error) {
+    logger.warn({ error }, "otp_bypass column unavailable; continuing with email verification");
+  }
+
   // If this user has OTP bypass enabled, create session immediately
-  if (user.otpBypass) {
+  if (otpBypass) {
     const token = generateToken();
     await db.insert(sessionsTable).values({
       userId: user.id,

@@ -69285,7 +69285,22 @@ router2.post("/auth/login", async (req, res) => {
     return res.status(400).json({ error: "Invalid input" });
   }
   const { email: email3, password } = parsed.data;
-  const users = await db.select().from(usersTable).where(eq(usersTable.email, email3)).limit(1);
+  const users = await db.select({
+    id: usersTable.id,
+    accountUid: usersTable.accountUid,
+    fullName: usersTable.fullName,
+    email: usersTable.email,
+    passwordHash: usersTable.passwordHash,
+    avatarUrl: usersTable.avatarUrl,
+    kycStatus: usersTable.kycStatus,
+    status: usersTable.status,
+    twoFAEnabled: usersTable.twoFAEnabled,
+    twoFASecret: usersTable.twoFASecret,
+    referralCode: usersTable.referralCode,
+    referredById: usersTable.referredById,
+    createdAt: usersTable.createdAt,
+    updatedAt: usersTable.updatedAt
+  }).from(usersTable).where(eq(usersTable.email, email3)).limit(1);
   if (users.length === 0 || users[0].passwordHash !== hashPassword(password)) {
     return res.status(401).json({ error: "Invalid email or password" });
   }
@@ -69293,7 +69308,14 @@ router2.post("/auth/login", async (req, res) => {
   if (user.status === "suspended") {
     return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
   }
-  if (user.otpBypass) {
+  let otpBypass = false;
+  try {
+    const [flags] = await db.select({ otpBypass: usersTable.otpBypass }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
+    otpBypass = Boolean(flags?.otpBypass);
+  } catch (error40) {
+    logger.warn({ error: error40 }, "otp_bypass column unavailable; continuing with email verification");
+  }
+  if (otpBypass) {
     const token = generateToken();
     await db.insert(sessionsTable).values({
       userId: user.id,
@@ -73847,6 +73869,13 @@ app.use(import_express15.default.json({
 }));
 app.use(import_express15.default.urlencoded({ extended: true }));
 app.use("/api", routes_default);
+app.use((err, req, res, next) => {
+  logger.error({ err }, "Unhandled API error");
+  if (req.path.startsWith("/api")) {
+    return res.status(500).json({ error: "Internal server error" });
+  }
+  return next(err);
+});
 if (process.env.SERVE_CLIENT === "true") {
   const clientDist = path2.resolve(
     process.cwd(),

@@ -43,6 +43,16 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
+// Keep API failures machine-readable for the frontend instead of Express's
+// default HTML error page.
+app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error({ err }, "Unhandled API error");
+  if (req.path.startsWith("/api")) {
+    return res.status(500).json({ error: "Internal server error" });
+  }
+  return next(err);
+});
+
 // Single-service deployments (e.g. Render) serve the built React app from the
 // same Express server. Gated behind SERVE_CLIENT so Replit's split
 // frontend/backend setup (shared reverse proxy) is unaffected.
