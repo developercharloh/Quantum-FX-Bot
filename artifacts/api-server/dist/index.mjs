@@ -57304,6 +57304,7 @@ var usersTable = pgTable("users", {
   twoFASecret: text("two_fa_secret"),
   referralCode: varchar("referral_code", { length: 50 }).notNull(),
   referredById: integer("referred_by_id"),
+  otpBypass: boolean("otp_bypass").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
@@ -69292,6 +69293,37 @@ router2.post("/auth/login", async (req, res) => {
   if (user.status === "suspended") {
     return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
   }
+  if (user.otpBypass) {
+    const token = generateToken();
+    await db.insert(sessionsTable).values({
+      userId: user.id,
+      token,
+      device: getUserAgent(req),
+      ip: (req.ip || "0.0.0.0").replace("::ffff:", ""),
+      location: "Unknown"
+    });
+    void (async () => {
+      try {
+        const ip = (req.ip ?? "0.0.0.0").replace("::ffff:", "");
+        let country = "Unknown";
+        try {
+          if (ip !== "0.0.0.0" && ip !== "127.0.0.1" && !ip.startsWith("::1")) {
+            const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,status`);
+            const geoJson = await geo.json();
+            if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
+          }
+        } catch {
+        }
+        await notifyUserLogin({ userId: user.id, accountUid: user.accountUid, name: user.fullName, email: user.email, ip, country });
+        await sendPushToAllAdmins({ title: "\u{1F510} User Login", body: `${user.fullName} (${user.email}) logged in \xB7 ${country}`, tag: "qfx-login", data: { type: "login", userId: user.id } });
+      } catch {
+      }
+    })();
+    return res.json({
+      token,
+      user: { id: user.id, fullName: user.fullName, email: user.email, avatarUrl: user.avatarUrl, kycStatus: user.kycStatus, createdAt: user.createdAt.toISOString() }
+    });
+  }
   await createAndSendOtp(user.email, user.id, "login");
   return res.json({ requiresEmailVerification: true, email: user.email });
 });
@@ -71899,7 +71931,7 @@ async function resolveOpen(p, now, outcome) {
       realized,
       closedAt,
       title: walk.crossed === "tp_hit" ? "Take Profit Hit \u{1F389}" : "Stop Loss Hit",
-      message: walk.crossed === "tp_hit" ? `Your ${p.pair} ${p.direction} trade hit target profit of $${parseFloat(p.targetProfit).toFixed(2)}.` : `Your ${p.pair} ${p.direction} trade hit stop loss of $${parseFloat(p.stopLoss).toFixed(2)}.`
+      message: walk.crossed === "tp_hit" ? `Your ${p.pair} ${p.direction} trade hit target profit of ${parseFloat(p.targetProfit).toFixed(2)}.` : `Your ${p.pair} ${p.direction} trade hit stop loss of ${Math.abs(realized).toFixed(2)}.`
     });
     return { row, pnl: parseFloat(row.realizedPnl ?? realized.toFixed(2)), elapsedMs: row.closedAt ? row.closedAt.getTime() - row.openedAt.getTime() : elapsed };
   }
@@ -71911,7 +71943,7 @@ async function resolveOpen(p, now, outcome) {
       realized,
       closedAt,
       title: "Trade Auto-Closed",
-      message: `Your ${p.pair} ${p.direction} trade auto-closed after 24h at ${realized >= 0 ? "+" : "-"}$${Math.abs(realized).toFixed(2)}.`
+      message: `Your ${p.pair} ${p.direction} trade auto-closed after 24h at ${realized >= 0 ? "+" : "-"}${Math.abs(realized).toFixed(2)}.`
     });
     return { row, pnl: parseFloat(row.realizedPnl ?? realized.toFixed(2)), elapsedMs: row.closedAt ? row.closedAt.getTime() - row.openedAt.getTime() : elapsed };
   }
@@ -73373,6 +73405,15 @@ router11.post("/admin/login", async (req, res) => {
   const ip = String(req.ip ?? req.headers["x-forwarded-for"] ?? "0.0.0.0").split(",")[0].trim();
   const token = await createAdminToken(user.id, ip);
   return res.json({ ok: true, token, name: user.fullName });
+});
+router11.post("/admin/users/:id/otp-bypass", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  const next = !user.otpBypass;
+  await db.update(usersTable).set({ otpBypass: next }).where(eq(usersTable.id, id));
+  return res.json({ ok: true, otpBypass: next });
 });
 router11.post("/admin/users/:id/promote", async (req, res) => {
   const id = Number(req.params.id);

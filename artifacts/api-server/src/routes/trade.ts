@@ -206,7 +206,7 @@ async function resolveOpen(
   if (walk.expired) {
     const realized = outcome === "profit"
       ? Math.max(parseFloat(p.stake) * 0.04, Math.round(walk.pnl * 100) / 100)
-      : wknd ? -WEEKEND_LOSS_AMOUNT : -parseFloat(p.stopLoss);
+      : -parseFloat(p.stopLoss);
     const closedAt = new Date(p.openedAt.getTime() + MAX_STEPS * STEP_MS);
     const row = await closePosition(p, {
       status: "closed_expired",
