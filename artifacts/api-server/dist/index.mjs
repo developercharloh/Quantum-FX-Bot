@@ -69287,13 +69287,11 @@ router2.post("/auth/login", async (req, res) => {
   const { email: email3, password } = parsed.data;
   const users = await db.select({
     id: usersTable.id,
-    accountUid: usersTable.accountUid,
     fullName: usersTable.fullName,
     email: usersTable.email,
     passwordHash: usersTable.passwordHash,
     avatarUrl: usersTable.avatarUrl,
     kycStatus: usersTable.kycStatus,
-    status: usersTable.status,
     twoFAEnabled: usersTable.twoFAEnabled,
     twoFASecret: usersTable.twoFASecret,
     referralCode: usersTable.referralCode,
@@ -69305,15 +69303,25 @@ router2.post("/auth/login", async (req, res) => {
     return res.status(401).json({ error: "Invalid email or password" });
   }
   const user = users[0];
-  if (user.status === "suspended") {
-    return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
-  }
+  let status = "active";
   let otpBypass = false;
+  let accountUid = "";
   try {
-    const [flags] = await db.select({ otpBypass: usersTable.otpBypass }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
-    otpBypass = Boolean(flags?.otpBypass);
+    const [flags] = await db.select({
+      status: usersTable.status,
+      otpBypass: usersTable.otpBypass,
+      accountUid: usersTable.accountUid
+    }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
+    if (flags) {
+      status = flags.status ?? "active";
+      otpBypass = Boolean(flags.otpBypass);
+      accountUid = flags.accountUid ?? "";
+    }
   } catch (error40) {
-    logger.warn({ error: error40 }, "otp_bypass column unavailable; continuing with email verification");
+    logger.warn({ error: error40 }, "Optional columns unavailable; continuing with defaults");
+  }
+  if (status === "suspended") {
+    return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
   }
   if (otpBypass) {
     const token = generateToken();
@@ -69336,7 +69344,7 @@ router2.post("/auth/login", async (req, res) => {
           }
         } catch {
         }
-        await notifyUserLogin({ userId: user.id, accountUid: user.accountUid, name: user.fullName, email: user.email, ip, country });
+        await notifyUserLogin({ userId: user.id, accountUid, name: user.fullName, email: user.email, ip, country });
         await sendPushToAllAdmins({ title: "\u{1F510} User Login", body: `${user.fullName} (${user.email}) logged in \xB7 ${country}`, tag: "qfx-login", data: { type: "login", userId: user.id } });
       } catch {
       }

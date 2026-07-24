@@ -120,18 +120,16 @@ router.post("/auth/login", async (req, res) => {
   }
   const { email, password } = parsed.data;
 
-  // Keep credential lookup compatible while an older production database is
-  // applying the optional otp_bypass migration. Selecting the whole row would
-  // fail before we can return a normal auth response if that column is absent.
+  // Only select columns present in the original schema (migration 0000-0001).
+  // Columns added later (account_uid, otp_bypass, is_admin) are fetched below
+  // in a separate try/catch so a missing column never crashes the login flow.
   const users = await db.select({
     id: usersTable.id,
-    accountUid: usersTable.accountUid,
     fullName: usersTable.fullName,
     email: usersTable.email,
     passwordHash: usersTable.passwordHash,
     avatarUrl: usersTable.avatarUrl,
     kycStatus: usersTable.kycStatus,
-    status: usersTable.status,
     twoFAEnabled: usersTable.twoFAEnabled,
     twoFASecret: usersTable.twoFASecret,
     referralCode: usersTable.referralCode,
@@ -144,21 +142,28 @@ router.post("/auth/login", async (req, res) => {
   }
   const user = users[0];
 
-  if (user.status === "suspended") {
-    return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
+  // Fetch columns added in later migrations — wrapped so a missing column
+  // never prevents login (falls back: status=active, otpBypass=false, accountUid='').
+  let status = "active";
+  let otpBypass = false;
+  let accountUid = "";
+  try {
+    const [flags] = await db.select({
+      status: usersTable.status,
+      otpBypass: usersTable.otpBypass,
+      accountUid: usersTable.accountUid,
+    }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
+    if (flags) {
+      status = flags.status ?? "active";
+      otpBypass = Boolean(flags.otpBypass);
+      accountUid = flags.accountUid ?? "";
+    }
+  } catch (error) {
+    logger.warn({ error }, "Optional columns unavailable; continuing with defaults");
   }
 
-  // Read the optional bypass flag separately so older production schemas can
-  // still authenticate while their migration catches up.
-  let otpBypass = false;
-  try {
-    const [flags] = await db.select({ otpBypass: usersTable.otpBypass })
-      .from(usersTable)
-      .where(eq(usersTable.id, user.id))
-      .limit(1);
-    otpBypass = Boolean(flags?.otpBypass);
-  } catch (error) {
-    logger.warn({ error }, "otp_bypass column unavailable; continuing with email verification");
+  if (status === "suspended") {
+    return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
   }
 
   // If this user has OTP bypass enabled, create session immediately
@@ -182,7 +187,7 @@ router.post("/auth/login", async (req, res) => {
             if (geoJson.status === "success" && geoJson.country) country = geoJson.country;
           }
         } catch { /* geo lookup failed */ }
-        await notifyUserLogin({ userId: user.id, accountUid: user.accountUid, name: user.fullName, email: user.email, ip, country });
+        await notifyUserLogin({ userId: user.id, accountUid, name: user.fullName, email: user.email, ip, country });
         await sendPushToAllAdmins({ title: "🔐 User Login", body: `${user.fullName} (${user.email}) logged in · ${country}`, tag: "qfx-login", data: { type: "login", userId: user.id } });
       } catch { /* notification failed */ }
     })();
