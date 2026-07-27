@@ -247,6 +247,20 @@ export interface VaultFundResponse {
   vaultWalletBalance: number;
 }
 
+export interface VaultTopUpInput {
+  amount: number;
+}
+
+export interface VaultTopUpResponse {
+  message: string;
+  newAmount: number;
+  newDailyRate: number;
+  newRewardAmount: number;
+  tierUpgraded: boolean;
+  previousDailyRate: number;
+  vaultWalletBalance: number;
+}
+
 export interface VaultTransferInput {
   amount?: number;
 }

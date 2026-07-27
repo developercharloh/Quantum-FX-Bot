@@ -102,6 +102,8 @@ export * from './vaultRedeemInput';
 export * from './vaultRedeemResponse';
 export * from './vaultStatus';
 export * from './vaultTier';
+export * from './vaultTopUpInput';
+export * from './vaultTopUpResponse';
 export * from './vaultTransferInput';
 export * from './vaultTransferResponse';
 export * from './withdrawInput';

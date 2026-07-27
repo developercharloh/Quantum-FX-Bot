@@ -149,6 +149,89 @@ router.post("/vault/invest", async (req, res) => {
   return res.json({ message: "Quantum Vault investment started." });
 });
 
+router.post("/vault/top-up", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const topUpAmount = parseFloat(req.body?.amount);
+  if (!Number.isFinite(topUpAmount) || topUpAmount <= 0) {
+    return res.status(400).json({ error: "Enter a valid top-up amount." });
+  }
+
+  const rows = await db.select().from(vaultInvestmentsTable)
+    .where(and(eq(vaultInvestmentsTable.userId, user.id), eq(vaultInvestmentsTable.status, "active")))
+    .limit(1);
+
+  if (rows.length === 0) {
+    return res.status(400).json({ error: "No active Quantum Vault investment to top up." });
+  }
+
+  const inv = rows[0];
+
+  if (Date.now() >= inv.maturesAt.getTime()) {
+    return res.status(400).json({ error: "This investment has already matured. Redeem it before adding funds." });
+  }
+
+  const vaultWalletBalance = await getVaultWalletBalance(user.id);
+  if (vaultWalletBalance < topUpAmount) {
+    return res.status(400).json({
+      error: `Insufficient funds in your Vault Wallet. You need $${topUpAmount.toFixed(2)} but have $${vaultWalletBalance.toFixed(2)}.`,
+    });
+  }
+
+  const now = Date.now();
+  const started = inv.startedAt.getTime();
+  const matures = inv.maturesAt.getTime();
+  const totalMs = Math.max(matures - started, 1);
+  const elapsedMs = Math.min(Math.max(now - started, 0), totalMs);
+  const daysElapsed = Math.floor(elapsedMs / (24 * 60 * 60 * 1000));
+  const daysRemaining = Math.max(inv.termDays - daysElapsed, 0);
+
+  const previousDailyRate = parseFloat(inv.dailyRate);
+  const oldAmount = parseFloat(inv.amount);
+  const newAmount = oldAmount + topUpAmount;
+
+  const newDailyRate = rateForAmount(newAmount);
+  if (newDailyRate === null) {
+    return res.status(400).json({ error: "New total does not match any Vault tier." });
+  }
+
+  // Accrued so far at the old rate, then remaining days earn at the new rate on the new total
+  const accruedSoFar = parseFloat((oldAmount * (previousDailyRate / 100) * daysElapsed).toFixed(2));
+  const remainingReward = parseFloat((newAmount * (newDailyRate / 100) * daysRemaining).toFixed(2));
+  const newRewardAmount = parseFloat((accruedSoFar + remainingReward).toFixed(2));
+
+  const tierUpgraded = newDailyRate > previousDailyRate;
+
+  await db.update(vaultInvestmentsTable).set({
+    amount: newAmount.toFixed(2),
+    dailyRate: newDailyRate.toFixed(2),
+    rewardAmount: newRewardAmount.toFixed(2),
+  }).where(eq(vaultInvestmentsTable.id, inv.id));
+
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "vault_lock",
+    amount: topUpAmount.toFixed(2),
+    status: "completed",
+    paymentMethod: "balance",
+    description: `Quantum Vault: top-up added to active investment${tierUpgraded ? ` (rate upgraded to ${newDailyRate}%/day)` : ""}`,
+  });
+
+  return res.json({
+    message: tierUpgraded
+      ? `Top-up applied and rate upgraded to ${newDailyRate}%/day!`
+      : "Top-up applied successfully.",
+    newAmount,
+    newDailyRate,
+    newRewardAmount,
+    tierUpgraded,
+    previousDailyRate,
+    vaultWalletBalance: await getVaultWalletBalance(user.id),
+  });
+});
+
 router.post("/vault/redeem", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   const user = await getUserFromToken(token);

@@ -10,6 +10,7 @@ import {
   useRedeemVaultInvestment,
   useFundVaultWallet,
   useTransferVaultWallet,
+  useTopUpVaultInvestment,
   getGetVaultStatusQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -45,6 +46,9 @@ export default function Vault() {
   const [fundAmount, setFundAmount] = useState("");
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferAmount, setTransferAmount] = useState("");
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [topUpResult, setTopUpResult] = useState<{ newAmount: number; newDailyRate: number; previousDailyRate: number; tierUpgraded: boolean } | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1_000);
@@ -92,6 +96,25 @@ export default function Vault() {
       },
       onError: (err: any) => {
         toast({ title: "Could not transfer", description: err?.message ?? "Something went wrong.", variant: "destructive" });
+      },
+    },
+  });
+
+  const topUpMutation = useTopUpVaultInvestment({
+    mutation: {
+      onSuccess: (res: any) => {
+        setTopUpResult({
+          newAmount: res.newAmount,
+          newDailyRate: res.newDailyRate,
+          previousDailyRate: res.previousDailyRate,
+          tierUpgraded: res.tierUpgraded,
+        });
+        setShowTopUp(false);
+        setTopUpAmount("");
+        invalidate();
+      },
+      onError: (err: any) => {
+        toast({ title: "Top-up failed", description: err?.message ?? "Something went wrong.", variant: "destructive" });
       },
     },
   });
@@ -411,23 +434,33 @@ export default function Vault() {
                 </div>
               </div>
 
-              {/* redeem / locked button */}
-              <button
-                disabled={!data.active.isMatured || redeemMutation.isPending}
-                onClick={() => redeemMutation.mutate({ data: {} })}
-                className="w-full h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 mt-1 disabled:opacity-70 transition-opacity"
-                style={{
-                  background: data.active.isMatured
-                    ? "linear-gradient(135deg, #059669, #047857)"
-                    : "linear-gradient(135deg, #7c3aed, #ec4899)",
-                }}
-              >
-                {data.active.isMatured ? (
-                  `Redeem ${formatMoney(data.active.amount + data.active.rewardAmount)}`
-                ) : (
-                  <><Lock className="w-4 h-4" /> Locked until maturity</>
+              {/* add funds + redeem row */}
+              <div className="flex gap-2 mt-1">
+                {!data.active.isMatured && (
+                  <button
+                    onClick={() => setShowTopUp(true)}
+                    className="flex-1 h-12 rounded-xl text-sm font-semibold text-white/80 border border-white/15 bg-white/5 flex items-center justify-center gap-1.5"
+                  >
+                    + Add Funds
+                  </button>
                 )}
-              </button>
+                <button
+                  disabled={!data.active.isMatured || redeemMutation.isPending}
+                  onClick={() => redeemMutation.mutate({ data: {} })}
+                  className={`h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-70 transition-opacity ${data.active.isMatured ? "flex-1" : "flex-1"}`}
+                  style={{
+                    background: data.active.isMatured
+                      ? "linear-gradient(135deg, #059669, #047857)"
+                      : "linear-gradient(135deg, #7c3aed, #ec4899)",
+                  }}
+                >
+                  {data.active.isMatured ? (
+                    `Redeem ${formatMoney(data.active.amount + data.active.rewardAmount)}`
+                  ) : (
+                    <><Lock className="w-4 h-4" /> Locked</>
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
@@ -468,6 +501,106 @@ export default function Vault() {
                 <button className="text-xs text-white/40 underline underline-offset-2" onClick={() => setCongrats(null)}>
                   I'll transfer later
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Top-up modal ── */}
+          {showTopUp && data?.active && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6" onClick={() => setShowTopUp(false)}>
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-3"
+                style={{ background: "#0d1a2e", border: "1px solid rgba(245,158,11,0.3)" }}
+              >
+                <h2 className="text-lg font-bold text-white">Add Funds to Active Investment</h2>
+                <p className="text-sm text-white/50">
+                  Currently locked: <span className="text-white font-medium">{formatMoney(data.active.amount)}</span> at{" "}
+                  <span className="text-amber-400 font-medium">{data.active.dailyRate}%/day</span>. Adding more may upgrade your tier.
+                </p>
+
+                {/* tier preview */}
+                <div className="rounded-xl p-3 flex flex-col gap-1.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <p className="text-xs text-white/40 mb-0.5">Daily Return Rates</p>
+                  {data.tiers.map((t, i) => {
+                    const newTotal = data.active!.amount + (parseFloat(topUpAmount) || 0);
+                    const isCurrentTier = data.active!.amount >= t.min && (t.max == null || data.active!.amount <= t.max);
+                    const wouldUpgrade = !isCurrentTier && newTotal >= t.min && (t.max == null || newTotal <= t.max);
+                    return (
+                      <div key={i} className="flex justify-between text-xs items-center">
+                        <span className="text-white/60">{formatMoney(t.min)}{t.max ? ` – ${formatMoney(t.max)}` : "+"}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className={wouldUpgrade ? "text-emerald-400 font-bold" : isCurrentTier ? "text-amber-400 font-medium" : "text-white/40"}>{t.dailyRate}% / day</span>
+                          {isCurrentTier && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b" }}>current</span>}
+                          {wouldUpgrade && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(16,185,129,0.15)", color: "#10b981" }}>↑ upgrade</span>}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={topUpAmount}
+                  onChange={(e) => setTopUpAmount(e.target.value)}
+                  placeholder="Amount to add"
+                  className="h-11 rounded-xl bg-white/5 border border-white/10 px-3 text-sm text-white outline-none focus:border-amber-500/60"
+                />
+                <p className="text-xs text-white/40">Vault Wallet balance: {formatMoney(vaultWalletBalance)}</p>
+                <button
+                  className="w-full h-11 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+                  style={{ background: "linear-gradient(135deg, #f59e0b, #b45309)" }}
+                  disabled={
+                    !Number.isFinite(parseFloat(topUpAmount)) ||
+                    parseFloat(topUpAmount) <= 0 ||
+                    parseFloat(topUpAmount) > vaultWalletBalance ||
+                    topUpMutation.isPending
+                  }
+                  onClick={() => topUpMutation.mutate({ data: { amount: parseFloat(topUpAmount) } })}
+                >
+                  {topUpMutation.isPending ? "Adding…" : "Add Funds"}
+                </button>
+                <button className="text-xs text-white/40 underline underline-offset-2 self-center" onClick={() => setShowTopUp(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Top-up success modal ── */}
+          {topUpResult && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6" onClick={() => setTopUpResult(null)}>
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm rounded-2xl p-6 flex flex-col items-center gap-3 text-center"
+                style={{
+                  background: topUpResult.tierUpgraded ? "#1a0a2e" : "#0d1a2e",
+                  border: `1px solid ${topUpResult.tierUpgraded ? "rgba(245,158,11,0.35)" : "rgba(99,102,241,0.3)"}`,
+                }}
+              >
+                {topUpResult.tierUpgraded ? (
+                  <TrendingUp className="w-10 h-10 text-amber-400" />
+                ) : (
+                  <CheckCircle2 className="w-10 h-10 text-indigo-400" />
+                )}
+                <h2 className="text-lg font-bold text-white">
+                  {topUpResult.tierUpgraded ? "Tier Upgraded! 🎉" : "Funds Added"}
+                </h2>
+                {topUpResult.tierUpgraded ? (
+                  <p className="text-sm text-white/50">
+                    Your investment has grown into a higher tier. Your daily rate has been upgraded from{" "}
+                    <span className="text-white/80 line-through">{topUpResult.previousDailyRate}%</span> to{" "}
+                    <span className="text-amber-400 font-bold">{topUpResult.newDailyRate}%/day</span> on your new total of{" "}
+                    <span className="text-white font-medium">{formatMoney(topUpResult.newAmount)}</span>.
+                  </p>
+                ) : (
+                  <p className="text-sm text-white/50">
+                    Your investment is now <span className="text-white font-medium">{formatMoney(topUpResult.newAmount)}</span> at{" "}
+                    <span className="text-amber-400 font-medium">{topUpResult.newDailyRate}%/day</span> for the remaining term.
+                  </p>
+                )}
+                <Button className="w-full mt-1" onClick={() => setTopUpResult(null)}>
+                  {topUpResult.tierUpgraded ? "Awesome!" : "Got it"}
+                </Button>
               </div>
             </div>
           )}

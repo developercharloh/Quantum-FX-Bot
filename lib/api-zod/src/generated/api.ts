@@ -296,6 +296,21 @@ export const FundVaultWalletResponse = zod.object({
 })
 
 
+export const TopUpVaultInvestmentBody = zod.object({
+  "amount": zod.number()
+})
+
+export const TopUpVaultInvestmentResponse = zod.object({
+  "message": zod.string(),
+  "newAmount": zod.number(),
+  "newDailyRate": zod.number(),
+  "newRewardAmount": zod.number(),
+  "tierUpgraded": zod.boolean(),
+  "previousDailyRate": zod.number(),
+  "vaultWalletBalance": zod.number()
+})
+
+
 export const TransferVaultWalletBody = zod.object({
   "amount": zod.number().optional()
 })

@@ -419,6 +419,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /vault/top-up:
+    post:
+      operationId: topUpVaultInvestment
+      tags: [vault]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultTopUpInput"
+      responses:
+        "200":
+          description: Top-up applied; rate may have upgraded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultTopUpResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /vault/transfer:
     post:
       operationId: transferVaultWallet
@@ -2102,6 +2126,32 @@ components:
         vaultWalletBalance:
           type: number
       required: [message, fundedAmount, availableBalance, vaultWalletBalance]
+
+    VaultTopUpInput:
+      type: object
+      properties:
+        amount:
+          type: number
+      required: [amount]
+
+    VaultTopUpResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        newAmount:
+          type: number
+        newDailyRate:
+          type: number
+        newRewardAmount:
+          type: number
+        tierUpgraded:
+          type: boolean
+        previousDailyRate:
+          type: number
+        vaultWalletBalance:
+          type: number
+      required: [message, newAmount, newDailyRate, newRewardAmount, tierUpgraded, previousDailyRate, vaultWalletBalance]
 
     VaultTransferInput:
       type: object

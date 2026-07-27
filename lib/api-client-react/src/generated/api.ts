@@ -107,6 +107,8 @@ import type {
   VaultRedeemInput,
   VaultRedeemResponse,
   VaultStatus,
+  VaultTopUpInput,
+  VaultTopUpResponse,
   VaultTransferInput,
   VaultTransferResponse,
   WithdrawInput
@@ -1575,6 +1577,71 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getFundVaultWalletMutationOptions(options));
+    }
+
+export const getTopUpVaultInvestmentUrl = () => {
+
+
+
+
+  return `/api/vault/top-up`
+}
+
+export const topUpVaultInvestment = async (vaultTopUpInput: VaultTopUpInput, options?: RequestInit): Promise<VaultTopUpResponse> => {
+
+  return customFetch<VaultTopUpResponse>(getTopUpVaultInvestmentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      vaultTopUpInput,)
+  }
+);}
+
+
+
+
+export const getTopUpVaultInvestmentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof topUpVaultInvestment>>, TError,{data: BodyType<VaultTopUpInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof topUpVaultInvestment>>, TError,{data: BodyType<VaultTopUpInput>}, TContext> => {
+
+const mutationKey = ['topUpVaultInvestment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof topUpVaultInvestment>>, {data: BodyType<VaultTopUpInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  topUpVaultInvestment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TopUpVaultInvestmentMutationResult = NonNullable<Awaited<ReturnType<typeof topUpVaultInvestment>>>
+    export type TopUpVaultInvestmentMutationBody = BodyType<VaultTopUpInput>
+    export type TopUpVaultInvestmentMutationError = ErrorType<ErrorResponse>
+
+    export const useTopUpVaultInvestment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof topUpVaultInvestment>>, TError,{data: BodyType<VaultTopUpInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof topUpVaultInvestment>>,
+        TError,
+        {data: BodyType<VaultTopUpInput>},
+        TContext
+      > => {
+      return useMutation(getTopUpVaultInvestmentMutationOptions(options));
     }
 
 export const getTransferVaultWalletUrl = () => {
