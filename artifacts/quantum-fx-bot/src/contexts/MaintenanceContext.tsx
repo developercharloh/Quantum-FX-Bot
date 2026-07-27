@@ -1,5 +1,4 @@
-import { createContext, useContext, ReactNode } from "react";
-import { useGetAppStatus } from "@workspace/api-client-react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface MaintenanceContextType {
   maintenanceMode: boolean;
@@ -7,18 +6,34 @@ interface MaintenanceContextType {
 
 const MaintenanceContext = createContext<MaintenanceContextType>({ maintenanceMode: false });
 
+async function fetchMaintenanceMode(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/status");
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data?.maintenanceMode === true;
+  } catch {
+    return false;
+  }
+}
+
 export function MaintenanceProvider({ children }: { children: ReactNode }) {
-  const { data } = useGetAppStatus({
-    query: {
-      refetchInterval: 30_000,   // poll every 30 s
-      refetchIntervalInBackground: true,
-      retry: false,
-      staleTime: 0,
-    } as any,
-  });
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+  useEffect(() => {
+    // Fetch immediately on mount
+    fetchMaintenanceMode().then(setMaintenanceMode);
+
+    // Then poll every 15 seconds
+    const id = setInterval(() => {
+      fetchMaintenanceMode().then(setMaintenanceMode);
+    }, 15_000);
+
+    return () => clearInterval(id);
+  }, []);
 
   return (
-    <MaintenanceContext.Provider value={{ maintenanceMode: data?.maintenanceMode ?? false }}>
+    <MaintenanceContext.Provider value={{ maintenanceMode }}>
       {children}
     </MaintenanceContext.Provider>
   );

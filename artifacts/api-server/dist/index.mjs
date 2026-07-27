@@ -62868,6 +62868,11 @@ var router = (0, import_express.Router)();
 router.get("/healthz", (_req, res) => {
   res.json({ status: "ok" });
 });
+router.get("/status", async (_req, res) => {
+  const rows = await db.select().from(settingsTable).limit(1);
+  const maintenanceMode = rows[0]?.maintenanceMode ?? false;
+  return res.json({ maintenanceMode });
+});
 var health_default = router;
 
 // src/routes/auth.ts
@@ -75082,6 +75087,9 @@ var coerce = {
 };
 
 // ../../lib/api-zod/src/generated/api.ts
+var GetAppStatusResponse = objectType({
+  "maintenanceMode": booleanType()
+});
 var HealthCheckResponse = objectType({
   "status": stringType()
 });
@@ -75309,6 +75317,18 @@ var FundVaultWalletResponse = objectType({
   "message": stringType(),
   "fundedAmount": numberType(),
   "availableBalance": numberType(),
+  "vaultWalletBalance": numberType()
+});
+var TopUpVaultInvestmentBody = objectType({
+  "amount": numberType()
+});
+var TopUpVaultInvestmentResponse = objectType({
+  "message": stringType(),
+  "newAmount": numberType(),
+  "newDailyRate": numberType(),
+  "newRewardAmount": numberType(),
+  "tierUpgraded": booleanType(),
+  "previousDailyRate": numberType(),
   "vaultWalletBalance": numberType()
 });
 var TransferVaultWalletBody = objectType({
@@ -76024,37 +76044,59 @@ var AdminListVaultUsersQueryParams = objectType({
   "search": coerce.string().optional(),
   "filter": coerce.string().optional()
 });
-var AdminListVaultUsersResponseItem = objectType({
-  "userId": numberType(),
-  "userName": stringType(),
-  "userEmail": stringType(),
-  "invested": booleanType(),
-  "active": unionType([objectType({
-    "id": numberType(),
-    "amount": numberType(),
-    "termDays": numberType(),
-    "dailyRate": numberType(),
-    "rewardAmount": numberType(),
-    "status": stringType(),
-    "startedAt": stringType(),
-    "maturesAt": stringType(),
-    "redeemedAt": stringType().nullish()
-  }), nullType()]),
-  "history": arrayType(objectType({
-    "id": numberType(),
-    "amount": numberType(),
-    "termDays": numberType(),
-    "dailyRate": numberType(),
-    "rewardAmount": numberType(),
-    "status": stringType(),
-    "startedAt": stringType(),
-    "maturesAt": stringType(),
-    "redeemedAt": stringType().nullish()
-  })),
-  "totalInvested": numberType(),
-  "totalRewardsEarned": numberType()
+var AdminListVaultUsersResponse = objectType({
+  "stats": objectType({
+    "totalLocked": numberType(),
+    "totalRewardsOwed": numberType(),
+    "totalRewardsPaid": numberType(),
+    "activeCount": numberType(),
+    "maturingSoonCount": numberType(),
+    "tierBreakdown": arrayType(objectType({
+      "dailyRate": numberType(),
+      "count": numberType(),
+      "totalLocked": numberType()
+    }))
+  }),
+  "users": arrayType(objectType({
+    "userId": numberType(),
+    "userName": stringType(),
+    "userEmail": stringType(),
+    "invested": booleanType(),
+    "vaultWalletBalance": numberType(),
+    "active": unionType([objectType({
+      "id": numberType(),
+      "amount": numberType(),
+      "termDays": numberType(),
+      "dailyRate": numberType(),
+      "rewardAmount": numberType(),
+      "status": stringType(),
+      "startedAt": stringType(),
+      "maturesAt": stringType(),
+      "redeemedAt": stringType().nullish(),
+      "topUpCount": numberType(),
+      "tierUpgraded": booleanType(),
+      "isMaturing": booleanType(),
+      "maturesInDays": numberType()
+    }), nullType()]),
+    "history": arrayType(objectType({
+      "id": numberType(),
+      "amount": numberType(),
+      "termDays": numberType(),
+      "dailyRate": numberType(),
+      "rewardAmount": numberType(),
+      "status": stringType(),
+      "startedAt": stringType(),
+      "maturesAt": stringType(),
+      "redeemedAt": stringType().nullish(),
+      "topUpCount": numberType(),
+      "tierUpgraded": booleanType(),
+      "isMaturing": booleanType(),
+      "maturesInDays": numberType()
+    })),
+    "totalInvested": numberType(),
+    "totalRewardsEarned": numberType()
+  }))
 });
-var AdminListVaultUsersResponse = arrayType(AdminListVaultUsersResponseItem);
 var AdminListTicketsQueryParams = objectType({
   "status": coerce.string().optional()
 });
@@ -80239,7 +80281,13 @@ router11.post("/admin/transactions/:id/review", async (req, res) => {
   if (!row) return res.status(404).json({ error: "Transaction not found" });
   return res.json(mapTxnRow(row.txn, row.user));
 });
-function mapAdminVaultInvestment(inv) {
+var SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1e3;
+function mapAdminVaultInvestment(inv, topUpCount, tierUpgraded) {
+  const now = Date.now();
+  const matures = inv.maturesAt.getTime();
+  const msRemaining = matures - now;
+  const isMaturing = inv.status === "active" && msRemaining > 0 && msRemaining <= SEVEN_DAYS_MS;
+  const maturesInDays = inv.status === "active" ? Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1e3))) : 0;
   return {
     id: inv.id,
     amount: parseFloat(inv.amount),
@@ -80249,25 +80297,57 @@ function mapAdminVaultInvestment(inv) {
     status: inv.status,
     startedAt: inv.startedAt.toISOString(),
     maturesAt: inv.maturesAt.toISOString(),
-    redeemedAt: inv.redeemedAt ? inv.redeemedAt.toISOString() : null
+    redeemedAt: inv.redeemedAt ? inv.redeemedAt.toISOString() : null,
+    topUpCount,
+    tierUpgraded,
+    isMaturing,
+    maturesInDays
   };
 }
 router11.get("/admin/vault", async (req, res) => {
   const search = req.query.search?.trim().toLowerCase();
   const filter = req.query.filter ?? "all";
-  const [users, investments] = await Promise.all([
+  const [users, investments, allTxns] = await Promise.all([
     db.select().from(usersTable).orderBy(desc(usersTable.createdAt)),
-    db.select().from(vaultInvestmentsTable).orderBy(desc(vaultInvestmentsTable.createdAt))
+    db.select().from(vaultInvestmentsTable).orderBy(desc(vaultInvestmentsTable.createdAt)),
+    db.select().from(transactionsTable).where(eq(transactionsTable.status, "completed"))
   ]);
-  const byUser = /* @__PURE__ */ new Map();
+  const invByUser = /* @__PURE__ */ new Map();
   for (const inv of investments) {
-    const list = byUser.get(inv.userId) ?? [];
+    const list = invByUser.get(inv.userId) ?? [];
     list.push(inv);
-    byUser.set(inv.userId, list);
+    invByUser.set(inv.userId, list);
+  }
+  const txnsByUser = /* @__PURE__ */ new Map();
+  for (const t2 of allTxns) {
+    const list = txnsByUser.get(t2.userId) ?? [];
+    list.push(t2);
+    txnsByUser.set(t2.userId, list);
+  }
+  function vaultWalletBalanceFromTxns(txns) {
+    let bal = 0;
+    for (const t2 of txns) {
+      const amt = parseFloat(t2.amount);
+      if (t2.type === "vault_fund" || t2.type === "vault_unlock" || t2.type === "vault_reward") bal += amt;
+      if (t2.type === "vault_lock" || t2.type === "vault_transfer") bal -= amt;
+    }
+    return Math.round(bal * 100) / 100;
   }
   let result = users.map((u) => {
-    const userInvestments = byUser.get(u.id) ?? [];
+    const userInvestments = invByUser.get(u.id) ?? [];
+    const userTxns = txnsByUser.get(u.id) ?? [];
     const active = userInvestments.find((i2) => i2.status === "active") ?? null;
+    let topUpCount = 0;
+    let tierUpgraded = false;
+    if (active) {
+      const investedAt = active.startedAt.getTime();
+      for (const t2 of userTxns) {
+        if (t2.type === "vault_lock" && t2.description?.includes("top-up") && new Date(t2.createdAt ?? 0).getTime() >= investedAt) {
+          topUpCount++;
+          if (t2.description?.includes("rate upgraded")) tierUpgraded = true;
+        }
+      }
+    }
     const totalInvested = userInvestments.reduce((s, i2) => s + parseFloat(i2.amount), 0);
     const totalRewardsEarned = userInvestments.filter((i2) => i2.status === "redeemed").reduce((s, i2) => s + parseFloat(i2.rewardAmount), 0);
     return {
@@ -80275,8 +80355,9 @@ router11.get("/admin/vault", async (req, res) => {
       userName: u.fullName,
       userEmail: u.email,
       invested: userInvestments.length > 0,
-      active: active ? mapAdminVaultInvestment(active) : null,
-      history: userInvestments.map(mapAdminVaultInvestment),
+      vaultWalletBalance: vaultWalletBalanceFromTxns(userTxns),
+      active: active ? mapAdminVaultInvestment(active, topUpCount, tierUpgraded) : null,
+      history: userInvestments.filter((i2) => i2.status !== "active").map((i2) => mapAdminVaultInvestment(i2, 0, false)),
       totalInvested: Math.round(totalInvested * 100) / 100,
       totalRewardsEarned: Math.round(totalRewardsEarned * 100) / 100
     };
@@ -80284,12 +80365,46 @@ router11.get("/admin/vault", async (req, res) => {
   if (filter === "invested") result = result.filter((r2) => r2.invested);
   if (filter === "active") result = result.filter((r2) => r2.active !== null);
   if (filter === "not-invested") result = result.filter((r2) => !r2.invested);
+  if (filter === "maturing") result = result.filter((r2) => r2.active?.isMaturing);
   if (search) {
     result = result.filter(
       (r2) => r2.userName.toLowerCase().includes(search) || r2.userEmail.toLowerCase().includes(search)
     );
   }
-  return res.json(result);
+  const allActive = users.flatMap((u) => {
+    const inv = invByUser.get(u.id) ?? [];
+    return inv.filter((i2) => i2.status === "active");
+  });
+  const now = Date.now();
+  const totalLocked = allActive.reduce((s, i2) => s + parseFloat(i2.amount), 0);
+  const totalRewardsOwed = allActive.reduce((s, i2) => s + parseFloat(i2.rewardAmount), 0);
+  const totalRewardsPaid = allTxns.filter((t2) => t2.type === "vault_reward").reduce((s, t2) => s + parseFloat(t2.amount), 0);
+  const maturingSoonCount = allActive.filter((i2) => {
+    const ms = i2.maturesAt.getTime() - now;
+    return ms > 0 && ms <= SEVEN_DAYS_MS;
+  }).length;
+  const tierMap = /* @__PURE__ */ new Map();
+  for (const inv of allActive) {
+    const rate = parseFloat(inv.dailyRate);
+    const entry = tierMap.get(rate) ?? { count: 0, totalLocked: 0 };
+    entry.count++;
+    entry.totalLocked += parseFloat(inv.amount);
+    tierMap.set(rate, entry);
+  }
+  const tierBreakdown = Array.from(tierMap.entries()).sort((a2, b3) => a2[0] - b3[0]).map(([dailyRate, v3]) => ({
+    dailyRate,
+    count: v3.count,
+    totalLocked: Math.round(v3.totalLocked * 100) / 100
+  }));
+  const stats = {
+    totalLocked: Math.round(totalLocked * 100) / 100,
+    totalRewardsOwed: Math.round(totalRewardsOwed * 100) / 100,
+    totalRewardsPaid: Math.round(totalRewardsPaid * 100) / 100,
+    activeCount: allActive.length,
+    maturingSoonCount,
+    tierBreakdown
+  };
+  return res.json({ stats, users: result });
 });
 function mapDepositSession(s, u) {
   return {
@@ -80833,6 +80948,69 @@ router13.post("/vault/invest", async (req, res) => {
     description: `Quantum Vault: ${termDays}-day investment locked`
   });
   return res.json({ message: "Quantum Vault investment started." });
+});
+router13.post("/vault/top-up", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  const user = await getUserFromToken9(token);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const topUpAmount = parseFloat(req.body?.amount);
+  if (!Number.isFinite(topUpAmount) || topUpAmount <= 0) {
+    return res.status(400).json({ error: "Enter a valid top-up amount." });
+  }
+  const rows = await db.select().from(vaultInvestmentsTable).where(and(eq(vaultInvestmentsTable.userId, user.id), eq(vaultInvestmentsTable.status, "active"))).limit(1);
+  if (rows.length === 0) {
+    return res.status(400).json({ error: "No active Quantum Vault investment to top up." });
+  }
+  const inv = rows[0];
+  if (Date.now() >= inv.maturesAt.getTime()) {
+    return res.status(400).json({ error: "This investment has already matured. Redeem it before adding funds." });
+  }
+  const vaultWalletBalance = await getVaultWalletBalance(user.id);
+  if (vaultWalletBalance < topUpAmount) {
+    return res.status(400).json({
+      error: `Insufficient funds in your Vault Wallet. You need $${topUpAmount.toFixed(2)} but have $${vaultWalletBalance.toFixed(2)}.`
+    });
+  }
+  const now = Date.now();
+  const started = inv.startedAt.getTime();
+  const matures = inv.maturesAt.getTime();
+  const totalMs = Math.max(matures - started, 1);
+  const elapsedMs = Math.min(Math.max(now - started, 0), totalMs);
+  const daysElapsed = Math.floor(elapsedMs / (24 * 60 * 60 * 1e3));
+  const daysRemaining = Math.max(inv.termDays - daysElapsed, 0);
+  const previousDailyRate = parseFloat(inv.dailyRate);
+  const oldAmount = parseFloat(inv.amount);
+  const newAmount = oldAmount + topUpAmount;
+  const newDailyRate = rateForAmount(newAmount);
+  if (newDailyRate === null) {
+    return res.status(400).json({ error: "New total does not match any Vault tier." });
+  }
+  const accruedSoFar = parseFloat((oldAmount * (previousDailyRate / 100) * daysElapsed).toFixed(2));
+  const remainingReward = parseFloat((newAmount * (newDailyRate / 100) * daysRemaining).toFixed(2));
+  const newRewardAmount = parseFloat((accruedSoFar + remainingReward).toFixed(2));
+  const tierUpgraded = newDailyRate > previousDailyRate;
+  await db.update(vaultInvestmentsTable).set({
+    amount: newAmount.toFixed(2),
+    dailyRate: newDailyRate.toFixed(2),
+    rewardAmount: newRewardAmount.toFixed(2)
+  }).where(eq(vaultInvestmentsTable.id, inv.id));
+  await db.insert(transactionsTable).values({
+    userId: user.id,
+    type: "vault_lock",
+    amount: topUpAmount.toFixed(2),
+    status: "completed",
+    paymentMethod: "balance",
+    description: `Quantum Vault: top-up added to active investment${tierUpgraded ? ` (rate upgraded to ${newDailyRate}%/day)` : ""}`
+  });
+  return res.json({
+    message: tierUpgraded ? `Top-up applied and rate upgraded to ${newDailyRate}%/day!` : "Top-up applied successfully.",
+    newAmount,
+    newDailyRate,
+    newRewardAmount,
+    tierUpgraded,
+    previousDailyRate,
+    vaultWalletBalance: await getVaultWalletBalance(user.id)
+  });
 });
 router13.post("/vault/redeem", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");

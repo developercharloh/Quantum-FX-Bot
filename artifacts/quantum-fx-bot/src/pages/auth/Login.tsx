@@ -274,7 +274,7 @@ export default function Login() {
               <FormItem className="space-y-2">
                 <FormLabel className="text-muted-foreground font-normal">Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="name@example.com" type="email" className="bg-card border-border h-12 rounded-xl text-base px-4" disabled={maintenanceMode} {...field} />
+                  <Input placeholder="name@example.com" type="email" className="bg-card border-border h-12 rounded-xl text-base px-4" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -285,7 +285,7 @@ export default function Login() {
                 <FormLabel className="text-muted-foreground font-normal">Password</FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Input placeholder="••••••••" type={showPassword ? "text" : "password"} className="bg-card border-border h-12 rounded-xl text-base px-4 pr-12" disabled={maintenanceMode} {...field} />
+                    <Input placeholder="••••••••" type={showPassword ? "text" : "password"} className="bg-card border-border h-12 rounded-xl text-base px-4 pr-12" {...field} />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
