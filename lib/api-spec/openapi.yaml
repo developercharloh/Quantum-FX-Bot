@@ -21,6 +21,18 @@ tags:
   - name: vault
 
 paths:
+  /status:
+    get:
+      operationId: getAppStatus
+      tags: [health]
+      responses:
+        "200":
+          description: Public app status (maintenance mode etc.)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppStatus"
+
   /healthz:
     get:
       operationId: healthCheck
@@ -2685,6 +2697,12 @@ components:
         description: { type: ["string", "null"] }
         createdAt: { type: string }
       required: [id, userId, userName, userEmail, type, amount, status, createdAt]
+
+    AppStatus:
+      type: object
+      properties:
+        maintenanceMode: { type: boolean }
+      required: [maintenanceMode]
 
     AdminTxnReviewInput:
       type: object

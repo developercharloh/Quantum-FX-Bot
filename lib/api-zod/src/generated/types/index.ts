@@ -44,6 +44,7 @@ export * from './adminVaultResponse';
 export * from './adminVaultStats';
 export * from './adminVaultTierStat';
 export * from './adminVaultUser';
+export * from './appStatus';
 export * from './authResponse';
 export * from './bot';
 export * from './botDetail';

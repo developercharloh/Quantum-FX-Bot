@@ -635,6 +635,10 @@ export interface AdminAssignBotInput {
   userId: number;
 }
 
+export interface AppStatus {
+  maintenanceMode: boolean;
+}
+
 export interface AdminTxnReviewInput {
   action: string;
 }

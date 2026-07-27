@@ -51,6 +51,7 @@ import type {
   AdminUserDetail,
   AdminUserStatusInput,
   AdminVaultResponse,
+  AppStatus,
   AuthResponse,
   Bot,
   BotDetail,
@@ -123,6 +124,77 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+
+
+export const getGetAppStatusUrl = () => {
+
+
+
+
+  return `/api/status`
+}
+
+export const getAppStatus = async ( options?: RequestInit): Promise<AppStatus> => {
+
+  return customFetch<AppStatus>(getGetAppStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAppStatusQueryKey = () => {
+    return [
+    `/api/status`
+    ] as const;
+    }
+
+
+export const getGetAppStatusQueryOptions = <TData = Awaited<ReturnType<typeof getAppStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAppStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAppStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAppStatus>>> = ({ signal }) => getAppStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAppStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAppStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getAppStatus>>>
+export type GetAppStatusQueryError = ErrorType<unknown>
+
+
+
+export function useGetAppStatus<TData = Awaited<ReturnType<typeof getAppStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAppStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAppStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
 
 
 

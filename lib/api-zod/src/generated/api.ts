@@ -8,6 +8,11 @@
 import * as zod from 'zod';
 
 
+export const GetAppStatusResponse = zod.object({
+  "maintenanceMode": zod.boolean()
+})
+
+
 /**
  * @summary Health check
  */

@@ -26,6 +26,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { MaintenanceProvider } from "@/contexts/MaintenanceContext";
+import { MaintenanceOverlay } from "@/components/MaintenanceOverlay";
 import { AuthGuard } from "@/components/AuthGuard";
 
 // Pages
@@ -168,16 +170,19 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <ErrorBoundary>
-              {/* On mobile: constrain all pages to 430px. On desktop: remove constraint so
-                  Layout.tsx can expand with its sidebar; auth/public pages get their own
-                  centered wrapper via the max-w-[430px] they inherited on mobile. */}
-              <div className="max-w-[430px] lg:max-w-none mx-auto lg:mx-0 min-h-screen bg-background relative overflow-x-hidden shadow-2xl lg:shadow-none">
-                <Router />
-              </div>
-            </ErrorBoundary>
-          </WouterRouter>
+          <MaintenanceProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <ErrorBoundary>
+                {/* On mobile: constrain all pages to 430px. On desktop: remove constraint so
+                    Layout.tsx can expand with its sidebar; auth/public pages get their own
+                    centered wrapper via the max-w-[430px] they inherited on mobile. */}
+                <div className="max-w-[430px] lg:max-w-none mx-auto lg:mx-0 min-h-screen bg-background relative overflow-x-hidden shadow-2xl lg:shadow-none">
+                  <Router />
+                </div>
+                <MaintenanceOverlay />
+              </ErrorBoundary>
+            </WouterRouter>
+          </MaintenanceProvider>
         </AuthProvider>
         <Toaster />
       </TooltipProvider>

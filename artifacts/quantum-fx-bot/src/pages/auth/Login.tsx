@@ -5,12 +5,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMaintenance } from "@/contexts/MaintenanceContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2, ShieldCheck, Mail, ChevronLeft } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldCheck, Mail, ChevronLeft, Wrench } from "lucide-react";
 import { QuantumLogo } from "@/components/QuantumLogo";
 
 const loginSchema = z.object({
@@ -22,6 +23,7 @@ const loginSchema = z.object({
 export default function Login() {
   const [, setLocation] = useLocation();
   const { setAuth } = useAuth();
+  const { maintenanceMode } = useMaintenance();
   const { toast } = useToast();
   const loginMutation = useLogin();
   const [showPassword, setShowPassword] = useState(false);
@@ -245,6 +247,22 @@ export default function Login() {
           <span className="text-xl font-bold tracking-tight text-white">Quantum<span className="text-primary"> FX</span> Bot</span>
         </div>
 
+        {/* Maintenance banner */}
+        {maintenanceMode && (
+          <div
+            className="flex items-start gap-3 rounded-2xl px-4 py-3.5 mb-6"
+            style={{ background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.3)" }}
+          >
+            <Wrench className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-violet-300 leading-none mb-1">Scheduled Maintenance</p>
+              <p className="text-xs text-white/55 leading-relaxed">
+                We're making a few improvements. Login is temporarily unavailable — please check back shortly.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="mb-8 w-full">
           <h1 className="text-2xl font-bold mb-1.5">Welcome back</h1>
           <p className="text-muted-foreground text-sm">Log in to your account</p>
@@ -256,7 +274,7 @@ export default function Login() {
               <FormItem className="space-y-2">
                 <FormLabel className="text-muted-foreground font-normal">Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="name@example.com" type="email" className="bg-card border-border h-12 rounded-xl text-base px-4" {...field} />
+                  <Input placeholder="name@example.com" type="email" className="bg-card border-border h-12 rounded-xl text-base px-4" disabled={maintenanceMode} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -267,7 +285,7 @@ export default function Login() {
                 <FormLabel className="text-muted-foreground font-normal">Password</FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Input placeholder="••••••••" type={showPassword ? "text" : "password"} className="bg-card border-border h-12 rounded-xl text-base px-4 pr-12" {...field} />
+                    <Input placeholder="••••••••" type={showPassword ? "text" : "password"} className="bg-card border-border h-12 rounded-xl text-base px-4 pr-12" disabled={maintenanceMode} {...field} />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
@@ -287,7 +305,7 @@ export default function Login() {
               <Link href="/forgot-password" className="text-sm text-primary font-medium">Forgot password?</Link>
             </div>
 
-            <Button type="submit" className="w-full h-14 rounded-xl text-lg font-medium shadow-none" disabled={loginMutation.isPending}>
+            <Button type="submit" className="w-full h-14 rounded-xl text-lg font-medium shadow-none" disabled={loginMutation.isPending || maintenanceMode}>
               {loginMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Login"}
             </Button>
           </form>
