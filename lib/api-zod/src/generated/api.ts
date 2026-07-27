@@ -1171,11 +1171,25 @@ export const AdminListVaultUsersQueryParams = zod.object({
   "filter": zod.coerce.string().optional()
 })
 
-export const AdminListVaultUsersResponseItem = zod.object({
+export const AdminListVaultUsersResponse = zod.object({
+  "stats": zod.object({
+  "totalLocked": zod.number(),
+  "totalRewardsOwed": zod.number(),
+  "totalRewardsPaid": zod.number(),
+  "activeCount": zod.number(),
+  "maturingSoonCount": zod.number(),
+  "tierBreakdown": zod.array(zod.object({
+  "dailyRate": zod.number(),
+  "count": zod.number(),
+  "totalLocked": zod.number()
+}))
+}),
+  "users": zod.array(zod.object({
   "userId": zod.number(),
   "userName": zod.string(),
   "userEmail": zod.string(),
   "invested": zod.boolean(),
+  "vaultWalletBalance": zod.number(),
   "active": zod.union([zod.object({
   "id": zod.number(),
   "amount": zod.number(),
@@ -1185,7 +1199,11 @@ export const AdminListVaultUsersResponseItem = zod.object({
   "status": zod.string(),
   "startedAt": zod.string(),
   "maturesAt": zod.string(),
-  "redeemedAt": zod.string().nullish()
+  "redeemedAt": zod.string().nullish(),
+  "topUpCount": zod.number(),
+  "tierUpgraded": zod.boolean(),
+  "isMaturing": zod.boolean(),
+  "maturesInDays": zod.number()
 }),zod.null()]),
   "history": zod.array(zod.object({
   "id": zod.number(),
@@ -1196,12 +1214,16 @@ export const AdminListVaultUsersResponseItem = zod.object({
   "status": zod.string(),
   "startedAt": zod.string(),
   "maturesAt": zod.string(),
-  "redeemedAt": zod.string().nullish()
+  "redeemedAt": zod.string().nullish(),
+  "topUpCount": zod.number(),
+  "tierUpgraded": zod.boolean(),
+  "isMaturing": zod.boolean(),
+  "maturesInDays": zod.number()
 })),
   "totalInvested": zod.number(),
   "totalRewardsEarned": zod.number()
+}))
 })
-export const AdminListVaultUsersResponse = zod.array(AdminListVaultUsersResponseItem)
 
 
 export const AdminListTicketsQueryParams = zod.object({

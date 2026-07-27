@@ -758,7 +758,20 @@ router.post("/admin/transactions/:id/review", async (req, res) => {
 });
 
 // ---------------- Vault ----------------
-function mapAdminVaultInvestment(inv: typeof vaultInvestmentsTable.$inferSelect) {
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+function mapAdminVaultInvestment(
+  inv: typeof vaultInvestmentsTable.$inferSelect,
+  topUpCount: number,
+  tierUpgraded: boolean,
+) {
+  const now = Date.now();
+  const matures = inv.maturesAt.getTime();
+  const msRemaining = matures - now;
+  const isMaturing = inv.status === "active" && msRemaining > 0 && msRemaining <= SEVEN_DAYS_MS;
+  const maturesInDays = inv.status === "active"
+    ? Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000)))
+    : 0;
   return {
     id: inv.id,
     amount: parseFloat(inv.amount),
@@ -769,6 +782,10 @@ function mapAdminVaultInvestment(inv: typeof vaultInvestmentsTable.$inferSelect)
     startedAt: inv.startedAt.toISOString(),
     maturesAt: inv.maturesAt.toISOString(),
     redeemedAt: inv.redeemedAt ? inv.redeemedAt.toISOString() : null,
+    topUpCount,
+    tierUpgraded,
+    isMaturing,
+    maturesInDays,
   };
 }
 
@@ -776,32 +793,75 @@ router.get("/admin/vault", async (req, res) => {
   const search = (req.query.search as string | undefined)?.trim().toLowerCase();
   const filter = (req.query.filter as string | undefined) ?? "all";
 
-  const [users, investments] = await Promise.all([
+  const [users, investments, allTxns] = await Promise.all([
     db.select().from(usersTable).orderBy(desc(usersTable.createdAt)),
     db.select().from(vaultInvestmentsTable).orderBy(desc(vaultInvestmentsTable.createdAt)),
+    db.select().from(transactionsTable).where(eq(transactionsTable.status, "completed")),
   ]);
 
-  const byUser = new Map<number, typeof investments>();
+  // Group investments and transactions by userId
+  const invByUser = new Map<number, typeof investments>();
   for (const inv of investments) {
-    const list = byUser.get(inv.userId) ?? [];
+    const list = invByUser.get(inv.userId) ?? [];
     list.push(inv);
-    byUser.set(inv.userId, list);
+    invByUser.set(inv.userId, list);
+  }
+
+  const txnsByUser = new Map<number, typeof allTxns>();
+  for (const t of allTxns) {
+    const list = txnsByUser.get(t.userId) ?? [];
+    list.push(t);
+    txnsByUser.set(t.userId, list);
+  }
+
+  // Compute vault wallet balance from transactions (same logic as getVaultWalletBalance)
+  function vaultWalletBalanceFromTxns(txns: typeof allTxns): number {
+    let bal = 0;
+    for (const t of txns) {
+      const amt = parseFloat(t.amount);
+      if (t.type === "vault_fund" || t.type === "vault_unlock" || t.type === "vault_reward") bal += amt;
+      if (t.type === "vault_lock" || t.type === "vault_transfer") bal -= amt;
+    }
+    return Math.round(bal * 100) / 100;
   }
 
   let result = users.map((u) => {
-    const userInvestments = byUser.get(u.id) ?? [];
+    const userInvestments = invByUser.get(u.id) ?? [];
+    const userTxns = txnsByUser.get(u.id) ?? [];
     const active = userInvestments.find((i) => i.status === "active") ?? null;
+
+    // Top-up and tier-upgrade detection from vault_lock transactions
+    let topUpCount = 0;
+    let tierUpgraded = false;
+    if (active) {
+      const investedAt = active.startedAt.getTime();
+      for (const t of userTxns) {
+        if (
+          t.type === "vault_lock" &&
+          t.description?.includes("top-up") &&
+          new Date(t.createdAt ?? 0).getTime() >= investedAt
+        ) {
+          topUpCount++;
+          if (t.description?.includes("rate upgraded")) tierUpgraded = true;
+        }
+      }
+    }
+
     const totalInvested = userInvestments.reduce((s, i) => s + parseFloat(i.amount), 0);
     const totalRewardsEarned = userInvestments
       .filter((i) => i.status === "redeemed")
       .reduce((s, i) => s + parseFloat(i.rewardAmount), 0);
+
     return {
       userId: u.id,
       userName: u.fullName,
       userEmail: u.email,
       invested: userInvestments.length > 0,
-      active: active ? mapAdminVaultInvestment(active) : null,
-      history: userInvestments.map(mapAdminVaultInvestment),
+      vaultWalletBalance: vaultWalletBalanceFromTxns(userTxns),
+      active: active ? mapAdminVaultInvestment(active, topUpCount, tierUpgraded) : null,
+      history: userInvestments
+        .filter((i) => i.status !== "active")
+        .map((i) => mapAdminVaultInvestment(i, 0, false)),
       totalInvested: Math.round(totalInvested * 100) / 100,
       totalRewardsEarned: Math.round(totalRewardsEarned * 100) / 100,
     };
@@ -810,6 +870,7 @@ router.get("/admin/vault", async (req, res) => {
   if (filter === "invested") result = result.filter((r) => r.invested);
   if (filter === "active") result = result.filter((r) => r.active !== null);
   if (filter === "not-invested") result = result.filter((r) => !r.invested);
+  if (filter === "maturing") result = result.filter((r) => r.active?.isMaturing);
 
   if (search) {
     result = result.filter(
@@ -817,7 +878,48 @@ router.get("/admin/vault", async (req, res) => {
     );
   }
 
-  return res.json(result);
+  // Aggregate stats (computed before filtering so numbers are always global)
+  const allActive = users.flatMap((u) => {
+    const inv = invByUser.get(u.id) ?? [];
+    return inv.filter((i) => i.status === "active");
+  });
+  const now = Date.now();
+  const totalLocked = allActive.reduce((s, i) => s + parseFloat(i.amount), 0);
+  const totalRewardsOwed = allActive.reduce((s, i) => s + parseFloat(i.rewardAmount), 0);
+  const totalRewardsPaid = allTxns
+    .filter((t) => t.type === "vault_reward")
+    .reduce((s, t) => s + parseFloat(t.amount), 0);
+  const maturingSoonCount = allActive.filter((i) => {
+    const ms = i.maturesAt.getTime() - now;
+    return ms > 0 && ms <= SEVEN_DAYS_MS;
+  }).length;
+
+  const tierMap = new Map<number, { count: number; totalLocked: number }>();
+  for (const inv of allActive) {
+    const rate = parseFloat(inv.dailyRate);
+    const entry = tierMap.get(rate) ?? { count: 0, totalLocked: 0 };
+    entry.count++;
+    entry.totalLocked += parseFloat(inv.amount);
+    tierMap.set(rate, entry);
+  }
+  const tierBreakdown = Array.from(tierMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([dailyRate, v]) => ({
+      dailyRate,
+      count: v.count,
+      totalLocked: Math.round(v.totalLocked * 100) / 100,
+    }));
+
+  const stats = {
+    totalLocked: Math.round(totalLocked * 100) / 100,
+    totalRewardsOwed: Math.round(totalRewardsOwed * 100) / 100,
+    totalRewardsPaid: Math.round(totalRewardsPaid * 100) / 100,
+    activeCount: allActive.length,
+    maturingSoonCount,
+    tierBreakdown,
+  };
+
+  return res.json({ stats, users: result });
 });
 
 // ---------------- Deposit Sessions ----------------

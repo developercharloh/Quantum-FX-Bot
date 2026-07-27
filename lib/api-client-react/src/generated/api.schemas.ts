@@ -639,6 +639,21 @@ export interface AdminTxnReviewInput {
   action: string;
 }
 
+export interface AdminVaultTierStat {
+  dailyRate: number;
+  count: number;
+  totalLocked: number;
+}
+
+export interface AdminVaultStats {
+  totalLocked: number;
+  totalRewardsOwed: number;
+  totalRewardsPaid: number;
+  activeCount: number;
+  maturingSoonCount: number;
+  tierBreakdown: AdminVaultTierStat[];
+}
+
 export interface AdminVaultInvestment {
   id: number;
   amount: number;
@@ -650,6 +665,10 @@ export interface AdminVaultInvestment {
   maturesAt: string;
   /** @nullable */
   redeemedAt?: string | null;
+  topUpCount: number;
+  tierUpgraded: boolean;
+  isMaturing: boolean;
+  maturesInDays: number;
 }
 
 export interface AdminVaultUser {
@@ -657,10 +676,16 @@ export interface AdminVaultUser {
   userName: string;
   userEmail: string;
   invested: boolean;
+  vaultWalletBalance: number;
   active: AdminVaultInvestment | null;
   history: AdminVaultInvestment[];
   totalInvested: number;
   totalRewardsEarned: number;
+}
+
+export interface AdminVaultResponse {
+  stats: AdminVaultStats;
+  users: AdminVaultUser[];
 }
 
 export interface AdminTicket {

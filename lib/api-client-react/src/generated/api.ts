@@ -50,7 +50,7 @@ import type {
   AdminUser,
   AdminUserDetail,
   AdminUserStatusInput,
-  AdminVaultUser,
+  AdminVaultResponse,
   AuthResponse,
   Bot,
   BotDetail,
@@ -5284,9 +5284,9 @@ export const getAdminListVaultUsersUrl = (params?: AdminListVaultUsersParams,) =
   return stringifiedParams.length > 0 ? `/api/admin/vault?${stringifiedParams}` : `/api/admin/vault`
 }
 
-export const adminListVaultUsers = async (params?: AdminListVaultUsersParams, options?: RequestInit): Promise<AdminVaultUser[]> => {
+export const adminListVaultUsers = async (params?: AdminListVaultUsersParams, options?: RequestInit): Promise<AdminVaultResponse> => {
 
-  return customFetch<AdminVaultUser[]>(getAdminListVaultUsersUrl(params),
+  return customFetch<AdminVaultResponse>(getAdminListVaultUsersUrl(params),
   {
     ...options,
     method: 'GET'

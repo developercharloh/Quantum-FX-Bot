@@ -12,6 +12,7 @@ export interface AdminVaultUser {
   userName: string;
   userEmail: string;
   invested: boolean;
+  vaultWalletBalance: number;
   active: AdminVaultInvestment | null;
   history: AdminVaultInvestment[];
   totalInvested: number;

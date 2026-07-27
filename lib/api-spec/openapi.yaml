@@ -1444,13 +1444,11 @@ paths:
             type: string
       responses:
         "200":
-          description: Per-user vault investment status
+          description: Per-user vault investment status with aggregate stats
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/AdminVaultUser"
+                $ref: "#/components/schemas/AdminVaultResponse"
 
   /admin/tickets:
     get:
@@ -2694,6 +2692,28 @@ components:
         action: { type: string }
       required: [action]
 
+    AdminVaultTierStat:
+      type: object
+      properties:
+        dailyRate: { type: number }
+        count: { type: integer }
+        totalLocked: { type: number }
+      required: [dailyRate, count, totalLocked]
+
+    AdminVaultStats:
+      type: object
+      properties:
+        totalLocked: { type: number }
+        totalRewardsOwed: { type: number }
+        totalRewardsPaid: { type: number }
+        activeCount: { type: integer }
+        maturingSoonCount: { type: integer }
+        tierBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminVaultTierStat"
+      required: [totalLocked, totalRewardsOwed, totalRewardsPaid, activeCount, maturingSoonCount, tierBreakdown]
+
     AdminVaultInvestment:
       type: object
       properties:
@@ -2706,7 +2726,11 @@ components:
         startedAt: { type: string }
         maturesAt: { type: string }
         redeemedAt: { type: ["string", "null"] }
-      required: [id, amount, termDays, dailyRate, rewardAmount, status, startedAt, maturesAt]
+        topUpCount: { type: integer }
+        tierUpgraded: { type: boolean }
+        isMaturing: { type: boolean }
+        maturesInDays: { type: integer }
+      required: [id, amount, termDays, dailyRate, rewardAmount, status, startedAt, maturesAt, topUpCount, tierUpgraded, isMaturing, maturesInDays]
 
     AdminVaultUser:
       type: object
@@ -2715,6 +2739,7 @@ components:
         userName: { type: string }
         userEmail: { type: string }
         invested: { type: boolean }
+        vaultWalletBalance: { type: number }
         active:
           oneOf:
             - $ref: "#/components/schemas/AdminVaultInvestment"
@@ -2725,7 +2750,18 @@ components:
             $ref: "#/components/schemas/AdminVaultInvestment"
         totalInvested: { type: number }
         totalRewardsEarned: { type: number }
-      required: [userId, userName, userEmail, invested, active, history, totalInvested, totalRewardsEarned]
+      required: [userId, userName, userEmail, invested, vaultWalletBalance, active, history, totalInvested, totalRewardsEarned]
+
+    AdminVaultResponse:
+      type: object
+      properties:
+        stats:
+          $ref: "#/components/schemas/AdminVaultStats"
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminVaultUser"
+      required: [stats, users]
 
     AdminTicket:
       type: object

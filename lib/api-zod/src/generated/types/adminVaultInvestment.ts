@@ -17,4 +17,8 @@ export interface AdminVaultInvestment {
   maturesAt: string;
   /** @nullable */
   redeemedAt?: string | null;
+  topUpCount: number;
+  tierUpgraded: boolean;
+  isMaturing: boolean;
+  maturesInDays: number;
 }
