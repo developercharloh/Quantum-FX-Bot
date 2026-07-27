@@ -31,12 +31,13 @@ export function MaintenanceOverlay() {
       </div>
 
       <h1 className="text-2xl font-bold text-white mb-3">
-        We'll be right back
+        Scheduled Maintenance
       </h1>
 
       <p className="text-sm text-white/55 leading-relaxed max-w-xs mb-8">
-        We're making a few improvements to serve you better.
-        Your funds are safe — we'll be back shortly. Thank you for your patience.
+        Our trading systems are currently undergoing routine maintenance to improve
+        execution speed and platform stability. Your account balance and open positions
+        are fully secure. We'll be back online shortly.
       </p>
 
       <button

@@ -257,7 +257,7 @@ export default function Login() {
             <div>
               <p className="text-sm font-semibold text-violet-300 leading-none mb-1">Scheduled Maintenance</p>
               <p className="text-xs text-white/55 leading-relaxed">
-                We're making a few improvements. Login is temporarily unavailable — please check back shortly.
+                Our trading systems are undergoing routine maintenance. Login is temporarily unavailable — your account and funds remain fully secure. Please check back shortly.
               </p>
             </div>
           </div>
